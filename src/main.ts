@@ -1,5 +1,6 @@
 import { Plugin } from 'obsidian';
 import { BetterEditSettings, DEFAULT_SETTINGS, BetterEditSettingTab } from './settings';
+import { initImageFeature, createImageExtension } from './features/image/index';
 
 export default class BetterEditPlugin extends Plugin {
 	settings: BetterEditSettings;
@@ -7,6 +8,11 @@ export default class BetterEditPlugin extends Plugin {
 	async onload() {
 		await this.loadSettings();
 		this.addSettingTab(new BetterEditSettingTab(this.app, this));
+
+		if (this.settings.imageArrangementEnabled) {
+			initImageFeature(this);
+			this.registerEditorExtension(createImageExtension(this));
+		}
 	}
 
 	onunload() {}
