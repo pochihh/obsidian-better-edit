@@ -170,23 +170,47 @@ entire `<div>` with the filled image HTML.
 
 #### Filled: Single image, no caption
 
+Always wrapped in a `<div>` so Lezer parses the block as `HTMLBlock` (not inline HTML).
+Alignment is controlled by `text-align` on the wrapper for normal flow, or `float` for
+text-wrap variants.
+
 ```html
-<img src="attachments/photo.png" style="width: 320px; display: block; margin: 0 auto;" />
+<!-- center (default) -->
+<div style="text-align: center;">
+  <img src="attachments/photo.png" style="width: 320px; max-width: 100%;" />
+</div>
+
+<!-- left -->
+<div style="text-align: left;">
+  <img src="attachments/photo.png" style="width: 320px; max-width: 100%;" />
+</div>
+
+<!-- right -->
+<div style="text-align: right;">
+  <img src="attachments/photo.png" style="width: 320px; max-width: 100%;" />
+</div>
+
+<!-- float left (text wraps around image) -->
+<div style="float: left; margin: 0 16px 12px 0;">
+  <img src="attachments/photo.png" style="width: 320px; max-width: 100%;" />
+</div>
+
+<!-- float right -->
+<div style="float: right; margin: 0 0 12px 16px;">
+  <img src="attachments/photo.png" style="width: 320px; max-width: 100%;" />
+</div>
 ```
 
-Alignment variants via `margin`:
-- Left: `margin: 0 auto 0 0;`
-- Center: `margin: 0 auto;`
-- Right: `margin: 0 0 0 auto;`
-- Float left (text wraps): `float: left; margin: 0 16px 12px 0;`
-- Float right (text wraps): `float: right; margin: 0 0 12px 16px;`
+The `<div>` wrapper degrades gracefully in any HTML renderer without the plugin.
 
 #### Filled: Image with caption
 
+Width moves to the outer `<div>` so the caption stays pinned to the image width.
+
 ```html
-<div style="width: 320px; margin: 0 auto;">
-  <img src="attachments/photo.png" style="width: 100%; display: block;" />
-  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0; text-align: center;">Caption text</p>
+<div style="width: 320px; text-align: center; margin: 0 auto;">
+  <img src="attachments/photo.png" style="width: 100%; max-width: 100%;" />
+  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">Caption text</p>
 </div>
 ```
 
@@ -206,8 +230,9 @@ Alignment variants via `margin`:
 1. User pastes or drops an image (or onto a placeholder).
 2. Plugin intercepts `editor-paste` / `editor-drop` before Obsidian's default handler.
 3. Image file saved to vault using the user's configured attachment folder settings.
-4. Plugin inserts (or replaces placeholder with) the filled `<img>` HTML.
-5. Live Preview widget renders immediately.
+4. Plugin inserts (or replaces placeholder with) the filled image HTML block.
+5. Cursor is advanced to the line after the inserted block (matching Obsidian's native
+   `![[img]]` behavior) so Live Preview renders the widget immediately.
 
 ---
 

@@ -92,33 +92,28 @@ class ImageWidget extends WidgetType {
 	}
 
 	toDOM(view: EditorView): HTMLElement {
+		// Outer wrapper mirrors the file's <div> — controls alignment
+		const outerStyle = this.outerStyleForAlignment(this.block.alignment);
 		const wrapper = createDiv({
 			attr: {
 				'data-better-edit': 'image-widget',
-				style: 'position: relative; display: inline-block; max-width: 100%;',
+				style: `position: relative; ${outerStyle}`,
 			},
 		});
+
+		const imgSrc = this.resolveImageSrc(this.block.src);
+		const imgStyle = this.block.caption
+			? 'width: 100%; max-width: 100%;'
+			: `width: ${this.block.width}; max-width: 100%;`;
 
 		const img = createEl('img', {
-			attr: {
-				src: this.resolveImageSrc(this.block.src),
-				style: [
-					`width: ${this.block.width}`,
-					'display: block',
-					this.marginForAlignment(this.block.alignment),
-					'max-width: 100%',
-				].filter(Boolean).join('; '),
-				draggable: 'false',
-			},
+			attr: { src: imgSrc, style: imgStyle, draggable: 'false' },
 		});
-
 		wrapper.appendChild(img);
 
 		if (this.block.caption) {
 			const caption = createEl('p', {
-				attr: {
-					style: 'font-size: 0.85em; color: #888; margin: 4px 0 0; text-align: center;',
-				},
+				attr: { style: 'font-size: 0.85em; color: #888; margin: 4px 0 0;' },
 			});
 			caption.setText(this.block.caption);
 			wrapper.appendChild(caption);
@@ -140,21 +135,19 @@ class ImageWidget extends WidgetType {
 	}
 
 	private resolveImageSrc(src: string): string {
-		// If it's already a full URL or app:// URI, return as-is
 		if (src.startsWith('http') || src.startsWith('app://')) return src;
-		// Otherwise resolve via the vault adapter
 		const adapter = this.plugin.app.vault.adapter as { getResourcePath?: (p: string) => string };
 		if (adapter.getResourcePath) return adapter.getResourcePath(src);
 		return src;
 	}
 
-	private marginForAlignment(alignment: ImageAlignment): string {
+	private outerStyleForAlignment(alignment: ImageAlignment): string {
 		switch (alignment) {
-			case 'left':       return 'margin: 0 auto 0 0';
-			case 'center':     return 'margin: 0 auto';
-			case 'right':      return 'margin: 0 0 0 auto';
-			case 'float-left': return 'float: left; margin: 0 16px 12px 0';
-			case 'float-right': return 'float: right; margin: 0 0 12px 16px';
+			case 'left':        return 'text-align: left;';
+			case 'center':      return 'text-align: center;';
+			case 'right':       return 'text-align: right;';
+			case 'float-left':  return 'float: left; margin: 0 16px 12px 0;';
+			case 'float-right': return 'float: right; margin: 0 0 12px 16px;';
 		}
 	}
 
@@ -257,8 +250,8 @@ function buildDecorations(view: EditorView, plugin: BetterEditPlugin): Decoratio
 
 	syntaxTree(view.state).iterate({
 		enter(node) {
-			// Lezer node type for an HTML block is "HtmlBlock"
-			if (node.name !== 'HtmlBlock') return;
+			// Lezer node type for a block-level HTML element is "HTMLBlock"
+			if (node.name !== 'HTMLBlock') return;
 
 			const from = node.from;
 			const to = node.to;

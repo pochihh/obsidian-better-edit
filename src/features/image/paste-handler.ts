@@ -120,19 +120,25 @@ function getImageFromDataTransfer(transfer: DataTransfer | null): File | null {
 }
 
 /**
- * Inserts `html` on a new line at the cursor position.
- * Ensures blank lines before and after for clean block separation.
+ * Inserts `html` at the cursor position and advances the cursor past the block.
+ * Mirrors Obsidian's native ![[img]] behavior: cursor lands on the line after insertion.
  */
 function insertHtmlAtCursor(editor: Editor, html: string): void {
 	const cursor = editor.getCursor();
 	const lineText = editor.getLine(cursor.line);
 	const isEmptyLine = lineText.trim() === '';
 
-	const insertion = isEmptyLine
-		? `${html}\n`
-		: `\n${html}\n`;
+	// Build the insertion: if on an empty line replace it; otherwise start on a new line
+	const prefix = isEmptyLine ? '' : '\n';
+	const insertion = `${prefix}${html}\n`;
+	const insertPos = { line: cursor.line, ch: isEmptyLine ? 0 : lineText.length };
 
-	editor.replaceRange(insertion, { line: cursor.line, ch: isEmptyLine ? 0 : lineText.length });
+	editor.replaceRange(insertion, insertPos);
+
+	// Advance cursor to the line after the inserted block
+	const htmlLineCount = html.split('\n').length;
+	const targetLine = cursor.line + (isEmptyLine ? 0 : 1) + htmlLineCount;
+	editor.setCursor({ line: targetLine, ch: 0 });
 }
 
 /**
