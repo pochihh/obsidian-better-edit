@@ -37,7 +37,7 @@ Always run `npm run lint` before committing code changes.
 
 | Type | When to use |
 |---|---|
-| `feat` | New feature or capability |
+| `feature` | New feature or capability |
 | `fix` | Bug fix |
 | `refactor` | Code restructure, no behavior change |
 | `chore` | Tooling, config, dependencies |
@@ -60,23 +60,50 @@ Examples: `image`, `blocks`, `slash-cmd`, `settings`, `shared`, `skill`, `deps`
 
 ### Body (optional)
 
-Add a body when the *why* isn't obvious from the summary. Skip it for
-straightforward changes.
+Include a body only when the summary line alone is not enough to understand
+what changed or why. Rules:
+
+- Maximum **3 bullet points**
+- Each bullet maximum **100 characters**
+- No prose paragraphs — bullets only
+- If the change requires more explanation than 3 bullets can hold, create a
+  document in `docs/` describing it, and reference that file in the body instead:
+  `see docs/<filename>.md`
+
+### Strict no-add rules
+
+Never include any of the following in a commit message:
+
+- Creation or modification dates
+- `Co-authored-by:` lines (Claude, Codex, any AI tool, any person)
+- Author or co-author email addresses
+- Contact information of any kind
+- Tool names or version numbers used to generate the commit
+- Any metadata not directly describing the code change
 
 ## Examples
 
 ```
-feat(image): add paste handler with defaultPrevented check
+feature(image): add paste handler with defaultPrevented check
 
 chore(deps): add eslint-plugin-obsidianmd and tsconfig
 
 docs: add full DESIGN.md with all four features
 
-feat(image): implement CM6 widget with resize handles
+feature(image): implement CM6 widget with resize handles
 
 fix(slash-cmd): close menu on Escape key
 
 refactor(shared): extract block detection into block-model.ts
+```
+
+With a body:
+```
+feature(image): add placeholder HTML state
+
+- Inserts <div data-placeholder="image"> via slash command
+- Placeholder is immediately draggable as a block
+- see docs/image-placeholder.md
 ```
 
 ## How to commit
@@ -85,12 +112,4 @@ refactor(shared): extract block detection into block-model.ts
 git add -A                          # or stage specific files
 git status                          # verify what's staged
 git commit -m "<message>"
-```
-
-For multi-line messages:
-```bash
-git commit -m "feat(image): add placeholder HTML state
-
-Introduces data-placeholder attribute for image blocks created
-via slash command before an image file is selected."
 ```
