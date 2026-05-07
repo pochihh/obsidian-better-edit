@@ -1,0 +1,30 @@
+{
+	"name": "obsidian-better-edit",
+	"version": "0.1.0",
+	"description": "A multi-feature editing toolbox for Obsidian",
+	"main": "main.js",
+	"type": "module",
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"version": "node version-bump.mjs && git add manifest.json versions.json",
+		"lint": "eslint .",
+		"lint:fix": "eslint . --fix"
+	},
+	"keywords": [],
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^16.11.6",
+		"@eslint/js": "9.30.1",
+		"esbuild": "0.25.5",
+		"eslint-plugin-obsidianmd": "0.2.9",
+		"globals": "14.0.0",
+		"jiti": "2.6.1",
+		"tslib": "2.4.0",
+		"typescript": "^5.8.3",
+		"typescript-eslint": "8.59.2"
+	},
+	"dependencies": {
+		"obsidian": "latest"
+	}
+}

@@ -1,0 +1,24 @@
+# Build output
+main.js
+main.js.map
+
+# Dependencies
+node_modules/
+
+# TypeScript
+*.js.map
+
+# Obsidian dev vault (if you test inside a vault)
+.obsidian/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
+
+# Env / secrets
+.env
+.env.*
