@@ -33,6 +33,7 @@ import {
 } from './html-schema';
 import {
 	imageSelectionField,
+	selectImageBlock,
 	deselectImageBlock,
 	SelectedImageBlock,
 } from './selection';
@@ -299,13 +300,30 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 				const selection = view.state.field(imageSelectionField);
 				this.decorations = buildDecorations(view, plugin, selection);
 
-				// Deselect when clicking outside any image widget
+				// Capture-phase mousedown: fires before Obsidian's own source-reveal handler.
+				// stopImmediatePropagation prevents ALL subsequent handlers (capture + bubble).
 				plugin.registerDomEvent(view.dom, 'mousedown', (e: MouseEvent) => {
 					const target = e.target as Element;
-					if (!target.closest('.better-edit-image-widget')) {
+					const widget = target.closest<HTMLElement>('[data-be-from]');
+
+					if (widget) {
+						e.preventDefault();
+						e.stopImmediatePropagation();
+
+						const from = parseInt(widget.dataset.beFrom ?? '', 10);
+						const to   = parseInt(widget.dataset.beTo   ?? '', 10);
+						if (isNaN(from) || isNaN(to)) return;
+
+						// Cursor one char past the block — safely outside the HTML range
+						const safePos = Math.min(to + 1, view.state.doc.length);
+						view.dispatch({
+							selection: { anchor: safePos },
+							effects: selectImageBlock.of({ from, to }),
+						});
+					} else if (!target.closest('.better-edit-image-widget')) {
 						view.dispatch({ effects: deselectImageBlock.of(null) });
 					}
-				});
+				}, { capture: true }); // capture = runs before Obsidian's handlers
 			}
 
 			update(update: ViewUpdate) {
