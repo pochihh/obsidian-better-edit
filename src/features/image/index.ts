@@ -34,29 +34,33 @@ export function createImageExtension(plugin: BetterEditPlugin): Extension {
 // ---------------------------------------------------------------------------
 
 function buildMousedownExtension(): Extension {
+	// Shared handler — intercepts both mousedown and click so nothing slips through
+	function handleImageClick(event: MouseEvent, view: EditorView): boolean {
+		const target = event.target as Element;
+		const widget = target.closest('[data-be-from]');
+		if (!widget) return false;
+
+		const el   = widget as HTMLElement;
+		const from = parseInt(el.dataset.beFrom ?? '', 10);
+		const to   = parseInt(el.dataset.beTo   ?? '', 10);
+		if (isNaN(from) || isNaN(to)) return false;
+
+		event.preventDefault();
+
+		// Place cursor one character AFTER the block — unambiguously outside the
+		// HTML block range, so Obsidian's source-reveal never triggers.
+		const safePos = Math.min(to + 1, view.state.doc.length);
+		view.dispatch({
+			selection: { anchor: safePos },
+			effects: selectImageBlock.of({ from, to }),
+		});
+
+		return true; // tells CM6: event fully handled, skip cursor positioning
+	}
+
 	return EditorView.domEventHandlers({
-		mousedown(event: MouseEvent, view: EditorView): boolean {
-			const target = event.target as Element;
-			const widget = target.closest('[data-be-from]');
-			if (!widget) return false;
-
-			const el   = widget as HTMLElement;
-			const from = parseInt(el.dataset.beFrom ?? '', 10);
-			const to   = parseInt(el.dataset.beTo   ?? '', 10);
-			if (isNaN(from) || isNaN(to)) return false;
-
-			event.preventDefault();
-
-			// Place cursor just after the block so Obsidian never reveals source,
-			// and mark the block as selected for the ring + keyboard ops.
-			const safePos = Math.min(to, view.state.doc.length);
-			view.dispatch({
-				selection: { anchor: safePos },
-				effects: selectImageBlock.of({ from, to }),
-			});
-
-			return true; // tells CM6: event handled, skip cursor positioning
-		},
+		mousedown: handleImageClick,
+		click:     handleImageClick,
 	});
 }
 

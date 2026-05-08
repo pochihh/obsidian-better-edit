@@ -7,7 +7,7 @@
 /* Image widget wrapper */
 .better-edit-image-widget {
 	position: relative;
-	display: inline-block;
+	display: block;   /* full-width block so any click in the area hits the widget */
 	max-width: 100%;
 	cursor: default;
 }
