@@ -10,9 +10,11 @@
  */
 
 import { EditorView, keymap } from '@codemirror/view';
-import { Extension, Prec } from '@codemirror/state';
+import { EditorSelection, EditorState, Extension, Prec } from '@codemirror/state';
+import { editorLivePreviewField } from 'obsidian';
 import { registerPasteDropHandlers } from './paste-handler';
 import { createImageDecorationField, createImageWidgetExtension } from './widget';
+import { parseImageBlock } from './html-schema';
 import { imageSelectionField, deselectImageBlock } from './selection';
 import type BetterEditPlugin from '../../main';
 
@@ -25,6 +27,7 @@ export function createImageExtension(plugin: BetterEditPlugin): Extension {
 		imageSelectionField,
 		Prec.highest(createImageDecorationField(plugin)), // Must win over Obsidian's native HTML embed decoration.
 		createImageWidgetExtension(plugin),   // ViewPlugin — mousedown handler only
+		Prec.highest(buildSelectionGuardExtension()),
 		Prec.highest(buildKeydownExtension()),
 	];
 }
@@ -78,9 +81,8 @@ function buildKeydownExtension(): Extension {
 				const selected = view.state.field(imageSelectionField);
 				if (selected === null) return false;
 
-				const lineStart = view.state.doc.lineAt(selected.from).from;
 				view.dispatch({
-					selection: { anchor: Math.max(0, lineStart - 1) },
+					selection: { anchor: previousTextBoundary(view.state, selected.from) },
 					effects: deselectImageBlock.of(null),
 				});
 				return true;
@@ -94,7 +96,7 @@ function buildKeydownExtension(): Extension {
 				if (selected === null) return false;
 
 				view.dispatch({
-					selection: { anchor: selected.from },
+					selection: { anchor: previousTextBoundary(view.state, selected.from) },
 					effects: deselectImageBlock.of(null),
 				});
 				return true;
@@ -108,7 +110,7 @@ function buildKeydownExtension(): Extension {
 				if (selected === null) return false;
 
 				view.dispatch({
-					selection: { anchor: selected.to },
+					selection: { anchor: nextTextBoundary(view.state, selected.to) },
 					effects: deselectImageBlock.of(null),
 				});
 				return true;
@@ -122,13 +124,38 @@ function buildKeydownExtension(): Extension {
 				if (selected === null) return false;
 
 				view.dispatch({
-					selection: { anchor: Math.min(view.state.doc.length, selected.to + 1) },
+					selection: { anchor: nextTextBoundary(view.state, selected.to) },
 					effects: deselectImageBlock.of(null),
 				});
 				return true;
 			},
 		},
 	]);
+}
+
+function buildSelectionGuardExtension(): Extension {
+	return EditorState.transactionFilter.of(tr => {
+		if (!tr.selection) return tr;
+		if (!tr.state.field(editorLivePreviewField)) return tr;
+
+		const nextSelection = tr.newSelection.main;
+		if (!nextSelection.empty) return tr;
+
+		const pos = nextSelection.from;
+		for (const range of findManagedImageRanges(tr.state)) {
+			if (pos <= range.from || pos >= range.to) continue;
+
+			const previousPos = tr.startState.selection.main.from;
+			const boundary =
+				previousPos <= range.from ? range.from :
+				previousPos >= range.to ? range.to :
+				pos - range.from <= range.to - pos ? range.from : range.to;
+
+			return [tr, { selection: EditorSelection.single(boundary) }];
+		}
+
+		return tr;
+	});
 }
 
 function deleteSelectedImage(view: EditorView): boolean {
@@ -144,4 +171,40 @@ function deleteSelectedImage(view: EditorView): boolean {
 		effects: deselectImageBlock.of(null),
 	});
 	return true;
+}
+
+function previousTextBoundary(state: EditorState, from: number): number {
+	return Math.max(0, state.doc.lineAt(from).from - 1);
+}
+
+function nextTextBoundary(state: EditorState, to: number): number {
+	if (to < state.doc.length && state.doc.sliceString(to, to + 1) === '\n') {
+		return Math.min(state.doc.length, to + 1);
+	}
+	return to;
+}
+
+function findManagedImageRanges(state: EditorState): Array<{ from: number; to: number }> {
+	const ranges: Array<{ from: number; to: number }> = [];
+	const fullText = state.doc.toString();
+	const openMarker = '<div data-better-edit-image=';
+	const closeTag = '</div>';
+	let searchFrom = 0;
+
+	while (true) {
+		const openIdx = fullText.indexOf(openMarker, searchFrom);
+		if (openIdx === -1) break;
+
+		const closeIdx = fullText.indexOf(closeTag, openIdx);
+		if (closeIdx === -1) break;
+
+		const blockEnd = closeIdx + closeTag.length;
+		const rawHtml = fullText.slice(openIdx, blockEnd);
+		if (parseImageBlock(rawHtml)) {
+			ranges.push({ from: openIdx, to: blockEnd });
+		}
+		searchFrom = blockEnd;
+	}
+
+	return ranges;
 }
