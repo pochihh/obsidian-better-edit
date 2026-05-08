@@ -115,7 +115,7 @@ class ImageWidget extends WidgetType {
 			frame.appendChild(caption);
 		}
 
-		frame.appendChild(this.buildResizeHandle(view, img));
+		frame.appendChild(this.buildResizeHandle(view, frame));
 		frame.appendChild(this.buildToolbar(view));
 		wrapper.appendChild(frame);
 		return wrapper;
@@ -125,7 +125,7 @@ class ImageWidget extends WidgetType {
 	// Resize handle — Notion-style pill, anchored to right edge of frame
 	// ---------------------------------------------------------------------------
 
-	private buildResizeHandle(view: EditorView, imgEl: HTMLImageElement): HTMLElement {
+	private buildResizeHandle(view: EditorView, frameEl: HTMLElement): HTMLElement {
 		const handle = createDiv({ cls: 'be-resize-handle' });
 		handle.appendChild(createDiv({ cls: 'be-resize-grip' }));
 
@@ -133,18 +133,21 @@ class ImageWidget extends WidgetType {
 			e.preventDefault();
 			e.stopPropagation();
 
-			const startX    = e.clientX;
-			const startWidth = imgEl.offsetWidth || parseInt(this.block.width, 10) || 320;
+			const startX = e.clientX;
+			const startWidth = frameEl.offsetWidth || parseInt(this.block.width, 10) || 320;
+			frameEl.addClass('is-resizing');
 
 			const onMove = (moveEvt: MouseEvent) => {
 				const w = Math.max(80, startWidth + moveEvt.clientX - startX);
-				imgEl.style.width = `${w}px`;
+				frameEl.style.width = `${w}px`;
 			};
 
 			const onUp = (upEvt: MouseEvent) => {
 				activeDocument.removeEventListener('mousemove', onMove);
 				activeDocument.removeEventListener('mouseup', onUp);
+				frameEl.removeClass('is-resizing');
 				const w = Math.max(80, startWidth + upEvt.clientX - startX);
+				frameEl.style.width = `${w}px`;
 				view.dispatch({
 					changes: {
 						from: this.from,
@@ -344,6 +347,7 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 				plugin.registerDomEvent(view.dom, 'mousedown', (event: MouseEvent) => {
 					const target = event.target;
 					if (!(target instanceof Element)) return;
+					if (target.closest('.be-resize-handle')) return;
 
 					const hitWidget = target.closest<HTMLElement>('[data-be-from]');
 					if (hitWidget) {
