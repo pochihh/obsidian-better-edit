@@ -1,0 +1,108 @@
+/* -------------------------------------------------------------------------
+ * Better Edit — plugin UI styles
+ * These styles apply only to ephemeral widget DOM, never to file content.
+ * File content always uses inline styles only.
+ * -------------------------------------------------------------------------*/
+
+/* Image widget wrapper */
+.better-edit-image-widget {
+	position: relative;
+	display: inline-block;
+	max-width: 100%;
+	cursor: default;
+}
+
+/* Alignment variants */
+.better-edit-image-widget.is-align-left   { text-align: left; }
+.better-edit-image-widget.is-align-center { text-align: center; }
+.better-edit-image-widget.is-align-right  { text-align: right; }
+.better-edit-image-widget.is-float-left   { float: left;  margin: 0 16px 12px 0; }
+.better-edit-image-widget.is-float-right  { float: right; margin: 0 0 12px 16px; }
+
+/* Selection ring */
+.better-edit-image-widget.is-selected {
+	outline: 2px solid var(--interactive-accent);
+	border-radius: 2px;
+}
+
+/* Alignment toolbar — hidden by default, shown on hover */
+.better-edit-image-toolbar {
+	display: none;
+	position: absolute;
+	top: 4px;
+	left: 50%;
+	transform: translateX(-50%);
+	gap: 2px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 2px 4px;
+	z-index: 10;
+	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+	white-space: nowrap;
+}
+
+.better-edit-image-widget:hover .better-edit-image-toolbar {
+	display: flex;
+}
+
+/* Resize handle — hidden by default, shown on hover */
+.better-edit-resize-handle {
+	display: none;
+	position: absolute;
+	top: 0;
+	right: -5px;
+	width: 10px;
+	height: 100%;
+	cursor: col-resize;
+	align-items: center;
+	justify-content: center;
+	z-index: 5;
+}
+
+.better-edit-image-widget:hover .better-edit-resize-handle {
+	display: flex;
+}
+
+/* Resize grip (the visible bar inside the handle) */
+.better-edit-resize-grip {
+	width: 4px;
+	height: 32px;
+	background: var(--interactive-accent);
+	border-radius: 2px;
+	opacity: 0.8;
+}
+
+/* Toolbar button */
+.better-edit-toolbar-btn {
+	background: none;
+	border: none;
+	cursor: pointer;
+	padding: 2px 5px;
+	font-size: 0.9em;
+	border-radius: 3px;
+	color: var(--text-normal);
+}
+
+.better-edit-toolbar-btn.is-active {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+}
+
+/* Placeholder widget */
+.better-edit-image-placeholder {
+	border: 2px dashed var(--background-modifier-border);
+	border-radius: 4px;
+	padding: 32px 16px;
+	text-align: center;
+	color: var(--text-muted);
+	font-size: 0.9em;
+	min-height: 80px;
+	cursor: pointer;
+	user-select: none;
+}
+
+.better-edit-image-placeholder:hover {
+	border-color: var(--interactive-accent);
+	color: var(--text-normal);
+}

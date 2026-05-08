@@ -7,10 +7,9 @@
  * Placeholder widget: dashed border, "Paste or drop an image here".
  *
  * Filled image widget:
- *   - Renders the image with correct alignment
- *   - Click → selected state (blue ring, keyboard ops enabled)
- *   - Hover → right-edge resize handle + alignment toolbar
- *   - ignoreEvent(mousedown) = true → CM6 never places cursor inside the block
+ *   - Click → selected state (blue ring, keyboard ops)
+ *   - Hover → right-edge resize handle + alignment toolbar (via CSS classes)
+ *   - ignoreEvent(mousedown) + stopPropagation → cursor never enters the block
  */
 
 import {
@@ -46,22 +45,7 @@ import type BetterEditPlugin from '../../main';
 
 class PlaceholderWidget extends WidgetType {
 	toDOM(_view: EditorView): HTMLElement {
-		const el = createDiv({
-			attr: {
-				'data-better-edit': 'image-placeholder',
-				style: [
-					'border: 2px dashed #ccc',
-					'border-radius: 4px',
-					'padding: 32px 16px',
-					'text-align: center',
-					'color: #999',
-					'font-size: 0.9em',
-					'min-height: 80px',
-					'cursor: pointer',
-					'user-select: none',
-				].join('; '),
-			},
-		});
+		const el = createDiv({ cls: 'better-edit-image-placeholder' });
 		el.setText('Paste or drop an image here');
 		return el;
 	}
@@ -69,7 +53,6 @@ class PlaceholderWidget extends WidgetType {
 	eq(_other: PlaceholderWidget): boolean { return true; }
 
 	ignoreEvent(event: Event): boolean {
-		// Prevent CM6 from placing the cursor inside the HTML block
 		return event.type === 'mousedown';
 	}
 }
@@ -104,25 +87,20 @@ class ImageWidget extends WidgetType {
 	}
 
 	toDOM(view: EditorView): HTMLElement {
-		const outerStyle = this.outerStyleForAlignment(this.block.alignment);
+		const wrapper = createDiv({ cls: 'better-edit-image-widget' });
 
-		// Selection ring via outline when selected
-		const ringStyle = this.selected
-			? 'outline: 2px solid var(--interactive-accent); border-radius: 2px;'
-			: '';
+		// Alignment via CSS classes
+		const alignClass = this.cssClassForAlignment(this.block.alignment);
+		wrapper.addClass(alignClass);
 
-		const wrapper = createDiv({
-			attr: {
-				'data-better-edit': 'image-widget',
-				style: `position: relative; display: inline-block; ${outerStyle} ${ringStyle}`,
-			},
-		});
+		// Selection ring via CSS class
+		if (this.selected) wrapper.addClass('is-selected');
 
 		// Image
 		const imgSrc = this.resolveImageSrc(this.block.src);
 		const imgStyle = this.block.caption
-			? 'width: 100%; max-width: 100%; display: block;'
-			: `width: ${this.block.width}; max-width: 100%; display: block;`;
+			? 'width: 100%; max-width: 100%;'
+			: `width: ${this.block.width}; max-width: 100%;`;
 
 		const img = createEl('img', {
 			attr: { src: imgSrc, style: imgStyle, draggable: 'false' },
@@ -138,29 +116,16 @@ class ImageWidget extends WidgetType {
 			wrapper.appendChild(caption);
 		}
 
-		// Resize handle (right edge, shown on hover)
-		const resizeHandle = this.buildResizeHandle(view, img);
-		resizeHandle.setCssProps({ display: 'none' });
-		wrapper.appendChild(resizeHandle);
+		// Resize handle (CSS shows it on hover via .better-edit-image-widget:hover)
+		wrapper.appendChild(this.buildResizeHandle(view, img));
 
-		// Alignment toolbar (shown on hover)
-		const toolbar = this.buildToolbar(view);
-		toolbar.setCssProps({ display: 'none' });
-		wrapper.appendChild(toolbar);
+		// Alignment toolbar (same hover mechanism)
+		wrapper.appendChild(this.buildToolbar(view));
 
-		// Hover: show resize handle + toolbar
-		this.plugin.registerDomEvent(wrapper, 'mouseenter', () => {
-			resizeHandle.setCssProps({ display: 'flex' });
-			toolbar.setCssProps({ display: 'flex' });
-		});
-		this.plugin.registerDomEvent(wrapper, 'mouseleave', () => {
-			resizeHandle.setCssProps({ display: 'none' });
-			toolbar.setCssProps({ display: 'none' });
-		});
-
-		// Click: select this block (cursor stays out of the HTML block)
+		// Click: select this block, prevent cursor entering the HTML block
 		this.plugin.registerDomEvent(wrapper, 'mousedown', (e: MouseEvent) => {
-			e.preventDefault(); // prevent CM6 cursor placement
+			e.preventDefault();
+			e.stopPropagation(); // stop Obsidian's own editor handlers from running
 			view.dispatch({
 				effects: selectImageBlock.of({ from: this.from, to: this.to }),
 			});
@@ -174,36 +139,8 @@ class ImageWidget extends WidgetType {
 	// ---------------------------------------------------------------------------
 
 	private buildResizeHandle(view: EditorView, imgEl: HTMLImageElement): HTMLElement {
-		const handle = createDiv({
-			attr: {
-				'data-better-edit': 'resize-handle',
-				style: [
-					'position: absolute',
-					'top: 0',
-					'right: -5px',
-					'width: 10px',
-					'height: 100%',
-					'cursor: col-resize',
-					'display: flex',
-					'align-items: center',
-					'justify-content: center',
-					'z-index: 5',
-				].join('; '),
-			},
-		});
-
-		const grip = createDiv({
-			attr: {
-				style: [
-					'width: 4px',
-					'height: 32px',
-					'background: var(--interactive-accent)',
-					'border-radius: 2px',
-					'opacity: 0.8',
-				].join('; '),
-			},
-		});
-		handle.appendChild(grip);
+		const handle = createDiv({ cls: 'better-edit-resize-handle' });
+		handle.appendChild(createDiv({ cls: 'better-edit-resize-grip' }));
 
 		this.plugin.registerDomEvent(handle, 'mousedown', (e: MouseEvent) => {
 			e.preventDefault();
@@ -212,27 +149,22 @@ class ImageWidget extends WidgetType {
 			const startX = e.clientX;
 			const startWidth = imgEl.offsetWidth || parseInt(this.block.width, 10) || 320;
 
-			// Transient drag handlers — cleaned up on mouseup, no leak risk
+			// Transient drag handlers — removed on mouseup, no leak
 			const onMove = (moveEvt: MouseEvent) => {
-				const delta = moveEvt.clientX - startX;
-				const newWidth = Math.max(80, startWidth + delta);
+				const newWidth = Math.max(80, startWidth + moveEvt.clientX - startX);
 				imgEl.style.width = `${newWidth}px`;
 			};
 
 			const onUp = (upEvt: MouseEvent) => {
 				activeDocument.removeEventListener('mousemove', onMove);
 				activeDocument.removeEventListener('mouseup', onUp);
-
-				const delta = upEvt.clientX - startX;
-				const newWidth = Math.max(80, startWidth + delta);
-				const newHtml = singleImageHtml(
-					this.block.src,
-					`${newWidth}px`,
-					this.block.alignment,
-					this.block.caption,
-				);
+				const newWidth = Math.max(80, startWidth + upEvt.clientX - startX);
 				view.dispatch({
-					changes: { from: this.from, to: this.to, insert: newHtml },
+					changes: {
+						from: this.from,
+						to: this.to,
+						insert: singleImageHtml(this.block.src, `${newWidth}px`, this.block.alignment, this.block.caption),
+					},
 				});
 			};
 
@@ -248,23 +180,7 @@ class ImageWidget extends WidgetType {
 	// ---------------------------------------------------------------------------
 
 	private buildToolbar(view: EditorView): HTMLElement {
-		const bar = createDiv({
-			attr: {
-				style: [
-					'position: absolute',
-					'top: 4px',
-					'left: 50%',
-					'transform: translateX(-50%)',
-					'gap: 2px',
-					'background: var(--background-primary)',
-					'border: 1px solid var(--background-modifier-border)',
-					'border-radius: 4px',
-					'padding: 2px 4px',
-					'z-index: 10',
-					'box-shadow: 0 2px 6px rgba(0,0,0,0.15)',
-				].join('; '),
-			},
-		});
+		const bar = createDiv({ cls: 'better-edit-image-toolbar' });
 
 		const alignments: Array<{ label: string; value: ImageAlignment; title: string }> = [
 			{ label: '⬅', value: 'left',        title: 'Align left' },
@@ -275,36 +191,19 @@ class ImageWidget extends WidgetType {
 		];
 
 		for (const { label, value, title } of alignments) {
-			const isActive = value === this.block.alignment;
-			const btn = createEl('button', {
-				attr: {
-					title,
-					style: [
-						'background: none',
-						'border: none',
-						'cursor: pointer',
-						'padding: 2px 5px',
-						'font-size: 0.9em',
-						'border-radius: 3px',
-						isActive
-							? 'background: var(--interactive-accent); color: var(--text-on-accent);'
-							: 'color: var(--text-normal);',
-					].join('; '),
-				},
-			});
+			const btn = createEl('button', { cls: 'better-edit-toolbar-btn', attr: { title } });
+			if (value === this.block.alignment) btn.addClass('is-active');
 			btn.setText(label);
 
 			this.plugin.registerDomEvent(btn, 'click', (e: MouseEvent) => {
 				e.preventDefault();
 				e.stopPropagation();
-				const newHtml = singleImageHtml(
-					this.block.src,
-					this.block.width,
-					value,
-					this.block.caption,
-				);
 				view.dispatch({
-					changes: { from: this.from, to: this.to, insert: newHtml },
+					changes: {
+						from: this.from,
+						to: this.to,
+						insert: singleImageHtml(this.block.src, this.block.width, value, this.block.caption),
+					},
 				});
 			});
 
@@ -325,13 +224,14 @@ class ImageWidget extends WidgetType {
 		return src;
 	}
 
-	private outerStyleForAlignment(alignment: ImageAlignment): string {
+	private cssClassForAlignment(alignment: ImageAlignment): string {
 		switch (alignment) {
-			case 'left':        return 'text-align: left;';
-			case 'center':      return 'text-align: center;';
-			case 'right':       return 'text-align: right;';
-			case 'float-left':  return 'float: left; margin: 0 16px 12px 0;';
-			case 'float-right': return 'float: right; margin: 0 0 12px 16px;';
+			case 'left':        return 'is-align-left';
+			case 'right':       return 'is-align-right';
+			case 'float-left':  return 'is-float-left';
+			case 'float-right': return 'is-float-right';
+			case 'center':
+			default:            return 'is-align-center';
 		}
 	}
 
@@ -345,8 +245,7 @@ class ImageWidget extends WidgetType {
 	}
 
 	ignoreEvent(event: Event): boolean {
-		// Return true for mousedown so CM6 doesn't place the cursor inside the HTML block.
-		// Our own registerDomEvent('mousedown') handler still fires (native DOM is unaffected).
+		// Prevent CM6 from processing mousedown (no cursor positioning)
 		return event.type === 'mousedown';
 	}
 }
@@ -407,10 +306,10 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 				const selection = view.state.field(imageSelectionField);
 				this.decorations = buildDecorations(view, plugin, selection);
 
-				// Deselect when clicking anywhere outside an image widget
+				// Deselect when clicking outside any image widget
 				plugin.registerDomEvent(view.dom, 'mousedown', (e: MouseEvent) => {
 					const target = e.target as Element;
-					if (!target.closest('[data-better-edit]')) {
+					if (!target.closest('.better-edit-image-widget')) {
 						view.dispatch({ effects: deselectImageBlock.of(null) });
 					}
 				});
@@ -428,8 +327,7 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 					update.startState.field(editorLivePreviewField) !==
 						update.state.field(editorLivePreviewField)
 				) {
-					const selection = update.state.field(imageSelectionField);
-					this.decorations = buildDecorations(update.view, plugin, selection);
+					this.decorations = buildDecorations(update.view, plugin, update.state.field(imageSelectionField));
 				}
 			}
 		},
