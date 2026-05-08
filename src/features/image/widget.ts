@@ -33,7 +33,6 @@ import {
 } from './html-schema';
 import {
 	imageSelectionField,
-	selectImageBlock,
 	deselectImageBlock,
 	SelectedImageBlock,
 } from './selection';
@@ -122,14 +121,8 @@ class ImageWidget extends WidgetType {
 		// Alignment toolbar (same hover mechanism)
 		wrapper.appendChild(this.buildToolbar(view));
 
-		// Click: select this block, prevent cursor entering the HTML block
-		this.plugin.registerDomEvent(wrapper, 'mousedown', (e: MouseEvent) => {
-			e.preventDefault();
-			e.stopPropagation(); // stop Obsidian's own editor handlers from running
-			view.dispatch({
-				effects: selectImageBlock.of({ from: this.from, to: this.to }),
-			});
-		});
+		// Click/selection is handled by EditorView.domEventHandlers in index.ts,
+		// which intercepts mousedown inside CM6's own event pipeline (before cursor positioning).
 
 		return wrapper;
 	}

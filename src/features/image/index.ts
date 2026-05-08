@@ -3,14 +3,15 @@
  *
  * Registers:
  *  - paste/drop handlers (via registerEvent)
- *  - CM6 extensions: imageSelectionField, widget ViewPlugin, keydown handler
+ *  - CM6 extensions: imageSelectionField, widget ViewPlugin, mousedown handler,
+ *    keydown handler
  */
 
 import { EditorView } from '@codemirror/view';
 import { Extension } from '@codemirror/state';
 import { registerPasteDropHandlers } from './paste-handler';
 import { createImageWidgetExtension } from './widget';
-import { imageSelectionField, deselectImageBlock } from './selection';
+import { imageSelectionField, selectImageBlock, deselectImageBlock } from './selection';
 import type BetterEditPlugin from '../../main';
 
 export function initImageFeature(plugin: BetterEditPlugin): void {
@@ -21,12 +22,46 @@ export function createImageExtension(plugin: BetterEditPlugin): Extension {
 	return [
 		imageSelectionField,
 		createImageWidgetExtension(plugin),
+		buildMousedownExtension(),
 		buildKeydownExtension(),
 	];
 }
 
 // ---------------------------------------------------------------------------
-// Keyboard handler for selected image blocks
+// Mousedown handler — intercepts clicks on image widgets inside CM6's own
+// event pipeline. Returning true tells CM6 the event is fully handled, which
+// prevents cursor positioning and Obsidian's source-reveal from triggering.
+// ---------------------------------------------------------------------------
+
+function buildMousedownExtension(): Extension {
+	return EditorView.domEventHandlers({
+		mousedown(event: MouseEvent, view: EditorView): boolean {
+			const target = event.target as Element;
+			const widget = target.closest('[data-be-from]');
+			if (!widget) return false;
+
+			const el   = widget as HTMLElement;
+			const from = parseInt(el.dataset.beFrom ?? '', 10);
+			const to   = parseInt(el.dataset.beTo   ?? '', 10);
+			if (isNaN(from) || isNaN(to)) return false;
+
+			event.preventDefault();
+
+			// Place cursor just after the block so Obsidian never reveals source,
+			// and mark the block as selected for the ring + keyboard ops.
+			const safePos = Math.min(to, view.state.doc.length);
+			view.dispatch({
+				selection: { anchor: safePos },
+				effects: selectImageBlock.of({ from, to }),
+			});
+
+			return true; // tells CM6: event handled, skip cursor positioning
+		},
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Keyboard handler — operates when an image block is selected
 // ---------------------------------------------------------------------------
 
 function buildKeydownExtension(): Extension {
@@ -43,15 +78,11 @@ function buildKeydownExtension(): Extension {
 
 				case 'Delete':
 				case 'Backspace': {
-					// Delete the entire image block (including surrounding newline if present)
-					const doc = view.state.doc;
 					let { from, to } = selected;
-
-					// Expand range to consume the trailing newline so we don't leave a blank line
-					if (to < doc.length && doc.sliceString(to, to + 1) === '\n') {
+					// Consume trailing newline so we don't leave a blank line
+					if (to < view.state.doc.length && view.state.doc.sliceString(to, to + 1) === '\n') {
 						to += 1;
 					}
-
 					view.dispatch({
 						changes: { from, to, insert: '' },
 						effects: deselectImageBlock.of(null),
@@ -60,24 +91,17 @@ function buildKeydownExtension(): Extension {
 				}
 
 				case 'ArrowUp': {
-					const { from } = selected;
-					// Move cursor to the line before the block
-					const lineStart = view.state.doc.lineAt(from).from;
-					const targetPos = Math.max(0, lineStart - 1);
+					const lineStart = view.state.doc.lineAt(selected.from).from;
 					view.dispatch({
-						selection: { anchor: targetPos },
+						selection: { anchor: Math.max(0, lineStart - 1) },
 						effects: deselectImageBlock.of(null),
 					});
 					return true;
 				}
 
 				case 'ArrowDown': {
-					const { to } = selected;
-					// Move cursor to the line after the block
-					const doc = view.state.doc;
-					const targetPos = Math.min(doc.length, to + 1);
 					view.dispatch({
-						selection: { anchor: targetPos },
+						selection: { anchor: Math.min(view.state.doc.length, selected.to + 1) },
 						effects: deselectImageBlock.of(null),
 					});
 					return true;
