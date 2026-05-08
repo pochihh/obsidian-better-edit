@@ -18,12 +18,20 @@
 
 export type ImageAlignment = 'left' | 'center' | 'right' | 'float-left' | 'float-right';
 
+export interface ImageCrop {
+	offsetX: number;   // px — image is shifted left by this amount (margin-left: -offsetX px)
+	offsetY: number;   // px — image is shifted up by this amount (margin-top: -offsetY px)
+	height: number;    // px — visible crop window height
+	imgWidth: number;  // px — full rendered image width inside the crop context
+}
+
 export interface SingleImageBlock {
 	kind: 'single';
 	src: string;
-	width: string;
+	width: string;     // px — crop window width (or display width when no crop)
 	alignment: ImageAlignment;
 	caption?: string;
+	crop?: ImageCrop;
 }
 
 export interface PlaceholderBlock {

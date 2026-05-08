@@ -38,10 +38,17 @@ export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 			if (evt.defaultPrevented) return;
 
 			const imageFile = getImageFromDataTransfer(evt.dataTransfer);
-			if (!imageFile) return;
+			if (imageFile) {
+				evt.preventDefault();
+				void handleImageInsert(plugin, editor, view, imageFile);
+				return;
+			}
+
+			const existingImage = getExistingImageFromDataTransfer(plugin, evt.dataTransfer, view.file);
+			if (!existingImage) return;
 
 			evt.preventDefault();
-			void handleImageInsert(plugin, editor, view, imageFile);
+			handleExistingImageInsert(plugin, editor, existingImage);
 		}),
 	);
 }
@@ -67,6 +74,25 @@ async function handleImageInsert(
 	const html = singleImageHtml(savedPath, defaultImageWidth, defaultImageAlignment);
 
 	// Check if the cursor is inside a placeholder block and replace it; otherwise insert at cursor
+	const cursorOffset = editor.posToOffset(editor.getCursor());
+	const docText = editor.getValue();
+	const replacedDoc = tryReplacePlaceholder(docText, cursorOffset, html);
+
+	if (replacedDoc !== null) {
+		editor.setValue(replacedDoc);
+	} else {
+		insertHtmlAtCursor(editor, html);
+	}
+}
+
+function handleExistingImageInsert(
+	plugin: BetterEditPlugin,
+	editor: Editor,
+	imageFile: TFile,
+): void {
+	const { defaultImageWidth, defaultImageAlignment } = plugin.settings;
+	const html = singleImageHtml(imageFile.path, defaultImageWidth, defaultImageAlignment);
+
 	const cursorOffset = editor.posToOffset(editor.getCursor());
 	const docText = editor.getValue();
 	const replacedDoc = tryReplacePlaceholder(docText, cursorOffset, html);
@@ -117,6 +143,27 @@ function getImageFromDataTransfer(transfer: DataTransfer | null): File | null {
 	if (!transfer) return null;
 	const files = Array.from(transfer.files ?? []);
 	return files.find(f => f.type.startsWith('image/')) ?? null;
+}
+
+function getExistingImageFromDataTransfer(
+	plugin: BetterEditPlugin,
+	transfer: DataTransfer | null,
+	activeFile: TFile | null,
+): TFile | null {
+	if (!transfer) return null;
+
+	for (const candidate of collectTransferTextCandidates(transfer)) {
+		const imagePath = extractImagePath(candidate);
+		if (!imagePath) continue;
+
+		const directFile = plugin.app.vault.getFileByPath(imagePath);
+		if (directFile instanceof TFile && isImageExtension(directFile.extension)) return directFile;
+
+		const linkedFile = plugin.app.metadataCache.getFirstLinkpathDest(imagePath, activeFile?.path ?? '');
+		if (linkedFile instanceof TFile && isImageExtension(linkedFile.extension)) return linkedFile;
+	}
+
+	return null;
 }
 
 /**
@@ -177,6 +224,32 @@ function tryReplacePlaceholder(
 /** Strips characters that are invalid in vault filenames. */
 function sanitizeFilename(name: string): string {
 	return name.replace(/[\\/:*?"<>|]/g, '_');
+}
+
+function collectTransferTextCandidates(transfer: DataTransfer): string[] {
+	const types = ['text/plain', 'text/uri-list', 'text/html'];
+	const values: string[] = [];
+
+	for (const type of types) {
+		const value = transfer.getData(type);
+		if (value) values.push(value);
+	}
+
+	return values;
+}
+
+function extractImagePath(text: string): string | null {
+	const wikiMatch = /!\[\[([^|\]]+)/.exec(text);
+	if (wikiMatch?.[1]) return wikiMatch[1].trim();
+
+	const markdownMatch = /!\[[^\]]*]\(([^)]+)\)/.exec(text);
+	if (markdownMatch?.[1]) return markdownMatch[1].trim().replace(/^<|>$/g, '');
+
+	return null;
+}
+
+function isImageExtension(extension: string): boolean {
+	return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(extension.toLowerCase());
 }
 
 // Re-export placeholder so index.ts can use it without importing html-schema directly
