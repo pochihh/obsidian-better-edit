@@ -283,12 +283,6 @@ function buildDecorations(
 		const openIdx = fullText.indexOf(OPEN_MARKER, searchFrom);
 		if (openIdx === -1) break;
 
-		// Must be at the start of a line
-		if (openIdx > 0 && fullText[openIdx - 1] !== '\n') {
-			searchFrom = openIdx + 1;
-			continue;
-		}
-
 		const closeIdx = fullText.indexOf(CLOSE_TAG, openIdx);
 		if (closeIdx === -1) break;
 
@@ -305,9 +299,9 @@ function buildDecorations(
 			widget = new ImageWidget(block, rawHtml, plugin, openIdx, blockEnd, isSelected);
 		}
 
-		decorations.push(
-			Decoration.replace({ widget, block: true }).range(openIdx, blockEnd),
-		);
+		const lineStart = state.doc.lineAt(openIdx).from;
+		const hasLinePrefix = fullText.slice(lineStart, openIdx).trim().length > 0;
+		decorations.push(Decoration.replace({ widget, block: !hasLinePrefix }).range(openIdx, blockEnd));
 		searchFrom = blockEnd;
 	}
 
@@ -332,7 +326,10 @@ export function createImageDecorationField(plugin: BetterEditPlugin): Extension 
 			}
 			return decos.map(tr.changes);
 		},
-		provide: field => EditorView.decorations.from(field),
+		provide: field => [
+			EditorView.decorations.from(field),
+			EditorView.atomicRanges.from(field, value => () => value),
+		],
 	});
 }
 
@@ -354,7 +351,14 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 						const to   = parseInt(hitWidget.dataset.beTo   ?? '', 10);
 						if (isNaN(from) || isNaN(to)) return;
 
-						view.dispatch({ effects: selectImageBlock.of({ from, to }) });
+						if (!target.closest('.be-resize-handle, .be-toolbar-btn')) {
+							event.preventDefault();
+						}
+						view.dispatch({
+							selection: { anchor: from },
+							effects: selectImageBlock.of({ from, to }),
+						});
+						view.focus();
 					} else if (!target.closest('.be-image-widget')) {
 						view.dispatch({ effects: deselectImageBlock.of(null) });
 					}
