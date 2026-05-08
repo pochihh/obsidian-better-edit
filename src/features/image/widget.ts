@@ -117,7 +117,7 @@ class ImageWidget extends WidgetType {
 			frame.appendChild(caption);
 		}
 
-		frame.appendChild(this.buildResizeHandle(view, frame));
+		frame.appendChild(this.buildResizeHandle(view, frame, img));
 		frame.appendChild(this.buildToolbar(view));
 		wrapper.appendChild(frame);
 		return wrapper;
@@ -127,7 +127,7 @@ class ImageWidget extends WidgetType {
 	// Resize handle — Notion-style pill, anchored to right edge of frame
 	// ---------------------------------------------------------------------------
 
-	private buildResizeHandle(view: EditorView, frameEl: HTMLElement): HTMLElement {
+	private buildResizeHandle(view: EditorView, frameEl: HTMLElement, imgEl: HTMLImageElement): HTMLElement {
 		const handle = createDiv({ cls: 'be-resize-handle' });
 		handle.appendChild(createDiv({ cls: 'be-resize-grip' }));
 
@@ -137,10 +137,11 @@ class ImageWidget extends WidgetType {
 
 			const startX = e.clientX;
 			const startWidth = frameEl.offsetWidth || parseInt(this.block.width, 10) || 320;
+			const minWidth = this.computeMinResizeWidth(frameEl, imgEl);
 			frameEl.addClass('is-resizing');
 
 			const onMove = (moveEvt: MouseEvent) => {
-				const w = Math.max(80, startWidth + moveEvt.clientX - startX);
+				const w = Math.max(minWidth, startWidth + moveEvt.clientX - startX);
 				frameEl.style.width = `${w}px`;
 			};
 
@@ -148,7 +149,7 @@ class ImageWidget extends WidgetType {
 				activeDocument.removeEventListener('mousemove', onMove);
 				activeDocument.removeEventListener('mouseup', onUp);
 				frameEl.removeClass('is-resizing');
-				const w = Math.max(80, startWidth + upEvt.clientX - startX);
+				const w = Math.max(minWidth, startWidth + upEvt.clientX - startX);
 				frameEl.style.width = `${w}px`;
 				this.updateBlock(view, { width: `${w}px` });
 			};
@@ -291,6 +292,27 @@ class ImageWidget extends WidgetType {
 		if (!width.endsWith('px')) return false;
 		const px = parseInt(width, 10);
 		return !Number.isNaN(px) && px < 220;
+	}
+
+	private computeMinResizeWidth(frameEl: HTMLElement, imgEl: HTMLImageElement): number {
+		const minWidth = Math.max(1, this.plugin.settings.minImageWidthPx);
+		const minHeight = Math.max(1, this.plugin.settings.minImageHeightPx);
+
+		const naturalWidth = imgEl.naturalWidth;
+		const naturalHeight = imgEl.naturalHeight;
+		if (naturalWidth > 0 && naturalHeight > 0) {
+			const widthFromHeight = Math.ceil(minHeight * naturalWidth / naturalHeight);
+			return Math.max(minWidth, widthFromHeight);
+		}
+
+		const renderedWidth = imgEl.clientWidth || frameEl.clientWidth;
+		const renderedHeight = imgEl.clientHeight;
+		if (renderedWidth > 0 && renderedHeight > 0) {
+			const widthFromHeight = Math.ceil(minHeight * renderedWidth / renderedHeight);
+			return Math.max(minWidth, widthFromHeight);
+		}
+
+		return minWidth;
 	}
 
 	private updateBlock(view: EditorView, patch: Partial<SingleImageBlock>): void {
