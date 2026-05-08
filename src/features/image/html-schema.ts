@@ -19,10 +19,11 @@
 export type ImageAlignment = 'left' | 'center' | 'right' | 'float-left' | 'float-right';
 
 export interface ImageCrop {
-	offsetX: number;   // px — image is shifted left by this amount (margin-left: -offsetX px)
-	offsetY: number;   // px — image is shifted up by this amount (margin-top: -offsetY px)
-	height: number;    // px — visible crop window height
-	imgWidth: number;  // px — full rendered image width inside the crop context
+	offsetX: number;        // px — image shifted left (margin-left: -offsetX px)
+	offsetY: number;        // px — image shifted up (margin-top: -offsetY px)
+	height: number;         // px — visible crop window height
+	imgWidth: number;       // px — full rendered image width inside the crop context
+	shape?: 'circle';       // if set, renders with border-radius: 50%
 }
 
 export interface SingleImageBlock {
@@ -66,24 +67,38 @@ function outerStyleForAlignment(alignment: ImageAlignment): string {
 	}
 }
 
-/**
- * Returns HTML for a filled single image, optionally with a caption.
- *
- * @param src       Vault-relative path for the image
- * @param width     CSS width string, e.g. "320px" or "100%"
- * @param alignment Alignment variant
- * @param caption   Optional caption text
- */
+/** Returns the outer div style for a cropped image (overflow:hidden + alignment via margins). */
+function cropOuterStyle(alignment: ImageAlignment, height: number, circle: boolean): string {
+	const clip = `overflow: hidden; height: ${height}px;${circle ? ' border-radius: 50%;' : ''}`;
+	switch (alignment) {
+		case 'left':        return `${clip} margin-right: auto;`;
+		case 'center':      return `${clip} margin: 0 auto;`;
+		case 'right':       return `${clip} margin-left: auto;`;
+		case 'float-left':  return `float: left; margin: 0 16px 12px 0; ${clip}`;
+		case 'float-right': return `float: right; margin: 0 0 12px 16px; ${clip}`;
+	}
+}
+
 export function singleImageHtml(
 	src: string,
 	width: string,
 	alignment: ImageAlignment,
 	caption?: string,
+	crop?: ImageCrop,
 ): string {
+	if (crop) {
+		const outerStyle = cropOuterStyle(alignment, crop.height, crop.shape === 'circle');
+		return (
+			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
+			`  <img src="${src}" style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
+			(caption ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
+			`</div>`
+		);
+	}
+
 	const outerStyle = outerStyleForAlignment(alignment);
 
 	if (caption) {
-		// Caption variant: outer div carries width so caption stays pinned to image
 		return (
 			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
 			`  <img src="${src}" style="width: 100%; max-width: 100%;" />\n` +
@@ -92,7 +107,6 @@ export function singleImageHtml(
 		);
 	}
 
-	// Standard variant: width on the <img>; alignment on the wrapper div
 	return (
 		`<div data-better-edit-image="filled" style="${outerStyle}">\n` +
 		`  <img src="${src}" style="width: ${width}; max-width: 100%;" />\n` +
@@ -121,12 +135,10 @@ export function parseImageBlock(html: string): ImageBlock | null {
 
 	if (!isImageBlock(trimmed)) return null;
 
-	// Placeholder
 	if (trimmed.includes('data-better-edit-image="placeholder"')) {
 		return { kind: 'placeholder' };
 	}
 
-	// Filled — parse outer div style and inner <img>
 	const outerMatch = /^<div\b[^>]*style="([^"]*)"/.exec(trimmed);
 	const outerStyle = outerMatch ? (outerMatch[1] ?? '') : '';
 
@@ -135,18 +147,36 @@ export function parseImageBlock(html: string): ImageBlock | null {
 
 	const src = imgMatch[1] ?? '';
 	const imgStyle = imgMatch[2] ?? '';
-	const alignment = detectAlignment(outerStyle);
 
-	// Width lives on <img> (standard) or outer <div> (caption variant)
-	const width =
-		extractStyleProp(imgStyle, 'width') ??
-		extractStyleProp(outerStyle, 'width') ??
-		'100%';
+	const isCropped = /overflow:\s*hidden/.test(outerStyle);
 
+	let width: string;
+	let crop: ImageCrop | undefined;
+
+	if (isCropped) {
+		// Width = crop window width (on outer div); imgWidth = rendered image width (on img)
+		width = extractStyleProp(outerStyle, 'width') ?? '100%';
+		const height = parseInt(extractStyleProp(outerStyle, 'height') ?? '0', 10);
+		const imgWidth = parseInt(extractStyleProp(imgStyle, 'width') ?? '0', 10);
+		const mlStr = extractStyleProp(imgStyle, 'margin-left');
+		const mtStr = extractStyleProp(imgStyle, 'margin-top');
+		const offsetX = mlStr ? Math.max(0, -parseInt(mlStr, 10)) : 0;
+		const offsetY = mtStr ? Math.max(0, -parseInt(mtStr, 10)) : 0;
+		crop = { offsetX, offsetY, height, imgWidth };
+		if (/border-radius:\s*50%/.test(outerStyle)) crop.shape = 'circle';
+	} else {
+		// Width = image display width (on img, or outer div for caption variant)
+		width =
+			extractStyleProp(imgStyle, 'width') ??
+			extractStyleProp(outerStyle, 'width') ??
+			'100%';
+	}
+
+	const alignment = detectAlignment(outerStyle, isCropped);
 	const captionMatch = /<p\b[^>]*>([\s\S]*?)<\/p>/.exec(trimmed);
 	const caption = captionMatch ? (captionMatch[1] ?? undefined) : undefined;
 
-	return { kind: 'single', src, width, alignment, caption };
+	return { kind: 'single', src, width, alignment, caption, crop };
 }
 
 // ---------------------------------------------------------------------------
@@ -159,9 +189,15 @@ function extractStyleProp(style: string, prop: string): string | null {
 	return m ? (m[1] ?? '').trim() : null;
 }
 
-function detectAlignment(outerStyle: string): ImageAlignment {
+function detectAlignment(outerStyle: string, isCropped = false): ImageAlignment {
 	if (/float:\s*left/.test(outerStyle))  return 'float-left';
 	if (/float:\s*right/.test(outerStyle)) return 'float-right';
+	if (isCropped) {
+		// Cropped images use margin-based alignment, not text-align
+		if (/margin:\s*0\s+auto/.test(outerStyle)) return 'center';
+		if (/margin-left:\s*auto/.test(outerStyle)) return 'right';
+		return 'left';
+	}
 	const textAlign = extractStyleProp(outerStyle, 'text-align') ?? 'center';
 	if (textAlign === 'left')  return 'left';
 	if (textAlign === 'right') return 'right';

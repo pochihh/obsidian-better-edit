@@ -6,9 +6,14 @@
  *  2. Inserts (or replaces a placeholder with) the canonical single-image HTML.
  */
 
-import { Editor, MarkdownView, TFile } from 'obsidian';
+import { Editor, MarkdownFileInfo, MarkdownView, TFile } from 'obsidian';
 import { singleImageHtml, placeholderHtml } from './html-schema';
 import type BetterEditPlugin from '../../main';
+
+const RECENT_DROP_MS = 1500;
+const pendingNativeDropRewrite = new WeakMap<Editor, number>();
+const suppressNativeDropRewrite = new WeakSet<Editor>();
+let pendingNativeDropUntil = 0;
 
 // ---------------------------------------------------------------------------
 // Public API — called from index.ts
@@ -22,6 +27,7 @@ export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 	plugin.registerEvent(
 		plugin.app.workspace.on('editor-paste', (evt: ClipboardEvent, editor: Editor, view: MarkdownView) => {
 			if (!plugin.settings.imageArrangementEnabled) return;
+			if (!plugin.settings.handlePastedImages) return;
 			if (evt.defaultPrevented) return;
 
 			const imageFile = getImageFromDataTransfer(evt.clipboardData);
@@ -35,6 +41,7 @@ export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 	plugin.registerEvent(
 		plugin.app.workspace.on('editor-drop', (evt: DragEvent, editor: Editor, view: MarkdownView) => {
 			if (!plugin.settings.imageArrangementEnabled) return;
+			if (!plugin.settings.handleDroppedImages) return;
 			if (evt.defaultPrevented) return;
 
 			const imageFile = getImageFromDataTransfer(evt.dataTransfer);
@@ -45,12 +52,43 @@ export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 			}
 
 			const existingImage = getExistingImageFromDataTransfer(plugin, evt.dataTransfer, view.file);
-			if (!existingImage) return;
+			if (!existingImage) {
+				markPendingNativeDrop(editor);
+				return;
+			}
 
 			evt.preventDefault();
 			handleExistingImageInsert(plugin, editor, existingImage);
 		}),
 	);
+
+	plugin.registerEvent(
+		plugin.app.workspace.on('editor-change', (editor: Editor, info: MarkdownView | MarkdownFileInfo) => {
+			if (!plugin.settings.imageArrangementEnabled) return;
+			if (!plugin.settings.handleDroppedImages) return;
+			if (suppressNativeDropRewrite.has(editor)) {
+				suppressNativeDropRewrite.delete(editor);
+				return;
+			}
+
+			const now = Date.now();
+			const dropTime = pendingNativeDropRewrite.get(editor);
+			const hasGlobalDrop = now <= pendingNativeDropUntil;
+			if (!dropTime && !hasGlobalDrop) return;
+			if (dropTime && now - dropTime > RECENT_DROP_MS) {
+				pendingNativeDropRewrite.delete(editor);
+				return;
+			}
+
+			if (rewriteNativeImageEmbed(plugin, editor, info.file)) {
+				pendingNativeDropRewrite.delete(editor);
+			}
+		}),
+	);
+}
+
+export function notePotentialNativeImageDrop(): void {
+	pendingNativeDropUntil = Date.now() + RECENT_DROP_MS;
 }
 
 // ---------------------------------------------------------------------------
@@ -90,8 +128,7 @@ function handleExistingImageInsert(
 	editor: Editor,
 	imageFile: TFile,
 ): void {
-	const { defaultImageWidth, defaultImageAlignment } = plugin.settings;
-	const html = singleImageHtml(imageFile.path, defaultImageWidth, defaultImageAlignment);
+	const html = buildManagedImageHtml(plugin, imageFile);
 
 	const cursorOffset = editor.posToOffset(editor.getCursor());
 	const docText = editor.getValue();
@@ -102,6 +139,16 @@ function handleExistingImageInsert(
 	} else {
 		insertHtmlAtCursor(editor, html);
 	}
+}
+
+function buildManagedImageHtml(plugin: BetterEditPlugin, imageFile: TFile): string {
+	const { defaultImageWidth, defaultImageAlignment } = plugin.settings;
+	return singleImageHtml(imageFile.path, defaultImageWidth, defaultImageAlignment);
+}
+
+function markPendingNativeDrop(editor: Editor): void {
+	pendingNativeDropRewrite.set(editor, Date.now());
+	notePotentialNativeImageDrop();
 }
 
 /**
@@ -156,12 +203,89 @@ function getExistingImageFromDataTransfer(
 		const imagePath = extractImagePath(candidate);
 		if (!imagePath) continue;
 
-		const directFile = plugin.app.vault.getFileByPath(imagePath);
-		if (directFile instanceof TFile && isImageExtension(directFile.extension)) return directFile;
-
-		const linkedFile = plugin.app.metadataCache.getFirstLinkpathDest(imagePath, activeFile?.path ?? '');
-		if (linkedFile instanceof TFile && isImageExtension(linkedFile.extension)) return linkedFile;
+		const file = resolveImagePath(plugin, imagePath, activeFile);
+		if (file) return file;
 	}
+
+	return null;
+}
+
+function rewriteNativeImageEmbed(
+	plugin: BetterEditPlugin,
+	editor: Editor,
+	activeFile: TFile | null,
+): boolean {
+	const docText = editor.getValue();
+	const cursorOffset = editor.posToOffset(editor.getCursor());
+	const match = findNearestImageEmbed(docText, cursorOffset, plugin, activeFile);
+	if (!match) return false;
+
+	suppressNativeDropRewrite.add(editor);
+	editor.replaceRange(
+		buildManagedImageHtml(plugin, match.file),
+		editor.offsetToPos(match.from),
+		editor.offsetToPos(match.to),
+	);
+	return true;
+}
+
+function findNearestImageEmbed(
+	docText: string,
+	cursorOffset: number,
+	plugin: BetterEditPlugin,
+	activeFile: TFile | null,
+): { from: number; to: number; file: TFile } | null {
+	const candidates = [
+		...collectImageEmbedMatches(docText, /!\[\[([^|\]]+)(?:\|[^\]]*)?\]\]/g),
+		...collectImageEmbedMatches(docText, /!\[[^\]]*]\(([^)]+)\)/g),
+	];
+
+	let best: { from: number; to: number; file: TFile; distance: number } | null = null;
+	for (const candidate of candidates) {
+		const file = resolveImagePath(plugin, candidate.path, activeFile);
+		if (!file) continue;
+
+		const distance =
+			cursorOffset >= candidate.from && cursorOffset <= candidate.to ? 0 :
+			Math.min(Math.abs(cursorOffset - candidate.from), Math.abs(cursorOffset - candidate.to));
+		if (distance > 8) continue;
+
+		if (!best || distance < best.distance) {
+			best = { ...candidate, file, distance };
+		}
+	}
+
+	return best;
+}
+
+function collectImageEmbedMatches(
+	docText: string,
+	regex: RegExp,
+): Array<{ from: number; to: number; path: string }> {
+	const matches: Array<{ from: number; to: number; path: string }> = [];
+	for (const match of docText.matchAll(regex)) {
+		if (typeof match.index !== 'number') continue;
+		const rawPath = match[1];
+		if (!rawPath) continue;
+		matches.push({
+			from: match.index,
+			to: match.index + match[0].length,
+			path: rawPath.trim().replace(/^<|>$/g, ''),
+		});
+	}
+	return matches;
+}
+
+function resolveImagePath(
+	plugin: BetterEditPlugin,
+	imagePath: string,
+	activeFile: TFile | null,
+): TFile | null {
+	const directFile = plugin.app.vault.getFileByPath(imagePath);
+	if (directFile instanceof TFile && isImageExtension(directFile.extension)) return directFile;
+
+	const linkedFile = plugin.app.metadataCache.getFirstLinkpathDest(imagePath, activeFile?.path ?? '');
+	if (linkedFile instanceof TFile && isImageExtension(linkedFile.extension)) return linkedFile;
 
 	return null;
 }
@@ -239,11 +363,17 @@ function collectTransferTextCandidates(transfer: DataTransfer): string[] {
 }
 
 function extractImagePath(text: string): string | null {
-	const wikiMatch = /!\[\[([^|\]]+)/.exec(text);
+	const htmlImgMatch = /<img\b[^>]*src="([^"]+)"/i.exec(text);
+	if (htmlImgMatch?.[1]) return htmlImgMatch[1].trim();
+
+	const wikiMatch = /!?\[\[([^|\]]+)/.exec(text);
 	if (wikiMatch?.[1]) return wikiMatch[1].trim();
 
-	const markdownMatch = /!\[[^\]]*]\(([^)]+)\)/.exec(text);
+	const markdownMatch = /!?\[[^\]]*]\(([^)]+)\)/.exec(text);
 	if (markdownMatch?.[1]) return markdownMatch[1].trim().replace(/^<|>$/g, '');
+
+	const plainPath = text.trim().replace(/^<|>$/g, '');
+	if (/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(plainPath)) return plainPath;
 
 	return null;
 }

@@ -42,7 +42,7 @@ function buildKeydownExtension(): Extension {
 			key: 'Escape',
 			preventDefault: true,
 			run(view: EditorView): boolean {
-				const selected = view.state.field(imageSelectionField);
+				const selected = getSelectedImage(view.state);
 				if (selected === null) return false;
 
 				view.dispatch({ effects: deselectImageBlock.of(null) });
@@ -63,7 +63,7 @@ function buildKeydownExtension(): Extension {
 			key: 'Enter',
 			preventDefault: true,
 			run(view: EditorView): boolean {
-				const selected = view.state.field(imageSelectionField);
+				const selected = getSelectedImage(view.state);
 				if (selected === null) return false;
 
 				view.dispatch({
@@ -78,7 +78,7 @@ function buildKeydownExtension(): Extension {
 			key: 'ArrowUp',
 			preventDefault: true,
 			run(view: EditorView): boolean {
-				const selected = view.state.field(imageSelectionField);
+				const selected = getSelectedImage(view.state);
 				if (selected === null) return false;
 
 				view.dispatch({
@@ -92,7 +92,7 @@ function buildKeydownExtension(): Extension {
 			key: 'ArrowLeft',
 			preventDefault: true,
 			run(view: EditorView): boolean {
-				const selected = view.state.field(imageSelectionField);
+				const selected = getSelectedImage(view.state);
 				if (selected === null) return false;
 
 				view.dispatch({
@@ -106,7 +106,7 @@ function buildKeydownExtension(): Extension {
 			key: 'ArrowRight',
 			preventDefault: true,
 			run(view: EditorView): boolean {
-				const selected = view.state.field(imageSelectionField);
+				const selected = getSelectedImage(view.state);
 				if (selected === null) return false;
 
 				view.dispatch({
@@ -120,7 +120,7 @@ function buildKeydownExtension(): Extension {
 			key: 'ArrowDown',
 			preventDefault: true,
 			run(view: EditorView): boolean {
-				const selected = view.state.field(imageSelectionField);
+				const selected = getSelectedImage(view.state);
 				if (selected === null) return false;
 
 				view.dispatch({
@@ -136,7 +136,7 @@ function buildKeydownExtension(): Extension {
 function buildSelectionGuardExtension(): Extension {
 	return EditorState.transactionFilter.of(tr => {
 		if (!tr.selection) return tr;
-		if (!tr.state.field(editorLivePreviewField)) return tr;
+		if (!tr.state.field(editorLivePreviewField, false)) return tr;
 
 		const nextSelection = tr.newSelection.main;
 		if (!nextSelection.empty) return tr;
@@ -159,7 +159,7 @@ function buildSelectionGuardExtension(): Extension {
 }
 
 function deleteSelectedImage(view: EditorView): boolean {
-	const selected = view.state.field(imageSelectionField);
+	const selected = getSelectedImage(view.state);
 	if (selected === null) return false;
 
 	let { from, to } = selected;
@@ -182,6 +182,10 @@ function nextTextBoundary(state: EditorState, to: number): number {
 		return Math.min(state.doc.length, to + 1);
 	}
 	return to;
+}
+
+function getSelectedImage(state: EditorState) {
+	return state.field(imageSelectionField, false) ?? null;
 }
 
 function findManagedImageRanges(state: EditorState): Array<{ from: number; to: number }> {

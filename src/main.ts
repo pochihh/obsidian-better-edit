@@ -18,7 +18,13 @@ export default class BetterEditPlugin extends Plugin {
 	onunload() {}
 
 	async loadSettings() {
-		this.settings = Object.assign({}, DEFAULT_SETTINGS, await this.loadData() as Partial<BetterEditSettings>);
+		const loaded = await this.loadData() as Partial<BetterEditSettings> & {
+			overrideImagePaste?: boolean;
+			overrideVaultImageDrag?: boolean;
+		};
+		this.settings = Object.assign({}, DEFAULT_SETTINGS, loaded);
+		this.settings.handlePastedImages = loaded.handlePastedImages ?? loaded.overrideImagePaste ?? DEFAULT_SETTINGS.handlePastedImages;
+		this.settings.handleDroppedImages = loaded.handleDroppedImages ?? loaded.overrideVaultImageDrag ?? DEFAULT_SETTINGS.handleDroppedImages;
 	}
 
 	async saveSettings() {

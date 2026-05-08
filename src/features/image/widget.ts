@@ -27,11 +27,14 @@ import { editorLivePreviewField, Menu, normalizePath, TFile } from 'obsidian';
 import {
 	ImageBlock,
 	ImageAlignment,
+	ImageCrop,
 	SingleImageBlock,
 	parseImageBlock,
 	singleImageHtml,
 } from './html-schema';
 import { buildImageToolbarIcon, type ImageIconName } from './icons';
+import { CropModal } from './crop-modal';
+import { notePotentialNativeImageDrop } from './paste-handler';
 import {
 	imageSelectionField,
 	selectImageBlock,
@@ -88,39 +91,71 @@ class ImageWidget extends WidgetType {
 	}
 
 	toDOM(view: EditorView): HTMLElement {
-		// Outer wrapper: full-width, controls alignment, holds data attributes for click detection
 		const wrapper = createDiv({ cls: 'be-image-widget' });
 		wrapper.setAttribute('data-be-from', String(this.from));
 		wrapper.setAttribute('data-be-to',   String(this.to));
 		wrapper.addClass(this.cssClassForAlignment(this.block.alignment));
 
-		// Inner frame: shrinks to image width → correct position context for handle + toolbar
 		const frame = createDiv({ cls: 'be-image-frame' });
 		frame.style.width = this.block.width;
 		if (this.selected) frame.addClass('is-selected');
 
-		// Image
 		const imgSrc = this.resolveImageSrc(this.block.src);
-		const img = createEl('img', {
-			attr: {
-				src:       imgSrc,
-				style:     'width: 100%; max-width: 100%; display: block;',
-				draggable: 'false',
-			},
-		});
-		frame.appendChild(img);
+		const img = createEl('img', { attr: { src: imgSrc, draggable: 'false' } });
 
-		// Caption
+		if (this.block.crop) {
+			const { crop } = this.block;
+			const blockW = parseInt(this.block.width, 10) || 1;
+			// aspect-ratio instead of explicit height: max-width:100% then scales
+			// width AND height together, preventing oval / extra-crop bugs.
+			frame.style.aspectRatio = `${blockW} / ${crop.height}`;
+			if (crop.shape === 'circle') frame.addClass('be-circle-crop');
+			// Express img size as % of crop-window width so it scales automatically
+			// when the frame is constrained — no JS needed during resize.
+			const widthPct = (crop.imgWidth / blockW * 100).toFixed(3);
+			const mlPct    = (crop.offsetX  / blockW * 100).toFixed(3);
+			const mtPct    = (crop.offsetY  / blockW * 100).toFixed(3);
+			img.style.cssText = `width: ${widthPct}%; max-width: none; margin-left: -${mlPct}%; margin-top: -${mtPct}%; display: block;`;
+			const clipDiv = createDiv({ cls: 'be-image-crop-clip' });
+			clipDiv.appendChild(img);
+			frame.appendChild(clipDiv);
+		} else {
+			img.style.cssText = 'width: 100%; max-width: 100%; display: block;';
+			frame.appendChild(img);
+		}
+
 		if (this.block.caption) {
-			const caption = createEl('figcaption', { cls: 'be-image-caption' });
-			caption.setText(this.block.caption);
-			frame.appendChild(caption);
+			frame.appendChild(this.buildCaption(view));
 		}
 
 		frame.appendChild(this.buildResizeHandle(view, frame, img));
 		frame.appendChild(this.buildToolbar(view));
 		wrapper.appendChild(frame);
 		return wrapper;
+	}
+
+	private buildCaption(view: EditorView): HTMLElement {
+		const caption = createEl('figcaption', {
+			cls: 'be-image-caption',
+			attr: { contenteditable: 'plaintext-only' },
+		});
+		caption.textContent = this.block.caption ?? '';
+
+		this.plugin.registerDomEvent(caption, 'mousedown', (e: MouseEvent) => e.stopPropagation());
+		this.plugin.registerDomEvent(caption, 'click',     (e: MouseEvent) => e.stopPropagation());
+
+		this.plugin.registerDomEvent(caption, 'keydown', (e: KeyboardEvent) => {
+			if (e.key === 'Enter')  { e.preventDefault(); caption.blur(); }
+			if (e.key === 'Escape') { caption.textContent = this.block.caption ?? ''; caption.blur(); }
+		});
+
+		this.plugin.registerDomEvent(caption, 'blur', () => {
+			const text = (caption.textContent ?? '').trim();
+			if (text === (this.block.caption ?? '').trim()) return;
+			this.updateBlock(view, { caption: text || undefined });
+		});
+
+		return caption;
 	}
 
 	// ---------------------------------------------------------------------------
@@ -136,12 +171,20 @@ class ImageWidget extends WidgetType {
 			e.stopPropagation();
 
 			const startX = e.clientX;
-			const startWidth = frameEl.offsetWidth || parseInt(this.block.width, 10) || 320;
+			// renderedWidth drives the drag delta; storedWidth is the scale base
+			// for the saved crop values (block.width may exceed the editor width
+			// when max-width:100% clamps the frame — using storedWidth keeps the
+			// crop fractions exact across multiple resizes).
+			const renderedWidth = frameEl.offsetWidth || parseInt(this.block.width, 10) || 320;
+			const storedWidth   = parseInt(this.block.width, 10) || renderedWidth;
 			const minWidth = this.computeMinResizeWidth(frameEl, imgEl);
+			const startCrop = this.block.crop ? { ...this.block.crop } : undefined;
 			frameEl.addClass('is-resizing');
 
+			// For cropped images, aspect-ratio + percentage img sizing means only
+			// the frame width needs to change — height and img scale automatically.
 			const onMove = (moveEvt: MouseEvent) => {
-				const w = Math.max(minWidth, startWidth + moveEvt.clientX - startX);
+				const w = Math.max(minWidth, renderedWidth + moveEvt.clientX - startX);
 				frameEl.style.width = `${w}px`;
 			};
 
@@ -149,9 +192,22 @@ class ImageWidget extends WidgetType {
 				activeDocument.removeEventListener('mousemove', onMove);
 				activeDocument.removeEventListener('mouseup', onUp);
 				frameEl.removeClass('is-resizing');
-				const w = Math.max(minWidth, startWidth + upEvt.clientX - startX);
+				const w = Math.max(minWidth, renderedWidth + upEvt.clientX - startX);
 				frameEl.style.width = `${w}px`;
-				this.updateBlock(view, { width: `${w}px` });
+				let crop = this.block.crop;
+				if (startCrop && storedWidth > 0) {
+					const scale = w / storedWidth;
+					crop = {
+						...startCrop,
+						offsetX:  Math.round(startCrop.offsetX  * scale),
+						offsetY:  Math.round(startCrop.offsetY  * scale),
+						height:   Math.round(startCrop.height   * scale),
+						imgWidth: Math.round(startCrop.imgWidth * scale),
+					};
+					// Circles must stay square; prevent sub-pixel rounding from making an oval
+					if (crop.shape === 'circle') crop.height = w;
+				}
+				this.updateBlock(view, { width: `${w}px`, crop });
 			};
 
 			activeDocument.addEventListener('mousemove', onMove);
@@ -211,6 +267,7 @@ class ImageWidget extends WidgetType {
 			this.plugin.registerDomEvent(cropBtn, 'click', (e: MouseEvent) => {
 				e.preventDefault();
 				e.stopPropagation();
+				this.openCropModal(view);
 			});
 			bar.appendChild(cropBtn);
 		}
@@ -249,7 +306,7 @@ class ImageWidget extends WidgetType {
 
 		menu.addItem(item => {
 			item.setTitle('Crop');
-			item.onClick(() => { /* stub */ });
+			item.onClick(() => this.openCropModal(view));
 		});
 
 		menu.showAtMouseEvent(e);
@@ -316,17 +373,30 @@ class ImageWidget extends WidgetType {
 	}
 
 	private updateBlock(view: EditorView, patch: Partial<SingleImageBlock>): void {
-		const next: SingleImageBlock = {
-			...this.block,
-			...patch,
-		};
+		const next: SingleImageBlock = { ...this.block, ...patch };
 		view.dispatch({
 			changes: {
 				from: this.from,
 				to: this.to,
-				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption),
+				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption, next.crop),
 			},
 		});
+	}
+
+	private openCropModal(view: EditorView): void {
+		const resolvedSrc  = this.resolveImageSrc(this.block.src);
+		const docImgWidth  = this.block.crop?.imgWidth ?? (parseInt(this.block.width, 10) || 320);
+		const docDisplayWidth = parseInt(this.block.width, 10) || 320;
+		new CropModal(
+			this.plugin.app,
+			resolvedSrc,
+			this.block.crop,
+			docImgWidth,
+			docDisplayWidth,
+			(newCrop: ImageCrop, displayWidth: number) => {
+				this.updateBlock(view, { width: `${displayWidth}px`, crop: newCrop });
+			},
+		).open();
 	}
 
 	eq(other: ImageWidget): boolean {
@@ -412,7 +482,7 @@ function buildDecorations(
 	plugin: BetterEditPlugin,
 	selection: SelectedImageBlock | null,
 ): DecorationSet {
-	if (!state.field(editorLivePreviewField)) {
+	if (!state.field(editorLivePreviewField, false)) {
 		return Decoration.none;
 	}
 
@@ -459,13 +529,15 @@ function buildDecorations(
 export function createImageDecorationField(plugin: BetterEditPlugin): Extension {
 	return StateField.define<DecorationSet>({
 		create(state) {
-			return buildDecorations(state, plugin, state.field(imageSelectionField));
+			return buildDecorations(state, plugin, state.field(imageSelectionField, false) ?? null);
 		},
 		update(decos, tr) {
-			const selChanged  = tr.state.field(imageSelectionField) !== tr.startState.field(imageSelectionField);
-			const modeChanged = tr.state.field(editorLivePreviewField) !== tr.startState.field(editorLivePreviewField);
+			const nextSelection = tr.state.field(imageSelectionField, false) ?? null;
+			const prevSelection = tr.startState.field(imageSelectionField, false) ?? null;
+			const selChanged = nextSelection !== prevSelection;
+			const modeChanged = tr.state.field(editorLivePreviewField, false) !== tr.startState.field(editorLivePreviewField, false);
 			if (tr.docChanged || tr.selection || selChanged || modeChanged) {
-				return buildDecorations(tr.state, plugin, tr.state.field(imageSelectionField));
+				return buildDecorations(tr.state, plugin, nextSelection);
 			}
 			return decos.map(tr.changes);
 		},
@@ -482,12 +554,18 @@ export function createImageDecorationField(plugin: BetterEditPlugin): Extension 
 
 export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension {
 	return ViewPlugin.fromClass(
-		class {
-			constructor(view: EditorView) {
-				plugin.registerDomEvent(view.dom, 'mousedown', (event: MouseEvent) => {
-					const target = event.target;
+			class {
+				constructor(view: EditorView) {
+					plugin.registerDomEvent(view.dom, 'drop', () => {
+						if (!plugin.settings.imageArrangementEnabled) return;
+						if (!plugin.settings.handleDroppedImages) return;
+						notePotentialNativeImageDrop();
+					}, { capture: true });
+
+					plugin.registerDomEvent(view.dom, 'mousedown', (event: MouseEvent) => {
+						const target = event.target;
 					if (!(target instanceof Element)) return;
-					if (target.closest('.be-resize-handle, .be-image-toolbar, .be-toolbar-popover')) return;
+					if (target.closest('.be-resize-handle, .be-image-toolbar, .be-image-caption')) return;
 
 					const hitWidget = target.closest<HTMLElement>('[data-be-from]');
 					if (hitWidget) {
@@ -495,7 +573,7 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 						const to   = parseInt(hitWidget.dataset.beTo   ?? '', 10);
 						if (isNaN(from) || isNaN(to)) return;
 
-						if (!target.closest('.be-resize-handle, .be-toolbar-btn')) {
+						if (!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption')) {
 							event.preventDefault();
 						}
 						view.dispatch({
@@ -508,6 +586,6 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 					}
 				}, { capture: true });
 			}
-		},
-	);
-}
+			},
+		);
+	}

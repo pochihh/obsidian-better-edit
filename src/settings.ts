@@ -3,6 +3,8 @@ import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 export interface BetterEditSettings {
 	// Image arrangement
 	imageArrangementEnabled: boolean;
+	handlePastedImages: boolean;
+	handleDroppedImages: boolean;
 	defaultImageWidth: string;
 	defaultImageAlignment: 'left' | 'center' | 'right';
 	minImageWidthPx: number;
@@ -11,6 +13,8 @@ export interface BetterEditSettings {
 
 export const DEFAULT_SETTINGS: BetterEditSettings = {
 	imageArrangementEnabled: true,
+	handlePastedImages: true,
+	handleDroppedImages: true,
 	defaultImageWidth: '100%',
 	defaultImageAlignment: 'center',
 	minImageWidthPx: 80,
@@ -40,6 +44,26 @@ export class BetterEditSettingTab extends PluginSettingTab {
 				.setValue((this.plugin as unknown as { settings: BetterEditSettings }).settings.imageArrangementEnabled)
 				.onChange(async (value) => {
 					(this.plugin as unknown as { settings: BetterEditSettings }).settings.imageArrangementEnabled = value;
+					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Handle pasted images')
+			.setDesc('Save pasted image data and insert better edit HTML image blocks.')
+			.addToggle(toggle => toggle
+				.setValue((this.plugin as unknown as { settings: BetterEditSettings }).settings.handlePastedImages)
+				.onChange(async (value) => {
+					(this.plugin as unknown as { settings: BetterEditSettings }).settings.handlePastedImages = value;
+					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
+				}));
+
+		new Setting(containerEl)
+			.setName('Handle dropped images')
+			.setDesc('Handle image drops from the file system or vault as better edit HTML image blocks.')
+			.addToggle(toggle => toggle
+				.setValue((this.plugin as unknown as { settings: BetterEditSettings }).settings.handleDroppedImages)
+				.onChange(async (value) => {
+					(this.plugin as unknown as { settings: BetterEditSettings }).settings.handleDroppedImages = value;
 					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
 				}));
 
