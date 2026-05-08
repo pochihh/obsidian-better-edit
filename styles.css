@@ -37,8 +37,17 @@
 
 /* ── Selection ring ── on the frame so it wraps just the image ────────────*/
 .be-image-frame.is-selected {
-	box-shadow: 0 0 0 2px var(--interactive-accent);
 	border-radius: 4px;
+}
+
+.be-image-frame.is-selected::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 2px solid var(--interactive-accent);
+	border-radius: 4px;
+	pointer-events: none;
+	z-index: 3;
 }
 
 /* ── Image ────────────────────────────────────────────────────────────────*/
