@@ -1,15 +1,15 @@
 /**
  * widget.ts
  *
- * CM6 ViewPlugin that replaces image HTML blocks with interactive widgets in
- * Live Preview mode.
+ * Provides image widgets for Live Preview via a StateField (required for
+ * block-level Decoration.replace — ViewPlugin cannot provide block decorations).
  *
  * Placeholder widget: dashed border, "Paste or drop an image here".
  *
  * Filled image widget:
  *   - Click → selected state (blue ring, keyboard ops)
  *   - Hover → right-edge resize handle + alignment toolbar (via CSS classes)
- *   - ignoreEvent(mousedown) + stopPropagation → cursor never enters the block
+ *   - ignoreEvent(mousedown) + capture-phase stopPropagation → no source reveal
  */
 
 import {
@@ -17,18 +17,17 @@ import {
 	Decoration,
 	DecorationSet,
 	EditorView,
-	ViewUpdate,
 	WidgetType,
 } from '@codemirror/view';
-import { Extension, Range } from '@codemirror/state';
-import { syntaxTree } from '@codemirror/language';
-import { editorLivePreviewField } from 'obsidian';
+import { EditorState, Extension, Range, StateField } from '@codemirror/state';
+// syntaxTree removed — Obsidian uses a custom HyperMD parser with non-standard
+// node names (no 'HTMLBlock'); we scan raw document text for our marker instead.
+import { editorLivePreviewField, normalizePath, TFile } from 'obsidian';
 
 import {
 	ImageBlock,
 	ImageAlignment,
 	parseImageBlock,
-	isImageBlock,
 	singleImageHtml,
 } from './html-schema';
 import {
@@ -45,7 +44,7 @@ import type BetterEditPlugin from '../../main';
 
 class PlaceholderWidget extends WidgetType {
 	toDOM(_view: EditorView): HTMLElement {
-		const el = createDiv({ cls: 'better-edit-image-placeholder' });
+		const el = createDiv({ cls: 'be-image-placeholder' });
 		el.setText('Paste or drop an image here');
 		return el;
 	}
@@ -87,77 +86,70 @@ class ImageWidget extends WidgetType {
 	}
 
 	toDOM(view: EditorView): HTMLElement {
-		const wrapper = createDiv({ cls: 'better-edit-image-widget' });
+		// Outer wrapper: full-width, controls alignment, holds data attributes for click detection
+		const wrapper = createDiv({ cls: 'be-image-widget' });
+		wrapper.setAttribute('data-be-from', String(this.from));
+		wrapper.setAttribute('data-be-to',   String(this.to));
+		wrapper.addClass(this.cssClassForAlignment(this.block.alignment));
 
-		// Alignment via CSS classes
-		const alignClass = this.cssClassForAlignment(this.block.alignment);
-		wrapper.addClass(alignClass);
-
-		// Selection ring via CSS class
-		if (this.selected) wrapper.addClass('is-selected');
+		// Inner frame: shrinks to image width → correct position context for handle + toolbar
+		const frame = createDiv({ cls: 'be-image-frame' });
+		frame.style.width = this.block.width;
+		if (this.selected) frame.addClass('is-selected');
 
 		// Image
 		const imgSrc = this.resolveImageSrc(this.block.src);
-		const imgStyle = this.block.caption
-			? 'width: 100%; max-width: 100%;'
-			: `width: ${this.block.width}; max-width: 100%;`;
-
 		const img = createEl('img', {
-			attr: { src: imgSrc, style: imgStyle, draggable: 'false' },
+			attr: {
+				src:       imgSrc,
+				style:     'width: 100%; max-width: 100%; display: block;',
+				draggable: 'false',
+			},
 		});
-		wrapper.appendChild(img);
+		frame.appendChild(img);
 
 		// Caption
 		if (this.block.caption) {
-			const caption = createEl('p', {
-				attr: { style: 'font-size: 0.85em; color: #888; margin: 4px 0 0;' },
-			});
+			const caption = createEl('figcaption', { cls: 'be-image-caption' });
 			caption.setText(this.block.caption);
-			wrapper.appendChild(caption);
+			frame.appendChild(caption);
 		}
 
-		// Resize handle (CSS shows it on hover via .better-edit-image-widget:hover)
-		wrapper.appendChild(this.buildResizeHandle(view, img));
-
-		// Alignment toolbar (same hover mechanism)
-		wrapper.appendChild(this.buildToolbar(view));
-
-		// Click/selection is handled by EditorView.domEventHandlers in index.ts,
-		// which intercepts mousedown inside CM6's own event pipeline (before cursor positioning).
-
+		frame.appendChild(this.buildResizeHandle(view, img));
+		frame.appendChild(this.buildToolbar(view));
+		wrapper.appendChild(frame);
 		return wrapper;
 	}
 
 	// ---------------------------------------------------------------------------
-	// Resize handle
+	// Resize handle — Notion-style pill, anchored to right edge of frame
 	// ---------------------------------------------------------------------------
 
 	private buildResizeHandle(view: EditorView, imgEl: HTMLImageElement): HTMLElement {
-		const handle = createDiv({ cls: 'better-edit-resize-handle' });
-		handle.appendChild(createDiv({ cls: 'better-edit-resize-grip' }));
+		const handle = createDiv({ cls: 'be-resize-handle' });
+		handle.appendChild(createDiv({ cls: 'be-resize-grip' }));
 
 		this.plugin.registerDomEvent(handle, 'mousedown', (e: MouseEvent) => {
 			e.preventDefault();
 			e.stopPropagation();
 
-			const startX = e.clientX;
+			const startX    = e.clientX;
 			const startWidth = imgEl.offsetWidth || parseInt(this.block.width, 10) || 320;
 
-			// Transient drag handlers — removed on mouseup, no leak
 			const onMove = (moveEvt: MouseEvent) => {
-				const newWidth = Math.max(80, startWidth + moveEvt.clientX - startX);
-				imgEl.style.width = `${newWidth}px`;
+				const w = Math.max(80, startWidth + moveEvt.clientX - startX);
+				imgEl.style.width = `${w}px`;
 			};
 
 			const onUp = (upEvt: MouseEvent) => {
 				activeDocument.removeEventListener('mousemove', onMove);
 				activeDocument.removeEventListener('mouseup', onUp);
-				const newWidth = Math.max(80, startWidth + upEvt.clientX - startX);
+				const w = Math.max(80, startWidth + upEvt.clientX - startX);
 				view.dispatch({
 					changes: {
 						from: this.from,
-						to: this.to,
-						insert: singleImageHtml(this.block.src, `${newWidth}px`, this.block.alignment, this.block.caption),
+						to:   this.to,
+						insert: singleImageHtml(this.block.src, `${w}px`, this.block.alignment, this.block.caption),
 					},
 				});
 			};
@@ -170,22 +162,22 @@ class ImageWidget extends WidgetType {
 	}
 
 	// ---------------------------------------------------------------------------
-	// Alignment toolbar
+	// Alignment toolbar — Notion-style floating bar above image
 	// ---------------------------------------------------------------------------
 
 	private buildToolbar(view: EditorView): HTMLElement {
-		const bar = createDiv({ cls: 'better-edit-image-toolbar' });
+		const bar = createDiv({ cls: 'be-image-toolbar' });
 
 		const alignments: Array<{ label: string; value: ImageAlignment; title: string }> = [
-			{ label: '⬅', value: 'left',        title: 'Align left' },
-			{ label: '⬛', value: 'center',      title: 'Align center' },
-			{ label: '➡', value: 'right',        title: 'Align right' },
-			{ label: '↙', value: 'float-left',  title: 'Float left' },
-			{ label: '↘', value: 'float-right', title: 'Float right' },
+			{ label: '⇤',  value: 'left',        title: 'Align left'   },
+			{ label: '⊡',  value: 'center',      title: 'Align center' },
+			{ label: '⇥',  value: 'right',        title: 'Align right'  },
+			{ label: '↰',  value: 'float-left',  title: 'Float left'   },
+			{ label: '↱',  value: 'float-right', title: 'Float right'  },
 		];
 
 		for (const { label, value, title } of alignments) {
-			const btn = createEl('button', { cls: 'better-edit-toolbar-btn', attr: { title } });
+			const btn = createEl('button', { cls: 'be-toolbar-btn', attr: { title } });
 			if (value === this.block.alignment) btn.addClass('is-active');
 			btn.setText(label);
 
@@ -195,7 +187,7 @@ class ImageWidget extends WidgetType {
 				view.dispatch({
 					changes: {
 						from: this.from,
-						to: this.to,
+						to:   this.to,
 						insert: singleImageHtml(this.block.src, this.block.width, value, this.block.caption),
 					},
 				});
@@ -212,20 +204,30 @@ class ImageWidget extends WidgetType {
 	// ---------------------------------------------------------------------------
 
 	private resolveImageSrc(src: string): string {
-		if (src.startsWith('http') || src.startsWith('app://')) return src;
-		const adapter = this.plugin.app.vault.adapter as { getResourcePath?: (p: string) => string };
-		if (adapter.getResourcePath) return adapter.getResourcePath(src);
+		const rawSrc = src.trim();
+		if (/^(https?:|app:|file:|data:|blob:)/.test(rawSrc)) return rawSrc;
+
+		const sourceFile = this.plugin.app.workspace.getActiveFile();
+		const sourcePath = sourceFile?.path ?? '';
+		const decodedSrc = decodeImageSrc(rawSrc);
+		const normalizedSrc = normalizePath(decodedSrc.replace(/^\/+/, ''));
+		const directFile = this.plugin.app.vault.getFileByPath(normalizedSrc);
+		if (directFile instanceof TFile) return this.plugin.app.vault.getResourcePath(directFile);
+
+		const linkedFile = this.plugin.app.metadataCache.getFirstLinkpathDest(decodedSrc, sourcePath);
+		if (linkedFile instanceof TFile) return this.plugin.app.vault.getResourcePath(linkedFile);
+
 		return src;
 	}
 
 	private cssClassForAlignment(alignment: ImageAlignment): string {
 		switch (alignment) {
-			case 'left':        return 'is-align-left';
-			case 'right':       return 'is-align-right';
-			case 'float-left':  return 'is-float-left';
-			case 'float-right': return 'is-float-right';
+			case 'left':        return 'be-align-left';
+			case 'right':       return 'be-align-right';
+			case 'float-left':  return 'be-float-left';
+			case 'float-right': return 'be-float-right';
 			case 'center':
-			default:            return 'is-align-center';
+			default:            return 'be-align-center';
 		}
 	}
 
@@ -244,104 +246,146 @@ class ImageWidget extends WidgetType {
 	}
 }
 
+function decodeImageSrc(src: string): string {
+	try {
+		return decodeURIComponent(src);
+	} catch {
+		return src;
+	}
+}
+
 // ---------------------------------------------------------------------------
 // ViewPlugin
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// Decoration builder — uses EditorState (not EditorView) so it can be called
+// from a StateField, which is required for block-level Decoration.replace.
+// ViewPlugin cannot provide block decorations (CM6 throws RangeError).
+// ---------------------------------------------------------------------------
+
 function buildDecorations(
-	view: EditorView,
+	state: EditorState,
 	plugin: BetterEditPlugin,
 	selection: SelectedImageBlock | null,
 ): DecorationSet {
-	if (!view.state.field(editorLivePreviewField)) {
+	if (!state.field(editorLivePreviewField)) {
 		return Decoration.none;
 	}
 
 	const decorations: Range<Decoration>[] = [];
-	const doc = view.state.doc;
+	const fullText = state.doc.toString();
+	const OPEN_MARKER = '<div data-better-edit-image=';
+	const CLOSE_TAG   = '</div>';
+	let searchFrom = 0;
 
-	syntaxTree(view.state).iterate({
-		enter(node) {
-			if (node.name !== 'HTMLBlock') return;
+	while (true) {
+		const openIdx = fullText.indexOf(OPEN_MARKER, searchFrom);
+		if (openIdx === -1) break;
 
-			const from = node.from;
-			const to = node.to;
-			const rawHtml = doc.sliceString(from, to).trim();
+		// Must be at the start of a line
+		if (openIdx > 0 && fullText[openIdx - 1] !== '\n') {
+			searchFrom = openIdx + 1;
+			continue;
+		}
 
-			if (!isImageBlock(rawHtml)) return;
+		const closeIdx = fullText.indexOf(CLOSE_TAG, openIdx);
+		if (closeIdx === -1) break;
 
-			const block = parseImageBlock(rawHtml);
-			if (!block) return;
+		const blockEnd = closeIdx + CLOSE_TAG.length;
+		const rawHtml  = fullText.slice(openIdx, blockEnd);
+		const block    = parseImageBlock(rawHtml);
+		if (!block) { searchFrom = blockEnd; continue; }
 
-			let widget: WidgetType;
-			if (block.kind === 'placeholder') {
-				widget = new PlaceholderWidget();
-			} else {
-				const isSelected = selection !== null && selection.from === from;
-				widget = new ImageWidget(block, rawHtml, plugin, from, to, isSelected);
-			}
+		let widget: WidgetType;
+		if (block.kind === 'placeholder') {
+			widget = new PlaceholderWidget();
+		} else {
+			const isSelected = selection !== null && selection.from === openIdx;
+			widget = new ImageWidget(block, rawHtml, plugin, openIdx, blockEnd, isSelected);
+		}
 
-			decorations.push(
-				Decoration.replace({ widget, block: true }).range(from, to),
-			);
-		},
-	});
+		decorations.push(
+			Decoration.replace({ widget, block: true }).range(openIdx, blockEnd),
+		);
+		searchFrom = blockEnd;
+	}
 
 	decorations.sort((a, b) => a.from - b.from);
 	return Decoration.set(decorations);
 }
 
+// ---------------------------------------------------------------------------
+// StateField — provides block decorations (allowed; ViewPlugin cannot)
+// ---------------------------------------------------------------------------
+
+export function createImageDecorationField(plugin: BetterEditPlugin): Extension {
+	return StateField.define<DecorationSet>({
+		create(state) {
+			return buildDecorations(state, plugin, state.field(imageSelectionField));
+		},
+		update(decos, tr) {
+			const selChanged  = tr.state.field(imageSelectionField) !== tr.startState.field(imageSelectionField);
+			const modeChanged = tr.state.field(editorLivePreviewField) !== tr.startState.field(editorLivePreviewField);
+			if (tr.docChanged || selChanged || modeChanged) {
+				return buildDecorations(tr.state, plugin, tr.state.field(imageSelectionField));
+			}
+			return decos.map(tr.changes);
+		},
+		provide: field => EditorView.decorations.from(field),
+	});
+}
+
+// ---------------------------------------------------------------------------
+// ViewPlugin — mousedown handler only (no decorations)
+// ---------------------------------------------------------------------------
+
 export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension {
 	return ViewPlugin.fromClass(
 		class {
-			decorations: DecorationSet;
-
 			constructor(view: EditorView) {
-				const selection = view.state.field(imageSelectionField);
-				this.decorations = buildDecorations(view, plugin, selection);
 
-				// Capture-phase mousedown: fires before Obsidian's own source-reveal handler.
-				// stopImmediatePropagation prevents ALL subsequent handlers (capture + bubble).
+				// ── Main mousedown handler ──────────────────────────────────────
 				plugin.registerDomEvent(view.dom, 'mousedown', (e: MouseEvent) => {
 					const target = e.target as Element;
-					const widget = target.closest<HTMLElement>('[data-be-from]');
 
-					if (widget) {
+					// Let our own interactive children handle their events
+					if (target.closest('.be-resize-handle') || target.closest('.be-toolbar-btn')) return;
+
+					// Primary check: target is inside our widget DOM
+					let hitWidget = target.closest<HTMLElement>('[data-be-from]');
+
+					// Fallback: Obsidian renders a </> edit toggle as a SIBLING element
+					// (not a child of our widget), but it appears visually inside the frame.
+					// Use bounding-rect hit-testing to catch those clicks too.
+					if (!hitWidget) {
+						const frames = Array.from(view.dom.querySelectorAll('.be-image-frame'));
+						for (const frameEl of frames) {
+							if (!frameEl.instanceOf(HTMLElement)) continue;
+							const frame = frameEl;
+							const r = frame.getBoundingClientRect();
+							if (e.clientX >= r.left && e.clientX <= r.right &&
+								e.clientY >= r.top  && e.clientY <= r.bottom) {
+								hitWidget = frame.closest<HTMLElement>('[data-be-from]');
+								break;
+							}
+						}
+					}
+
+					if (hitWidget) {
 						e.preventDefault();
 						e.stopImmediatePropagation();
 
-						const from = parseInt(widget.dataset.beFrom ?? '', 10);
-						const to   = parseInt(widget.dataset.beTo   ?? '', 10);
+						const from = parseInt(hitWidget.dataset.beFrom ?? '', 10);
+						const to   = parseInt(hitWidget.dataset.beTo   ?? '', 10);
 						if (isNaN(from) || isNaN(to)) return;
 
-						// Cursor one char past the block — safely outside the HTML range
-						const safePos = Math.min(to + 1, view.state.doc.length);
-						view.dispatch({
-							selection: { anchor: safePos },
-							effects: selectImageBlock.of({ from, to }),
-						});
-					} else if (!target.closest('.better-edit-image-widget')) {
+						view.dispatch({ effects: selectImageBlock.of({ from, to }) });
+					} else if (!target.closest('.be-image-widget')) {
 						view.dispatch({ effects: deselectImageBlock.of(null) });
 					}
-				}, { capture: true }); // capture = runs before Obsidian's handlers
-			}
-
-			update(update: ViewUpdate) {
-				const selectionChanged =
-					update.state.field(imageSelectionField) !==
-					update.startState.field(imageSelectionField);
-
-				if (
-					update.docChanged ||
-					update.viewportChanged ||
-					selectionChanged ||
-					update.startState.field(editorLivePreviewField) !==
-						update.state.field(editorLivePreviewField)
-				) {
-					this.decorations = buildDecorations(update.view, plugin, update.state.field(imageSelectionField));
-				}
+				}, { capture: true });
 			}
 		},
-		{ decorations: instance => instance.decorations },
 	);
 }

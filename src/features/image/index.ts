@@ -12,7 +12,7 @@
 import { EditorView } from '@codemirror/view';
 import { Extension } from '@codemirror/state';
 import { registerPasteDropHandlers } from './paste-handler';
-import { createImageWidgetExtension } from './widget';
+import { createImageDecorationField, createImageWidgetExtension } from './widget';
 import { imageSelectionField, deselectImageBlock } from './selection';
 import type BetterEditPlugin from '../../main';
 
@@ -23,7 +23,8 @@ export function initImageFeature(plugin: BetterEditPlugin): void {
 export function createImageExtension(plugin: BetterEditPlugin): Extension {
 	return [
 		imageSelectionField,
-		createImageWidgetExtension(plugin),
+		createImageDecorationField(plugin),   // StateField — block decorations allowed
+		createImageWidgetExtension(plugin),   // ViewPlugin — mousedown handler only
 		buildKeydownExtension(),
 	];
 }

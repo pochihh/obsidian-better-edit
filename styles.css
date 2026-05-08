@@ -4,93 +4,141 @@
  * File content always uses inline styles only.
  * -------------------------------------------------------------------------*/
 
-/* Image widget wrapper */
-.better-edit-image-widget {
-	position: relative;
-	display: block;   /* full-width block so any click in the area hits the widget */
+/* ── Outer wrapper ────────────────────────────────────────────────────────
+   Full-width block; controls alignment via text-align / float.
+   Holds data-be-from/to for click detection.                              */
+.be-image-widget {
+	display: block;
 	max-width: 100%;
 	cursor: default;
+	padding: 2px 0;
+	overflow: hidden;
 }
 
-/* Alignment variants */
-.better-edit-image-widget.is-align-left   { text-align: left; }
-.better-edit-image-widget.is-align-center { text-align: center; }
-.better-edit-image-widget.is-align-right  { text-align: right; }
-.better-edit-image-widget.is-float-left   { float: left;  margin: 0 16px 12px 0; }
-.better-edit-image-widget.is-float-right  { float: right; margin: 0 0 12px 16px; }
+.be-image-widget.be-align-left   { text-align: left; }
+.be-image-widget.be-align-center { text-align: center; }
+.be-image-widget.be-align-right  { text-align: right; }
 
-/* Selection ring */
-.better-edit-image-widget.is-selected {
-	outline: 2px solid var(--interactive-accent);
-	border-radius: 2px;
-}
+.be-image-widget.be-float-left  { float: left;  margin: 0 16px 12px 0; overflow: visible; }
+.be-image-widget.be-float-right { float: right; margin: 0 0 12px 16px; overflow: visible; }
 
-/* Alignment toolbar — hidden by default, shown on hover */
-.better-edit-image-toolbar {
-	display: none;
-	position: absolute;
-	top: 4px;
-	left: 50%;
-	transform: translateX(-50%);
-	gap: 2px;
-	background: var(--background-primary);
-	border: 1px solid var(--background-modifier-border);
+/* ── Inner frame ──────────────────────────────────────────────────────────
+   Shrinks to match the image's rendered width.
+   Position context for the resize handle and toolbar.                     */
+.be-image-frame {
+	display: inline-block;
+	position: relative;
+	max-width: 100%;
+	vertical-align: top;
 	border-radius: 4px;
-	padding: 2px 4px;
-	z-index: 10;
-	box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
-	white-space: nowrap;
+	line-height: 0;
 }
 
-.better-edit-image-widget:hover .better-edit-image-toolbar {
-	display: flex;
+/* ── Selection ring ── on the frame so it wraps just the image ────────────*/
+.be-image-frame.is-selected {
+	box-shadow: 0 0 0 2px var(--interactive-accent);
+	border-radius: 4px;
 }
 
-/* Resize handle — hidden by default, shown on hover */
-.better-edit-resize-handle {
+/* ── Image ────────────────────────────────────────────────────────────────*/
+.be-image-frame img {
+	display: block;
+	max-width: 100%;
+	border-radius: 4px;
+}
+
+/* ── Caption ──────────────────────────────────────────────────────────────*/
+.be-image-caption {
+	display: block;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	text-align: center;
+	padding: 4px 0 2px;
+	line-height: 1.4;
+}
+
+/* ── Resize handle — Notion-style pill, right edge of frame ──────────────*/
+.be-resize-handle {
 	display: none;
 	position: absolute;
-	top: 0;
-	right: -5px;
-	width: 10px;
-	height: 100%;
+	top: 50%;
+	right: -6px;
+	transform: translateY(-50%);
+	width: 16px;
+	height: 64px;
 	cursor: col-resize;
 	align-items: center;
 	justify-content: center;
-	z-index: 5;
+	z-index: 10;
 }
 
-.better-edit-image-widget:hover .better-edit-resize-handle {
+.be-image-frame:hover .be-resize-handle {
 	display: flex;
 }
 
-/* Resize grip (the visible bar inside the handle) */
-.better-edit-resize-grip {
-	width: 4px;
-	height: 32px;
-	background: var(--interactive-accent);
-	border-radius: 2px;
-	opacity: 0.8;
+.be-resize-grip {
+	width: 6px;
+	height: 48px;
+	background: rgba(255, 255, 255, 0.85);
+	border-radius: 3px;
+	box-shadow: 0 1px 6px rgba(0, 0, 0, 0.35);
 }
 
-/* Toolbar button */
-.better-edit-toolbar-btn {
+/* ── Alignment toolbar — Notion-style floating bar ───────────────────────*/
+.be-image-toolbar {
+	display: none;
+	position: absolute;
+	top: 8px;
+	left: 50%;
+	transform: translateX(-50%);
+	flex-direction: row;
+	align-items: center;
+	gap: 1px;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 3px 4px;
+	z-index: 20;
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.18);
+	white-space: nowrap;
+}
+
+.be-image-frame:hover .be-image-toolbar {
+	display: flex;
+}
+
+.be-toolbar-btn {
+	display: flex;
+	align-items: center;
+	justify-content: center;
 	background: none;
 	border: none;
 	cursor: pointer;
-	padding: 2px 5px;
+	padding: 3px 6px;
 	font-size: 0.9em;
-	border-radius: 3px;
+	border-radius: 4px;
 	color: var(--text-normal);
+	min-width: 26px;
+	height: 26px;
 }
 
-.better-edit-toolbar-btn.is-active {
-	background: var(--interactive-accent);
-	color: var(--text-on-accent);
+.be-toolbar-btn:hover       { background: var(--background-modifier-hover); }
+.be-toolbar-btn.is-active   { background: var(--interactive-accent); color: var(--text-on-accent); }
+
+/* Hide Obsidian's HTML-block edit affordance without hiding the rendered image. */
+.cm-html-embed:has([data-better-edit-image]) > .edit-block-button {
+	display: none !important;
 }
 
-/* Placeholder widget */
-.better-edit-image-placeholder {
+.cm-html-embed:has([data-better-edit-image]),
+.cm-html-embed:has([data-better-edit-image]):hover {
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+/* ── Placeholder widget ───────────────────────────────────────────────────*/
+.be-image-placeholder {
+	display: block;
 	border: 2px dashed var(--background-modifier-border);
 	border-radius: 4px;
 	padding: 32px 16px;
@@ -102,7 +150,7 @@
 	user-select: none;
 }
 
-.better-edit-image-placeholder:hover {
+.be-image-placeholder:hover {
 	border-color: var(--interactive-accent);
 	color: var(--text-normal);
 }
