@@ -327,7 +327,7 @@ export function createImageDecorationField(plugin: BetterEditPlugin): Extension 
 		update(decos, tr) {
 			const selChanged  = tr.state.field(imageSelectionField) !== tr.startState.field(imageSelectionField);
 			const modeChanged = tr.state.field(editorLivePreviewField) !== tr.startState.field(editorLivePreviewField);
-			if (tr.docChanged || selChanged || modeChanged) {
+			if (tr.docChanged || tr.selection || selChanged || modeChanged) {
 				return buildDecorations(tr.state, plugin, tr.state.field(imageSelectionField));
 			}
 			return decos.map(tr.changes);
@@ -344,38 +344,12 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 	return ViewPlugin.fromClass(
 		class {
 			constructor(view: EditorView) {
+				plugin.registerDomEvent(view.dom, 'mousedown', (event: MouseEvent) => {
+					const target = event.target;
+					if (!(target instanceof Element)) return;
 
-				// ── Main mousedown handler ──────────────────────────────────────
-				plugin.registerDomEvent(view.dom, 'mousedown', (e: MouseEvent) => {
-					const target = e.target as Element;
-
-					// Let our own interactive children handle their events
-					if (target.closest('.be-resize-handle') || target.closest('.be-toolbar-btn')) return;
-
-					// Primary check: target is inside our widget DOM
-					let hitWidget = target.closest<HTMLElement>('[data-be-from]');
-
-					// Fallback: Obsidian renders a </> edit toggle as a SIBLING element
-					// (not a child of our widget), but it appears visually inside the frame.
-					// Use bounding-rect hit-testing to catch those clicks too.
-					if (!hitWidget) {
-						const frames = Array.from(view.dom.querySelectorAll('.be-image-frame'));
-						for (const frameEl of frames) {
-							if (!frameEl.instanceOf(HTMLElement)) continue;
-							const frame = frameEl;
-							const r = frame.getBoundingClientRect();
-							if (e.clientX >= r.left && e.clientX <= r.right &&
-								e.clientY >= r.top  && e.clientY <= r.bottom) {
-								hitWidget = frame.closest<HTMLElement>('[data-be-from]');
-								break;
-							}
-						}
-					}
-
+					const hitWidget = target.closest<HTMLElement>('[data-be-from]');
 					if (hitWidget) {
-						e.preventDefault();
-						e.stopImmediatePropagation();
-
 						const from = parseInt(hitWidget.dataset.beFrom ?? '', 10);
 						const to   = parseInt(hitWidget.dataset.beTo   ?? '', 10);
 						if (isNaN(from) || isNaN(to)) return;

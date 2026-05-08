@@ -10,7 +10,7 @@
  */
 
 import { EditorView } from '@codemirror/view';
-import { Extension } from '@codemirror/state';
+import { Extension, Prec } from '@codemirror/state';
 import { registerPasteDropHandlers } from './paste-handler';
 import { createImageDecorationField, createImageWidgetExtension } from './widget';
 import { imageSelectionField, deselectImageBlock } from './selection';
@@ -23,7 +23,7 @@ export function initImageFeature(plugin: BetterEditPlugin): void {
 export function createImageExtension(plugin: BetterEditPlugin): Extension {
 	return [
 		imageSelectionField,
-		createImageDecorationField(plugin),   // StateField — block decorations allowed
+		Prec.highest(createImageDecorationField(plugin)), // Must win over Obsidian's native HTML embed decoration.
 		createImageWidgetExtension(plugin),   // ViewPlugin — mousedown handler only
 		buildKeydownExtension(),
 	];
