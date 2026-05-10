@@ -1,30 +1,26 @@
 import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
+import { ImageSettings, IMAGE_DEFAULT_SETTINGS } from './features/image/settings';
+import { BlocksSettings, BLOCKS_DEFAULT_SETTINGS } from './features/blocks/settings';
 
 export interface BetterEditSettings {
-	// Image arrangement
-	imageArrangementEnabled: boolean;
-	handlePastedImages: boolean;
-	handleDroppedImages: boolean;
-	defaultImageWidth: string;
-	defaultImageAlignment: 'left' | 'center' | 'right';
-	minImageWidthPx: number;
-	minImageHeightPx: number;
+	image: ImageSettings;
+	blocks: BlocksSettings;
 }
 
 export const DEFAULT_SETTINGS: BetterEditSettings = {
-	imageArrangementEnabled: true,
-	handlePastedImages: true,
-	handleDroppedImages: true,
-	defaultImageWidth: '100%',
-	defaultImageAlignment: 'center',
-	minImageWidthPx: 80,
-	minImageHeightPx: 56,
+	image: IMAGE_DEFAULT_SETTINGS,
+	blocks: BLOCKS_DEFAULT_SETTINGS,
+};
+
+type PluginWithSettings = Plugin & {
+	settings: BetterEditSettings;
+	saveSettings: () => Promise<void>;
 };
 
 export class BetterEditSettingTab extends PluginSettingTab {
-	plugin: Plugin;
+	plugin: PluginWithSettings;
 
-	constructor(app: App, plugin: Plugin) {
+	constructor(app: App, plugin: PluginWithSettings) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -32,6 +28,14 @@ export class BetterEditSettingTab extends PluginSettingTab {
 	display(): void {
 		const { containerEl } = this;
 		containerEl.empty();
+
+		this.renderImageSettings(containerEl);
+		this.renderBlocksSettings(containerEl);
+	}
+
+	private renderImageSettings(containerEl: HTMLElement): void {
+		const s = () => this.plugin.settings.image;
+		const save = () => this.plugin.saveSettings();
 
 		new Setting(containerEl)
 			.setName('Image arrangement')
@@ -41,30 +45,30 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			.setName('Enable image arrangement')
 			.setDesc('Intercept image paste and drop to insert rich HTML image blocks.')
 			.addToggle(toggle => toggle
-				.setValue((this.plugin as unknown as { settings: BetterEditSettings }).settings.imageArrangementEnabled)
+				.setValue(s().enabled)
 				.onChange(async (value) => {
-					(this.plugin as unknown as { settings: BetterEditSettings }).settings.imageArrangementEnabled = value;
-					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
+					s().enabled = value;
+					await save();
 				}));
 
 		new Setting(containerEl)
 			.setName('Handle pasted images')
 			.setDesc('Save pasted image data and insert better edit HTML image blocks.')
 			.addToggle(toggle => toggle
-				.setValue((this.plugin as unknown as { settings: BetterEditSettings }).settings.handlePastedImages)
+				.setValue(s().handlePastedImages)
 				.onChange(async (value) => {
-					(this.plugin as unknown as { settings: BetterEditSettings }).settings.handlePastedImages = value;
-					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
+					s().handlePastedImages = value;
+					await save();
 				}));
 
 		new Setting(containerEl)
 			.setName('Handle dropped images')
 			.setDesc('Handle image drops from the file system or vault as better edit HTML image blocks.')
 			.addToggle(toggle => toggle
-				.setValue((this.plugin as unknown as { settings: BetterEditSettings }).settings.handleDroppedImages)
+				.setValue(s().handleDroppedImages)
 				.onChange(async (value) => {
-					(this.plugin as unknown as { settings: BetterEditSettings }).settings.handleDroppedImages = value;
-					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
+					s().handleDroppedImages = value;
+					await save();
 				}));
 
 		new Setting(containerEl)
@@ -72,12 +76,12 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			.setDesc('Smallest allowed image width when resizing, in pixels.')
 			.addText(text => text
 				.setPlaceholder('80')
-				.setValue(String((this.plugin as unknown as { settings: BetterEditSettings }).settings.minImageWidthPx))
+				.setValue(String(s().minImageWidthPx))
 				.onChange(async (value) => {
 					const parsed = parseInt(value.trim(), 10);
 					if (Number.isNaN(parsed)) return;
-					(this.plugin as unknown as { settings: BetterEditSettings }).settings.minImageWidthPx = Math.max(1, parsed);
-					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
+					s().minImageWidthPx = Math.max(1, parsed);
+					await save();
 				}));
 
 		new Setting(containerEl)
@@ -85,12 +89,74 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			.setDesc('Smallest allowed rendered image height when resizing, in pixels.')
 			.addText(text => text
 				.setPlaceholder('56')
-				.setValue(String((this.plugin as unknown as { settings: BetterEditSettings }).settings.minImageHeightPx))
+				.setValue(String(s().minImageHeightPx))
 				.onChange(async (value) => {
 					const parsed = parseInt(value.trim(), 10);
 					if (Number.isNaN(parsed)) return;
-					(this.plugin as unknown as { settings: BetterEditSettings }).settings.minImageHeightPx = Math.max(1, parsed);
-					await (this.plugin as unknown as { saveSettings: () => Promise<void> }).saveSettings();
+					s().minImageHeightPx = Math.max(1, parsed);
+					await save();
+				}));
+
+		new Setting(containerEl)
+			.setName('Compact toolbar threshold')
+			.setDesc('Image frame width (px) below which the toolbar collapses to a single more button.')
+			.addText(text => text
+				.setPlaceholder('220')
+				.setValue(String(s().compactToolbarThresholdPx))
+				.onChange(async (value) => {
+					const parsed = parseInt(value.trim(), 10);
+					if (Number.isNaN(parsed)) return;
+					s().compactToolbarThresholdPx = Math.max(1, parsed);
+					await save();
+				}));
+	}
+
+	private renderBlocksSettings(containerEl: HTMLElement): void {
+		const s = () => this.plugin.settings.blocks;
+		const save = () => this.plugin.saveSettings();
+
+		new Setting(containerEl)
+			.setName('Blocks drag and drop')
+			.setHeading();
+
+		new Setting(containerEl)
+			.setName('Enable block drag handles')
+			.setDesc('Show Notion-style block controls in live preview.')
+			.addToggle(toggle => toggle
+				.setValue(s().enabled)
+				.onChange(async (value) => {
+					s().enabled = value;
+					await save();
+				}));
+
+		new Setting(containerEl)
+			.setName('Show add button')
+			.setDesc('Show the plus button beside hovered blocks.')
+			.addToggle(toggle => toggle
+				.setValue(s().showAddButton)
+				.onChange(async (value) => {
+					s().showAddButton = value;
+					await save();
+				}));
+
+		new Setting(containerEl)
+			.setName('Enable list item drag')
+			.setDesc('Allow list items to be treated as movable blocks.')
+			.addToggle(toggle => toggle
+				.setValue(s().enableListItemDrag)
+				.onChange(async (value) => {
+					s().enableListItemDrag = value;
+					await save();
+				}));
+
+		new Setting(containerEl)
+			.setName('Enable drag for HTML blocks')
+			.setDesc('Allow complete HTML blocks to be treated as movable blocks.')
+			.addToggle(toggle => toggle
+				.setValue(s().enableHtmlBlockDrag)
+				.onChange(async (value) => {
+					s().enableHtmlBlockDrag = value;
+					await save();
 				}));
 	}
 }

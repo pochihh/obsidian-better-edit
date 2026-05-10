@@ -32,6 +32,7 @@ export interface SingleImageBlock {
 	width: string;     // px — crop window width (or display width when no crop)
 	alignment: ImageAlignment;
 	caption?: string;
+	alt?: string;
 	crop?: ImageCrop;
 }
 
@@ -85,12 +86,15 @@ export function singleImageHtml(
 	alignment: ImageAlignment,
 	caption?: string,
 	crop?: ImageCrop,
+	alt?: string,
 ): string {
+	const altAttr = alt ? ` alt="${escapeHtmlAttr(alt)}"` : '';
+
 	if (crop) {
 		const outerStyle = cropOuterStyle(alignment, crop.height, crop.shape === 'circle');
 		return (
 			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
-			`  <img src="${src}" style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
+			`  <img src="${src}"${altAttr} style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
 			(caption ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
 			`</div>`
 		);
@@ -98,18 +102,10 @@ export function singleImageHtml(
 
 	const outerStyle = outerStyleForAlignment(alignment);
 
-	if (caption) {
-		return (
-			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
-			`  <img src="${src}" style="width: 100%; max-width: 100%;" />\n` +
-			`  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` +
-			`</div>`
-		);
-	}
-
 	return (
-		`<div data-better-edit-image="filled" style="${outerStyle}">\n` +
-		`  <img src="${src}" style="width: ${width}; max-width: 100%;" />\n` +
+		`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
+		`  <img src="${src}"${altAttr} style="width: 100%; max-width: 100%;" />\n` +
+		(caption ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
 		`</div>`
 	);
 }
@@ -142,11 +138,14 @@ export function parseImageBlock(html: string): ImageBlock | null {
 	const outerMatch = /^<div\b[^>]*style="([^"]*)"/.exec(trimmed);
 	const outerStyle = outerMatch ? (outerMatch[1] ?? '') : '';
 
-	const imgMatch = /\n\s*<img\b[^>]*src="([^"]*)"(?:[^>]*style="([^"]*)")?/.exec(trimmed);
+	const imgMatch = /\n\s*(<img\b[^>]*\/>)/.exec(trimmed);
 	if (!imgMatch) return null;
+	const imgTag = imgMatch[1] ?? '';
 
-	const src = imgMatch[1] ?? '';
-	const imgStyle = imgMatch[2] ?? '';
+	const src       = (/\bsrc="([^"]*)"/.exec(imgTag))?.[1] ?? '';
+	const imgStyle  = (/\bstyle="([^"]*)"/.exec(imgTag))?.[1] ?? '';
+	const rawAlt    = (/\balt="([^"]*)"/.exec(imgTag))?.[1];
+	const alt       = rawAlt != null ? unescapeHtmlAttr(rawAlt) : undefined;
 
 	const isCropped = /overflow:\s*hidden/.test(outerStyle);
 
@@ -165,10 +164,11 @@ export function parseImageBlock(html: string): ImageBlock | null {
 		crop = { offsetX, offsetY, height, imgWidth };
 		if (/border-radius:\s*50%/.test(outerStyle)) crop.shape = 'circle';
 	} else {
-		// Width = image display width (on img, or outer div for caption variant)
+		// Width is on the outer div; fall back to img style for old HTML written
+		// before this was unified (width was previously on the img for no-caption).
 		width =
-			extractStyleProp(imgStyle, 'width') ??
 			extractStyleProp(outerStyle, 'width') ??
+			extractStyleProp(imgStyle, 'width') ??
 			'100%';
 	}
 
@@ -176,12 +176,20 @@ export function parseImageBlock(html: string): ImageBlock | null {
 	const captionMatch = /<p\b[^>]*>([\s\S]*?)<\/p>/.exec(trimmed);
 	const caption = captionMatch ? (captionMatch[1] ?? undefined) : undefined;
 
-	return { kind: 'single', src, width, alignment, caption, crop };
+	return { kind: 'single', src, width, alignment, caption, alt, crop };
 }
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+function escapeHtmlAttr(s: string): string {
+	return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function unescapeHtmlAttr(s: string): string {
+	return s.replace(/&quot;/g, '"').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&');
+}
 
 function extractStyleProp(style: string, prop: string): string | null {
 	const re = new RegExp(`(?:^|;)\\s*${prop}:\\s*([^;]+)`);

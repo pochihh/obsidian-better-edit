@@ -34,7 +34,7 @@ import {
 } from './html-schema';
 import { buildImageToolbarIcon, type ImageIconName } from './icons';
 import { CropModal } from './crop-modal';
-import { notePotentialNativeImageDrop } from './paste-handler';
+import { notePotentialNativeImageDrop, saveImageToVault } from './paste-handler';
 import {
 	imageSelectionField,
 	selectImageBlock,
@@ -128,8 +128,18 @@ class ImageWidget extends WidgetType {
 			frame.appendChild(this.buildCaption(view));
 		}
 
+		if (this.block.alt) {
+			const badge = createDiv({ cls: 'be-image-alt-badge', text: 'ALT' });
+			this.plugin.registerDomEvent(badge, 'click', (e: MouseEvent) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.openAltTextPopover(view, frame);
+			});
+			frame.appendChild(badge);
+		}
+
 		frame.appendChild(this.buildResizeHandle(view, frame, img));
-		frame.appendChild(this.buildToolbar(view));
+		frame.appendChild(this.buildToolbar(view, frame));
 		wrapper.appendChild(frame);
 		return wrapper;
 	}
@@ -221,8 +231,19 @@ class ImageWidget extends WidgetType {
 	// Alignment toolbar — Notion-style floating bar above image
 	// ---------------------------------------------------------------------------
 
-	private buildToolbar(view: EditorView): HTMLElement {
+	private buildToolbar(view: EditorView, frameEl: HTMLElement): HTMLElement {
 		const bar = createDiv({ cls: 'be-image-toolbar' });
+
+		const addMoreBtn = () => {
+			bar.appendChild(createDiv({ cls: 'be-toolbar-sep' }));
+			const moreBtn = createToolbarButton(this.plugin, 'more', 'More');
+			this.plugin.registerDomEvent(moreBtn, 'click', (e: MouseEvent) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.showContextMenu(e, view, frameEl);
+			});
+			bar.appendChild(moreBtn);
+		};
 
 		if (this.isCompactToolbar()) {
 			// ── Compact: single "More" button opens native Obsidian menu ────────
@@ -230,7 +251,7 @@ class ImageWidget extends WidgetType {
 			this.plugin.registerDomEvent(moreBtn, 'click', (e: MouseEvent) => {
 				e.preventDefault();
 				e.stopPropagation();
-				this.showContextMenu(e, view);
+				this.showContextMenu(e, view, frameEl);
 			});
 			bar.appendChild(moreBtn);
 		} else {
@@ -270,43 +291,81 @@ class ImageWidget extends WidgetType {
 				this.openCropModal(view);
 			});
 			bar.appendChild(cropBtn);
+
+			const replaceBtn = createToolbarButton(this.plugin, 'replace', 'Replace');
+			this.plugin.registerDomEvent(replaceBtn, 'click', (e: MouseEvent) => {
+				e.preventDefault();
+				e.stopPropagation();
+				this.openReplacePanel(view, frameEl);
+			});
+			bar.appendChild(replaceBtn);
+
+			addMoreBtn();
 		}
 
 		return bar;
 	}
 
-	private showContextMenu(e: MouseEvent, view: EditorView): void {
+	private showContextMenu(e: MouseEvent, view: EditorView, frameEl: HTMLElement): void {
 		const menu = new Menu();
 
-		const alignItems: Array<{ title: string; value: ImageAlignment }> = [
-			{ title: 'Align left',   value: 'left'   },
-			{ title: 'Align center', value: 'center' },
-			{ title: 'Align right',  value: 'right'  },
-		];
-
-		for (const { title, value } of alignItems) {
+		// Group 1 — Alignment
+		for (const { title, value } of [
+			{ title: 'Align left',   value: 'left'   as ImageAlignment },
+			{ title: 'Align center', value: 'center' as ImageAlignment },
+			{ title: 'Align right',  value: 'right'  as ImageAlignment },
+		]) {
 			menu.addItem(item => {
 				item.setTitle(title);
 				if (this.block.alignment === value) item.setChecked(true);
-				item.onClick(() => {
-					this.updateBlock(view, { alignment: value });
-				});
+				item.onClick(() => this.updateBlock(view, { alignment: value }));
 			});
 		}
 
 		menu.addSeparator();
 
+		// Group 2 — Caption, Crop, Replace
 		menu.addItem(item => {
 			item.setTitle(this.block.caption ? 'Remove caption' : 'Add caption');
 			if (this.block.caption) item.setChecked(true);
-			item.onClick(() => {
-				this.updateBlock(view, { caption: this.block.caption ? undefined : 'Caption' });
-			});
+			item.onClick(() => this.updateBlock(view, { caption: this.block.caption ? undefined : 'Caption' }));
 		});
 
 		menu.addItem(item => {
 			item.setTitle('Crop');
 			item.onClick(() => this.openCropModal(view));
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Replace');
+			item.onClick(() => this.openReplacePanel(view, frameEl));
+		});
+
+		menu.addSeparator();
+
+		// Group 3 — Alt text
+		menu.addItem(item => {
+			item.setTitle(this.block.alt ? 'Edit alt text' : 'Add alt text');
+			if (this.block.alt) item.setChecked(true);
+			item.onClick(() => this.openAltTextPopover(view, frameEl));
+		});
+
+		menu.addSeparator();
+
+		// Group 4 — Copy, Duplicate, Delete
+		menu.addItem(item => {
+			item.setTitle('Copy');
+			item.onClick(() => this.copyBlock());
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Duplicate');
+			item.onClick(() => this.duplicateBlock(view));
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Delete');
+			item.onClick(() => this.deleteBlock(view));
 		});
 
 		menu.showAtMouseEvent(e);
@@ -348,12 +407,12 @@ class ImageWidget extends WidgetType {
 		const width = this.block.width.trim();
 		if (!width.endsWith('px')) return false;
 		const px = parseInt(width, 10);
-		return !Number.isNaN(px) && px < 220;
+		return !Number.isNaN(px) && px < this.plugin.settings.image.compactToolbarThresholdPx;
 	}
 
 	private computeMinResizeWidth(frameEl: HTMLElement, imgEl: HTMLImageElement): number {
-		const minWidth = Math.max(1, this.plugin.settings.minImageWidthPx);
-		const minHeight = Math.max(1, this.plugin.settings.minImageHeightPx);
+		const minWidth = Math.max(1, this.plugin.settings.image.minImageWidthPx);
+		const minHeight = Math.max(1, this.plugin.settings.image.minImageHeightPx);
 
 		const naturalWidth = imgEl.naturalWidth;
 		const naturalHeight = imgEl.naturalHeight;
@@ -378,7 +437,7 @@ class ImageWidget extends WidgetType {
 			changes: {
 				from: this.from,
 				to: this.to,
-				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption, next.crop),
+				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption, next.crop, next.alt),
 			},
 		});
 	}
@@ -397,6 +456,187 @@ class ImageWidget extends WidgetType {
 				this.updateBlock(view, { width: `${displayWidth}px`, crop: newCrop });
 			},
 		).open();
+	}
+
+	private openReplacePanel(view: EditorView, frameEl: HTMLElement): void {
+		activeDocument.querySelector('.be-replace-panel')?.remove();
+
+		const panel = createDiv({ cls: 'be-replace-panel' });
+
+		// Position below frame, clamped to viewport
+		const rect  = frameEl.getBoundingClientRect();
+		const panelW = 360;
+		panel.style.top  = `${rect.bottom + 8}px`;
+		panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - panelW - 16))}px`;
+
+		// ── Tab bar ───────────────────────────────────────────────────────────
+		const tabBar    = createDiv({ cls: 'be-replace-tabs' });
+		const uploadTab = createEl('button', { cls: 'be-replace-tab is-active', text: 'Upload' });
+		const linkTab   = createEl('button', { cls: 'be-replace-tab', text: 'Link' });
+		tabBar.append(uploadTab, linkTab);
+
+		// ── Upload pane ───────────────────────────────────────────────────────
+		const uploadPane = createDiv({ cls: 'be-replace-pane' });
+		const uploadArea = createDiv({ cls: 'be-replace-upload-area' });
+		const uploadBtn  = createEl('button', { cls: 'be-replace-upload-btn', text: 'Upload file' });
+		const fileInput  = createEl('input', { attr: { type: 'file', accept: 'image/*', style: 'display:none' } });
+		uploadArea.append(uploadBtn, fileInput);
+		uploadPane.appendChild(uploadArea);
+
+		// ── Link pane ─────────────────────────────────────────────────────────
+		const linkPane  = createDiv({ cls: 'be-replace-pane', attr: { style: 'display:none' } });
+		const linkInput = createEl('input', { cls: 'be-replace-link-input', attr: {
+			type: 'text', value: this.block.src, placeholder: 'Paste image URL or vault path…',
+		} }) as HTMLInputElement;
+		linkPane.appendChild(linkInput);
+
+		panel.append(tabBar, uploadPane, linkPane);
+
+		// ── Tab switching ─────────────────────────────────────────────────────
+		uploadTab.addEventListener('click', () => {
+			uploadTab.addClass('is-active'); linkTab.removeClass('is-active');
+			uploadPane.style.display = ''; linkPane.style.display = 'none';
+		});
+		linkTab.addEventListener('click', () => {
+			linkTab.addClass('is-active'); uploadTab.removeClass('is-active');
+			linkPane.style.display = ''; uploadPane.style.display = 'none';
+			requestAnimationFrame(() => { linkInput.focus(); linkInput.select(); });
+		});
+
+		// ── Close helper (guards against double-fire) ─────────────────────────
+		let panelClosed = false;
+		const closePanel = () => {
+			if (panelClosed) return;
+			panelClosed = true;
+			activeDocument.removeEventListener('mousedown', closeOnOutside, true);
+			panel.remove();
+		};
+
+		// ── Upload file picker ────────────────────────────────────────────────
+		uploadBtn.addEventListener('click', () => fileInput.click());
+		fileInput.addEventListener('change', () => {
+			const file = fileInput.files?.[0];
+			if (!file) return;
+			void this.replaceWithFile(view, file).then(() => closePanel());
+		});
+
+		// Drag onto the upload pane
+		uploadArea.addEventListener('dragover', ev => { ev.preventDefault(); uploadArea.addClass('is-over'); });
+		uploadArea.addEventListener('dragleave', () => uploadArea.removeClass('is-over'));
+		uploadArea.addEventListener('drop', ev => {
+			ev.preventDefault();
+			uploadArea.removeClass('is-over');
+			const file = Array.from(ev.dataTransfer?.files ?? []).find(f => f.type.startsWith('image/'));
+			if (!file) return;
+			void this.replaceWithFile(view, file).then(() => closePanel());
+		});
+
+		// ── Link apply on Enter ───────────────────────────────────────────────
+		linkInput.addEventListener('keydown', ev => {
+			if (ev.key !== 'Enter') return;
+			const src = linkInput.value.trim();
+			if (!src) return;
+			this.updateBlock(view, { src });
+			closePanel();
+		});
+
+		// ── Outside click ─────────────────────────────────────────────────────
+		const closeOnOutside = (ev: MouseEvent) => {
+			if (!panel.contains(ev.target as Node)) closePanel();
+		};
+		setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+
+		activeDocument.body.appendChild(panel);
+	}
+
+	private async replaceWithFile(view: EditorView, file: File): Promise<void> {
+		const activeFile = this.plugin.app.workspace.getActiveFile();
+		if (!activeFile) return;
+		const savedPath = await saveImageToVault(this.plugin, file, activeFile);
+		if (!savedPath) return;
+		// Clear crop when replacing — the new image has different dimensions
+		this.updateBlock(view, { src: savedPath, crop: undefined });
+	}
+
+	private openAltTextPopover(view: EditorView, frameEl: HTMLElement): void {
+		activeDocument.querySelector('.be-alt-popover')?.remove();
+
+		const popover = createDiv({ cls: 'be-alt-popover' });
+
+		// Position below frame, right-aligned
+		const rect     = frameEl.getBoundingClientRect();
+		const popW     = 280;
+		const left     = Math.max(8, Math.min(rect.right - popW, window.innerWidth - popW - 16));
+		popover.style.top  = `${rect.bottom + 8}px`;
+		popover.style.left = `${left}px`;
+
+		const header   = createDiv({ cls: 'be-alt-popover-header' });
+		header.createSpan({ text: 'Alt text' });
+		const closeBtn = createEl('button', { cls: 'be-alt-popover-close', text: '×' });
+		header.appendChild(closeBtn);
+
+		const desc = createDiv({ cls: 'be-alt-popover-desc',
+			text: 'Describe this image for people who cannot see it.' });
+
+		const input = createEl('input', { cls: 'be-alt-popover-input', attr: {
+			type: 'text',
+			value: this.block.alt ?? '',
+			placeholder: 'Add alt text…',
+		} }) as HTMLInputElement;
+
+		popover.append(header, desc, input);
+
+		// `closed` prevents double-dispatch when Enter fires blur on the input
+		// (removing the popover from the DOM fires blur on the focused input).
+		let altClosed = false;
+		const closePopover = (save: boolean) => {
+			if (altClosed) return;
+			altClosed = true;
+			activeDocument.removeEventListener('mousedown', closeOnOutside, true);
+			if (save) {
+				const alt = input.value.trim() || undefined;
+				this.updateBlock(view, { alt });
+			}
+			popover.remove();
+		};
+
+		input.addEventListener('blur',    () => closePopover(true));
+		input.addEventListener('keydown', ev => {
+			if (ev.key === 'Enter')  closePopover(true);
+			if (ev.key === 'Escape') closePopover(false);
+		});
+		closeBtn.addEventListener('click', () => closePopover(true));
+
+		const closeOnOutside = (ev: MouseEvent) => {
+			if (!popover.contains(ev.target as Node)) closePopover(true);
+		};
+		setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+
+		activeDocument.body.appendChild(popover);
+		requestAnimationFrame(() => input.focus());
+	}
+
+	private copyBlock(): void {
+		navigator.clipboard.writeText(this.rawHtml).catch(err =>
+			console.error('[better-edit] Copy failed:', err));
+	}
+
+	private duplicateBlock(view: EditorView): void {
+		const insert = '\n' + this.rawHtml;
+		view.dispatch({
+			changes: { from: this.to, to: this.to, insert },
+			selection: { anchor: this.to + insert.length },
+		});
+	}
+
+	private deleteBlock(view: EditorView): void {
+		const text = view.state.doc.toString();
+		let from = this.from;
+		let to   = this.to;
+		// Absorb one surrounding newline to avoid leaving a blank line
+		if (to < text.length && text[to] === '\n')         to++;
+		else if (from > 0 && text[from - 1] === '\n') from--;
+		view.dispatch({ changes: { from, to, insert: '' } });
 	}
 
 	eq(other: ImageWidget): boolean {
@@ -557,8 +797,8 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 			class {
 				constructor(view: EditorView) {
 					plugin.registerDomEvent(view.dom, 'drop', () => {
-						if (!plugin.settings.imageArrangementEnabled) return;
-						if (!plugin.settings.handleDroppedImages) return;
+						if (!plugin.settings.image.enabled) return;
+						if (!plugin.settings.image.handleDroppedImages) return;
 						notePotentialNativeImageDrop();
 					}, { capture: true });
 

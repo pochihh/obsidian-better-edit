@@ -26,8 +26,8 @@ let pendingNativeDropUntil = 0;
 export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 	plugin.registerEvent(
 		plugin.app.workspace.on('editor-paste', (evt: ClipboardEvent, editor: Editor, view: MarkdownView) => {
-			if (!plugin.settings.imageArrangementEnabled) return;
-			if (!plugin.settings.handlePastedImages) return;
+			if (!plugin.settings.image.enabled) return;
+			if (!plugin.settings.image.handlePastedImages) return;
 			if (evt.defaultPrevented) return;
 
 			const imageFile = getImageFromDataTransfer(evt.clipboardData);
@@ -40,8 +40,8 @@ export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 
 	plugin.registerEvent(
 		plugin.app.workspace.on('editor-drop', (evt: DragEvent, editor: Editor, view: MarkdownView) => {
-			if (!plugin.settings.imageArrangementEnabled) return;
-			if (!plugin.settings.handleDroppedImages) return;
+			if (!plugin.settings.image.enabled) return;
+			if (!plugin.settings.image.handleDroppedImages) return;
 			if (evt.defaultPrevented) return;
 
 			const imageFile = getImageFromDataTransfer(evt.dataTransfer);
@@ -64,8 +64,8 @@ export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 
 	plugin.registerEvent(
 		plugin.app.workspace.on('editor-change', (editor: Editor, info: MarkdownView | MarkdownFileInfo) => {
-			if (!plugin.settings.imageArrangementEnabled) return;
-			if (!plugin.settings.handleDroppedImages) return;
+			if (!plugin.settings.image.enabled) return;
+			if (!plugin.settings.image.handleDroppedImages) return;
 			if (suppressNativeDropRewrite.has(editor)) {
 				suppressNativeDropRewrite.delete(editor);
 				return;
@@ -108,7 +108,7 @@ async function handleImageInsert(
 	const savedPath = await saveImageToVault(plugin, imageFile, activeFile);
 	if (!savedPath) return;
 
-	const { defaultImageWidth, defaultImageAlignment } = plugin.settings;
+	const { defaultImageWidth, defaultImageAlignment } = plugin.settings.image;
 	const html = singleImageHtml(savedPath, defaultImageWidth, defaultImageAlignment);
 
 	// Check if the cursor is inside a placeholder block and replace it; otherwise insert at cursor
@@ -142,7 +142,7 @@ function handleExistingImageInsert(
 }
 
 function buildManagedImageHtml(plugin: BetterEditPlugin, imageFile: TFile): string {
-	const { defaultImageWidth, defaultImageAlignment } = plugin.settings;
+	const { defaultImageWidth, defaultImageAlignment } = plugin.settings.image;
 	return singleImageHtml(imageFile.path, defaultImageWidth, defaultImageAlignment);
 }
 
@@ -155,7 +155,7 @@ function markPendingNativeDrop(editor: Editor): void {
  * Saves a File object to the vault, honoring the user's attachment folder setting.
  * Returns the vault-relative path of the saved file, or null on failure.
  */
-async function saveImageToVault(
+export async function saveImageToVault(
 	plugin: BetterEditPlugin,
 	file: File,
 	activeFile: TFile,
