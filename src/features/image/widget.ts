@@ -112,9 +112,6 @@ class ImageWidget extends WidgetType {
 		if (this.block.crop) {
 			const { crop } = this.block;
 			const blockW = parseInt(this.block.width, 10) || 1;
-			// aspect-ratio instead of explicit height: max-width:100% then scales
-			// width AND height together, preventing oval / extra-crop bugs.
-			frame.style.aspectRatio = `${blockW} / ${crop.height}`;
 			if (crop.shape === 'circle') frame.addClass('be-circle-crop');
 			// Express img size as % of crop-window width so it scales automatically
 			// when the frame is constrained — no JS needed during resize.
@@ -126,13 +123,19 @@ class ImageWidget extends WidgetType {
 			if (crop.shape !== 'circle' && r > 0) clipDiv.style.borderRadius = `${r}px`;
 			clipDiv.appendChild(img);
 			frame.appendChild(clipDiv);
+			// In-flow spacer gives the frame its crop-window height so the caption
+			// (if any) lands below the image rather than overlapping it.
+			// padding-top % is relative to width, so it scales with resize.
+			const spacer = createDiv({ cls: 'be-image-crop-spacer' });
+			spacer.style.paddingTop = `${(crop.height / blockW * 100).toFixed(3)}%`;
+			frame.appendChild(spacer);
 		} else {
 			const radiusStyle = r > 0 ? ` border-radius: ${r}px;` : '';
 			img.style.cssText = `width: 100%; max-width: 100%; display: block;${radiusStyle}`;
 			frame.appendChild(img);
 		}
 
-		if (this.block.caption !== undefined) {
+		if (this.block.caption !== undefined && !this.block.captionHidden) {
 			frame.appendChild(this.buildCaption(view));
 		}
 
@@ -290,11 +293,11 @@ class ImageWidget extends WidgetType {
 			bar.appendChild(createDiv({ cls: 'be-toolbar-sep' }));
 
 			const captionBtn = createToolbarButton(this.plugin, 'caption', 'Caption');
-			if (this.block.caption !== undefined) captionBtn.addClass('is-active');
+			if (this.block.caption !== undefined && !this.block.captionHidden) captionBtn.addClass('is-active');
 			this.plugin.registerDomEvent(captionBtn, 'click', (e: MouseEvent) => {
 				e.preventDefault();
 				e.stopPropagation();
-				this.updateBlock(view, { caption: this.block.caption !== undefined ? undefined : '' });
+				this.updateBlock(view, this.captionTogglePatch());
 			});
 			bar.appendChild(captionBtn);
 
@@ -340,9 +343,13 @@ class ImageWidget extends WidgetType {
 
 		// Group 2 — Caption, Crop, Replace
 		menu.addItem(item => {
-			item.setTitle(this.block.caption !== undefined ? 'Remove caption' : 'Add caption');
-			if (this.block.caption !== undefined) item.setChecked(true);
-			item.onClick(() => this.updateBlock(view, { caption: this.block.caption !== undefined ? undefined : '' }));
+			const visible = this.block.caption !== undefined && !this.block.captionHidden;
+			item.setTitle(
+				this.block.caption === undefined ? 'Add caption' :
+				this.block.captionHidden ? 'Show caption' : 'Hide caption',
+			);
+			if (visible) item.setChecked(true);
+			item.onClick(() => this.updateBlock(view, this.captionTogglePatch()));
 		});
 
 		menu.addItem(item => {
@@ -445,13 +452,20 @@ class ImageWidget extends WidgetType {
 		return minWidth;
 	}
 
+	private captionTogglePatch(): Partial<SingleImageBlock> {
+		if (this.block.caption === undefined) {
+			return { caption: '', captionHidden: undefined };
+		}
+		return { captionHidden: this.block.captionHidden ? undefined : true };
+	}
+
 	private updateBlock(view: EditorView, patch: Partial<SingleImageBlock>): void {
 		const next: SingleImageBlock = { ...this.block, ...patch };
 		view.dispatch({
 			changes: {
 				from: this.from,
 				to: this.to,
-				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption, next.crop, next.alt, this.plugin.settings.image.imageCornerRadiusPx),
+				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption, next.crop, next.alt, this.plugin.settings.image.imageCornerRadiusPx, next.captionHidden),
 			},
 		});
 	}

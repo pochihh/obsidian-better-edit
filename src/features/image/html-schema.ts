@@ -31,7 +31,8 @@ export interface SingleImageBlock {
 	src: string;
 	width: string;     // px — crop window width (or display width when no crop)
 	alignment: ImageAlignment;
-	caption?: string;
+	caption?: string;       // undefined = caption never created; string (incl. '') = caption exists
+	captionHidden?: boolean; // true = caption created but toggled off; text preserved in HTML
 	alt?: string;
 	crop?: ImageCrop;
 }
@@ -89,16 +90,20 @@ export function singleImageHtml(
 	crop?: ImageCrop,
 	alt?: string,
 	cornerRadius = 4,
+	captionHidden = false,
 ): string {
 	const altAttr = alt ? ` alt="${escapeHtmlAttr(alt)}"` : '';
 	const radiusStyle = cornerRadius > 0 ? ` border-radius: ${cornerRadius}px;` : '';
+	const captionHtml = caption !== undefined
+		? `  <p style="${captionHidden ? 'display: none; ' : ''}font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n`
+		: '';
 
 	if (crop) {
 		const outerStyle = cropOuterStyle(alignment, crop.height, crop.shape === 'circle', cornerRadius);
 		return (
 			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
 			`  <img src="${src}"${altAttr} style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
-			(caption !== undefined ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
+			captionHtml +
 			`</div>`
 		);
 	}
@@ -108,7 +113,7 @@ export function singleImageHtml(
 	return (
 		`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
 		`  <img src="${src}"${altAttr} style="width: 100%; max-width: 100%;${radiusStyle}" />\n` +
-		(caption !== undefined ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
+		captionHtml +
 		`</div>`
 	);
 }
@@ -176,10 +181,15 @@ export function parseImageBlock(html: string): ImageBlock | null {
 	}
 
 	const alignment = detectAlignment(outerStyle, isCropped);
+	let caption: string | undefined;
+	let captionHidden: boolean | undefined;
 	const captionMatch = /<p\b[^>]*>([\s\S]*?)<\/p>/.exec(trimmed);
-	const caption = captionMatch ? (captionMatch[1] ?? undefined) : undefined;
+	if (captionMatch) {
+		caption = captionMatch[1] ?? '';
+		captionHidden = /display:\s*none/.test(captionMatch[0]) ? true : undefined;
+	}
 
-	return { kind: 'single', src, width, alignment, caption, alt, crop };
+	return { kind: 'single', src, width, alignment, caption, captionHidden, alt, crop };
 }
 
 // ---------------------------------------------------------------------------
