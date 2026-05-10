@@ -371,20 +371,14 @@ body .be-block-controls > button.be-block-handle:active {
 	color: var(--text-normal);
 }
 
-/* ── Crop clip — wraps only the image so toolbar/handle escape overflow ───*/
+/* ── Crop clip — in-flow block; padding-top% provides crop-window height ─*/
+/* The img inside is position:absolute so it renders in the padding area.  */
 .be-image-crop-clip {
-	position: absolute;
-	inset: 0;
+	display: block;
+	position: relative;
+	width: 100%;
 	overflow: hidden;
 	line-height: 0;
-}
-
-/* In-flow spacer that gives the frame its crop-window height.
-   padding-top % is relative to element width, so height scales with resize. */
-.be-image-crop-spacer {
-	display: block;
-	width: 100%;
-	pointer-events: none;
 }
 
 /* ── Circle crop rendering ────────────────────────────────────────────────*/

@@ -113,22 +113,22 @@ class ImageWidget extends WidgetType {
 			const { crop } = this.block;
 			const blockW = parseInt(this.block.width, 10) || 1;
 			if (crop.shape === 'circle') frame.addClass('be-circle-crop');
-			// Express img size as % of crop-window width so it scales automatically
-			// when the frame is constrained — no JS needed during resize.
-			const widthPct = (crop.imgWidth / blockW * 100).toFixed(3);
-			const mlPct    = (crop.offsetX  / blockW * 100).toFixed(3);
-			const mtPct    = (crop.offsetY  / blockW * 100).toFixed(3);
-			img.style.cssText = `width: ${widthPct}%; max-width: none; margin-left: -${mlPct}%; margin-top: -${mtPct}%; display: block;`;
+
+			// Clip is in-flow; padding-top% gives it the crop-window height so it
+			// scales with the frame width. The img is position:absolute inside it.
 			const clipDiv = createDiv({ cls: 'be-image-crop-clip' });
+			clipDiv.style.paddingTop = `${(crop.height / blockW * 100).toFixed(3)}%`;
 			if (crop.shape !== 'circle' && r > 0) clipDiv.style.borderRadius = `${r}px`;
+
+			// width% and left% are both relative to containing-block WIDTH.
+			// top% is relative to containing-block HEIGHT (= padding-top value),
+			// so its base is crop.height — different from left's base of blockW.
+			const widthPct = (crop.imgWidth / blockW * 100).toFixed(3);
+			const leftPct  = (crop.offsetX  / blockW * 100).toFixed(3);
+			const topPct   = (crop.offsetY  / crop.height * 100).toFixed(3);
+			img.style.cssText = `position: absolute; width: ${widthPct}%; max-width: none; left: -${leftPct}%; top: -${topPct}%; display: block;`;
 			clipDiv.appendChild(img);
 			frame.appendChild(clipDiv);
-			// In-flow spacer gives the frame its crop-window height so the caption
-			// (if any) lands below the image rather than overlapping it.
-			// padding-top % is relative to width, so it scales with resize.
-			const spacer = createDiv({ cls: 'be-image-crop-spacer' });
-			spacer.style.paddingTop = `${(crop.height / blockW * 100).toFixed(3)}%`;
-			frame.appendChild(spacer);
 		} else {
 			const radiusStyle = r > 0 ? ` border-radius: ${r}px;` : '';
 			img.style.cssText = `width: 100%; max-width: 100%; display: block;${radiusStyle}`;

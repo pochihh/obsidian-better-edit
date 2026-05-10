@@ -69,17 +69,21 @@ function outerStyleForAlignment(alignment: ImageAlignment): string {
 	}
 }
 
-/** Returns the outer div style for a cropped image (overflow:hidden + alignment via margins). */
-function cropOuterStyle(alignment: ImageAlignment, height: number, circle: boolean, cornerRadius = 0): string {
-	const radiusPart = circle ? ' border-radius: 50%;' : (cornerRadius > 0 ? ` border-radius: ${cornerRadius}px;` : '');
-	const clip = `overflow: hidden; height: ${height}px;${radiusPart}`;
+/** Alignment style for the crop wrapper div (no overflow — that lives on the inner clip div). */
+function cropWrapperStyle(alignment: ImageAlignment): string {
 	switch (alignment) {
-		case 'left':        return `${clip} margin-right: auto;`;
-		case 'center':      return `${clip} margin: 0 auto;`;
-		case 'right':       return `${clip} margin-left: auto;`;
-		case 'float-left':  return `float: left; margin: 0 16px 12px 0; ${clip}`;
-		case 'float-right': return `float: right; margin: 0 0 12px 16px; ${clip}`;
+		case 'left':        return '';
+		case 'center':      return 'margin: 0 auto;';
+		case 'right':       return 'margin-left: auto;';
+		case 'float-left':  return 'float: left; margin: 0 16px 12px 0;';
+		case 'float-right': return 'float: right; margin: 0 0 12px 16px;';
 	}
+}
+
+/** Inline style for the crop clip div (overflow:hidden + shape). */
+function cropClipStyle(height: number, circle: boolean, cornerRadius = 0): string {
+	const radius = circle ? ' border-radius: 50%;' : (cornerRadius > 0 ? ` border-radius: ${cornerRadius}px;` : '');
+	return `overflow: hidden; height: ${height}px;${radius}`;
 }
 
 export function singleImageHtml(
@@ -99,10 +103,16 @@ export function singleImageHtml(
 		: '';
 
 	if (crop) {
-		const outerStyle = cropOuterStyle(alignment, crop.height, crop.shape === 'circle', cornerRadius);
+		// Two-div structure: outer div = width + alignment, inner div = clip mask.
+		// Caption sits between them so overflow:hidden on the inner div never clips it.
+		const wrapperStyle = cropWrapperStyle(alignment);
+		const clipStyle = cropClipStyle(crop.height, crop.shape === 'circle', cornerRadius);
+		const wrapperAttr = wrapperStyle ? ` style="width: ${width}; ${wrapperStyle}"` : ` style="width: ${width};"`;
 		return (
-			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
-			`  <img src="${src}"${altAttr} style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
+			`<div data-better-edit-image="filled"${wrapperAttr}>\n` +
+			`  <div style="${clipStyle}">\n` +
+			`    <img src="${src}"${altAttr} style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
+			`  </div>\n` +
 			captionHtml +
 			`</div>`
 		);
@@ -155,22 +165,36 @@ export function parseImageBlock(html: string): ImageBlock | null {
 	const rawAlt    = (/\balt="([^"]*)"/.exec(imgTag))?.[1];
 	const alt       = rawAlt != null ? unescapeHtmlAttr(rawAlt) : undefined;
 
-	const isCropped = /overflow:\s*hidden/.test(outerStyle);
+	// Old format: one div with overflow:hidden carries both clip and alignment.
+	// New format: outer div = width/alignment, inner <div> carries overflow:hidden.
+	let isCropped = /overflow:\s*hidden/.test(outerStyle);
+	let cropStyle = outerStyle;
+
+	if (!isCropped) {
+		const innerDivMatch = /\n\s*<div\b[^>]*style="([^"]*)"/.exec(trimmed);
+		if (innerDivMatch) {
+			const innerStyle = innerDivMatch[1] ?? '';
+			if (/overflow:\s*hidden/.test(innerStyle)) {
+				isCropped = true;
+				cropStyle = innerStyle;
+			}
+		}
+	}
 
 	let width: string;
 	let crop: ImageCrop | undefined;
 
 	if (isCropped) {
-		// Width = crop window width (on outer div); imgWidth = rendered image width (on img)
+		// Width is always on the outer div in both formats.
 		width = extractStyleProp(outerStyle, 'width') ?? '100%';
-		const height = parseInt(extractStyleProp(outerStyle, 'height') ?? '0', 10);
+		const height = parseInt(extractStyleProp(cropStyle, 'height') ?? '0', 10);
 		const imgWidth = parseInt(extractStyleProp(imgStyle, 'width') ?? '0', 10);
 		const mlStr = extractStyleProp(imgStyle, 'margin-left');
 		const mtStr = extractStyleProp(imgStyle, 'margin-top');
 		const offsetX = mlStr ? Math.max(0, -parseInt(mlStr, 10)) : 0;
 		const offsetY = mtStr ? Math.max(0, -parseInt(mtStr, 10)) : 0;
 		crop = { offsetX, offsetY, height, imgWidth };
-		if (/border-radius:\s*50%/.test(outerStyle)) crop.shape = 'circle';
+		if (/border-radius:\s*50%/.test(cropStyle)) crop.shape = 'circle';
 	} else {
 		// Width is on the outer div; fall back to img style for old HTML written
 		// before this was unified (width was previously on the img for no-caption).
