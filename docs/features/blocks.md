@@ -40,6 +40,10 @@ If a source region is ambiguous, treat it as a plain text block or do not expose
 
 Move exact source slices, including indentation and internal newlines. Do not reformat block contents during drag and drop.
 
+### Theme-native UI
+
+All block affordances must use Obsidian theme variables and native interaction patterns. Avoid hardcoded colors, shadows, or opaque custom surfaces unless they reference theme tokens such as `--text-faint`, `--background-modifier-hover`, `--background-modifier-border`, `--interactive-accent`, and `--shadow-s`.
+
 ### Code-safe behavior
 
 Do not expose block handles inside fenced code, inline code, raw HTML internals, math blocks, or other regions where the visible text is not normal Markdown structure.
@@ -54,6 +58,7 @@ Do not expose block handles inside fenced code, inline code, raw HTML internals,
 |---|---|---|
 | Paragraph | One or more non-empty text lines separated by blank lines | Move whole paragraph |
 | Heading | Single ATX heading line (`# Heading`) | Move heading line only |
+| Setext heading | Text line plus `---`/`===` underline | Move both lines as one heading |
 | Horizontal rule | `---`, `***`, `___` on its own line | Move single line |
 | List item | Markdown list marker line plus nested child lines | Move item subtree |
 | Task item | Same as list item | Move item subtree |
@@ -63,6 +68,7 @@ Do not expose block handles inside fenced code, inline code, raw HTML internals,
 | Table | Consecutive table-looking lines | Move whole table |
 | HTML block | Complete block-level HTML region | Move whole HTML block |
 | Better Edit image | HTML block containing `data-better-edit-image` | Move whole image block |
+| Native Obsidian image | Single-line `![[image.png]]` embed | Move image embed line |
 
 ### Out of scope for first pass
 
@@ -71,6 +77,7 @@ Do not expose block handles inside fenced code, inline code, raw HTML internals,
 | Multi-block selection drag | More complex selection semantics; can come later |
 | Dragging partial paragraph text | Native text editing should handle this |
 | Reparenting list items by horizontal drag | Requires indentation UX; start with vertical reorder only |
+| Horizontal drag behavior | Too ambiguous; this feature is vertical reorder only |
 | Moving blocks across files | Needs file-level drop model; later |
 | Column / grid layouts | Not part of native Markdown |
 | Block database semantics | Not a native-first goal |
@@ -129,6 +136,8 @@ Rules:
 
 Move only the heading line.
 
+Setext headings are atomic: `text` followed by `---` or `===` moves as one heading block. Do not expose a drop boundary between the heading text and underline.
+
 ### Lists
 
 List item is the first complex case.
@@ -154,6 +163,8 @@ Rules:
 - Move all consecutive quote lines together.
 - Include blank quoted lines (`>`) inside the block.
 - Stop at the first non-quote line.
+- Preserve one following blank separator line when present.
+- If a quote has no following blank line, add one when moving it so the next block is not rendered as part of the quote.
 
 ### Fenced code blocks
 
@@ -204,11 +215,28 @@ When hovering a block in Live Preview:
 
 During drag:
 
-- Show a ghost preview or lightweight dragged state.
-- Show drop line between valid block boundaries.
+- The drag model is vertical only. Horizontal mouse position is ignored.
+- Show a block-level selection highlight on the source block as soon as the handle is pressed.
+- The highlight is visual only; it must not create native text selection.
+- Show a drop line between valid block boundaries.
 - Auto-scroll near editor top/bottom.
 - Do not allow dropping inside the block being dragged.
 - Do not allow dropping inside atomic blocks like code, HTML, image, or table.
+- Do not reparent list items, change indentation, create columns, or infer side-by-side layout.
+
+### Selection and drop visuals
+
+Source selection:
+
+- Use a subtle block overlay based on Obsidian theme variables.
+- For single-line blocks, highlight the rendered line.
+- For multi-line blocks such as code, HTML, table, blockquote, or image HTML, highlight the full rendered block region.
+
+Drop indicator:
+
+- Use one thin horizontal line at the insertion boundary.
+- The line spans the editor content width, not the full app window.
+- The line only means "insert here"; it never means indent, nest, or create a column.
 
 ### Add button behavior
 
@@ -221,6 +249,23 @@ MVP:
 Later:
 
 - Clicking `+` can open the Slash Command menu anchored at the insertion point.
+
+### Markdown-safe drops
+
+Dropping paragraph-like text directly above a standalone `---` can accidentally create a Setext heading. To preserve intent, this drop inserts a separating blank line:
+
+```md
+paragraph
+
+---
+```
+
+instead of:
+
+```md
+paragraph
+---
+```
 
 ---
 
@@ -242,6 +287,7 @@ Important:
 - If target position is after the original block, adjust the target by the removed slice length.
 - Keep undo as a single editor operation.
 - Avoid direct `vault.modify`; use editor transactions.
+- Treat horizontal pointer movement as irrelevant. The selected drop boundary is based only on vertical pointer position.
 
 ---
 

@@ -9,6 +9,7 @@ export type BlockKind =
 	| 'fenced-code'
 	| 'table'
 	| 'html'
+	| 'native-image'
 	| 'text';
 
 export interface BlockRange {
@@ -29,9 +30,11 @@ export interface BlockDetectionOptions {
 const LIST_ITEM_RE = /^(\s*)(?:[-*+]\s+(?:\[[ xX]\]\s+)?|\d+[.)]\s+)/;
 const HEADING_RE = /^\s{0,3}#{1,6}\s+/;
 const HR_RE = /^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/;
+const SETEXT_HEADING_RE = /^\s{0,3}(?:=+|-+)\s*$/;
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 const TABLE_DELIMITER_RE = /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/;
 const HTML_OPEN_RE = /^\s*<(div|section|article|figure|table|ul|ol|blockquote|pre)\b/i;
+const NATIVE_IMAGE_RE = /^\s*!\[\[[^\]]+\]\]\s*$/;
 
 export function getBlockAtPos(state: EditorState, pos: number, options: BlockDetectionOptions): BlockRange | null {
 	if (state.doc.length === 0) return null;
@@ -43,9 +46,11 @@ export function getBlockAtPos(state: EditorState, pos: number, options: BlockDet
 		getFencedCodeBlock(state, line.number) ??
 		getTableBlock(state, line.number) ??
 		(options.enableHtmlBlockDrag ? getHtmlBlock(state, line.number) : null) ??
+		getSetextHeadingBlock(state, line.number) ??
 		getBlockquoteBlock(state, line.number) ??
 		(options.enableListItemDrag ? getListItemBlock(state, line.number) : null) ??
 		getSingleLineBlock(state, line.number) ??
+		getNativeImageBlock(state, line.number) ??
 		getParagraphBlock(state, line.number)
 	);
 }
@@ -53,8 +58,48 @@ export function getBlockAtPos(state: EditorState, pos: number, options: BlockDet
 function getSingleLineBlock(state: EditorState, lineNumber: number): BlockRange | null {
 	const line = state.doc.line(lineNumber);
 	if (HEADING_RE.test(line.text)) return lineBlock(state, lineNumber, 'heading');
+	if (isSetextUnderline(state, lineNumber)) return null;
 	if (HR_RE.test(line.text)) return lineBlock(state, lineNumber, 'horizontal-rule');
 	return null;
+}
+
+function getSetextHeadingBlock(state: EditorState, lineNumber: number): BlockRange | null {
+	if (lineNumber < state.doc.lines && isSetextUnderline(state, lineNumber + 1)) {
+		return rangeFromLines(state, lineNumber, lineNumber + 1, 'heading');
+	}
+	if (isSetextUnderline(state, lineNumber)) {
+		return rangeFromLines(state, lineNumber - 1, lineNumber, 'heading');
+	}
+	return null;
+}
+
+function isSetextUnderline(state: EditorState, lineNumber: number): boolean {
+	if (lineNumber <= 1 || lineNumber > state.doc.lines) return false;
+
+	const line = state.doc.line(lineNumber);
+	const previous = state.doc.line(lineNumber - 1);
+	if (!SETEXT_HEADING_RE.test(line.text)) return false;
+	if (previous.text.trim() === '') return false;
+	if (isStructuralPreviousLine(previous.text)) return false;
+
+	return true;
+}
+
+function isStructuralPreviousLine(text: string): boolean {
+	return (
+		HEADING_RE.test(text) ||
+		HR_RE.test(text) ||
+		FENCE_RE.test(text) ||
+		LIST_ITEM_RE.test(text) ||
+		/^\s*>/.test(text) ||
+		HTML_OPEN_RE.test(text)
+	);
+}
+
+function getNativeImageBlock(state: EditorState, lineNumber: number): BlockRange | null {
+	return NATIVE_IMAGE_RE.test(state.doc.line(lineNumber).text)
+		? lineBlock(state, lineNumber, 'native-image')
+		: null;
 }
 
 function getParagraphBlock(state: EditorState, lineNumber: number): BlockRange {
@@ -72,7 +117,10 @@ function getListItemBlock(state: EditorState, lineNumber: number): BlockRange | 
 	for (let n = lineNumber + 1; n <= state.doc.lines; n++) {
 		const next = state.doc.line(n).text;
 		if (next.trim() === '') {
-			end = n;
+			const continuationLine = nextIndentedContinuationLine(state, n + 1, indent);
+			if (continuationLine === null) break;
+			end = continuationLine;
+			n = continuationLine;
 			continue;
 		}
 
@@ -89,6 +137,19 @@ function isIndentedContinuation(text: string, parentIndent: number): boolean {
 	return leadingSpaces(text) > parentIndent;
 }
 
+function nextIndentedContinuationLine(state: EditorState, lineNumber: number, parentIndent: number): number | null {
+	for (let n = lineNumber; n <= state.doc.lines; n++) {
+		const text = state.doc.line(n).text;
+		if (text.trim() === '') continue;
+
+		const nextList = LIST_ITEM_RE.exec(text);
+		if (nextList && (nextList[1]?.length ?? 0) <= parentIndent) return null;
+
+		return isIndentedContinuation(text, parentIndent) ? n : null;
+	}
+	return null;
+}
+
 function getBlockquoteBlock(state: EditorState, lineNumber: number): BlockRange | null {
 	if (!/^\s*>/.test(state.doc.line(lineNumber).text)) return null;
 
@@ -96,6 +157,7 @@ function getBlockquoteBlock(state: EditorState, lineNumber: number): BlockRange 
 	let end = lineNumber;
 	while (start > 1 && /^\s*>/.test(state.doc.line(start - 1).text)) start--;
 	while (end < state.doc.lines && /^\s*>/.test(state.doc.line(end + 1).text)) end++;
+	if (end < state.doc.lines && state.doc.line(end + 1).text.trim() === '') end++;
 	return rangeFromLines(state, start, end, 'blockquote');
 }
 

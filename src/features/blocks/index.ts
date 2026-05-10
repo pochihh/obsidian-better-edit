@@ -4,6 +4,27 @@ import { editorLivePreviewField } from 'obsidian';
 import type BetterEditPlugin from '../../main';
 import { BlockRange, getBlockAtPos } from './block-model';
 
+interface DropBoundary {
+	pos: number;
+	top: number;
+	side: 'before' | 'after';
+	isOriginal: boolean;
+}
+
+interface MoveSlice {
+	from: number;
+	to: number;
+	text: string;
+}
+
+type DragState =
+	| { kind: 'idle' }
+	| { kind: 'pressed'; source: BlockRange; slice: MoveSlice; startY: number }
+	| { kind: 'dragging'; source: BlockRange; slice: MoveSlice; target: DropBoundary | null };
+
+const DRAG_START_THRESHOLD_PX = 4;
+const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .be-image-widget, .internal-embed.image-embed';
+
 export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 	return ViewPlugin.fromClass(class {
 		private readonly view: EditorView;
@@ -12,9 +33,12 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private readonly addButtonEl: HTMLButtonElement;
 		private readonly dragHandleEl: HTMLButtonElement;
 		private readonly tooltipEl: HTMLElement;
+		private readonly selectionEl: HTMLElement;
+		private readonly dropLineEl: HTMLElement;
 		private hoveredBlock: BlockRange | null = null;
 		private hoveredRect: DOMRect | null = null;
 		private tooltipTimer: number | null = null;
+		private dragState: DragState = { kind: 'idle' };
 
 		constructor(view: EditorView) {
 			this.view = view;
@@ -34,18 +58,30 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				cls: 'be-block-tooltip',
 				text: 'Click to add below. Option-click to add above.',
 			});
+			this.selectionEl = createDiv({ cls: 'be-block-selection' });
+			this.dropLineEl = createDiv({ cls: 'be-block-drop-line' });
 
 			if (!this.plugin.settings.blocks.showAddButton) {
 				this.addButtonEl.hide();
 			}
 
 			this.editorDocument().body.appendChild(this.controlsEl);
+			this.editorDocument().body.appendChild(this.selectionEl);
+			this.editorDocument().body.appendChild(this.dropLineEl);
 			this.hideControls();
 
 			this.plugin.registerDomEvent(this.editorDocument(), 'pointermove', (event: PointerEvent) => this.onPointerMove(event));
+			this.plugin.registerDomEvent(this.editorDocument(), 'pointerup', (event: PointerEvent) => this.onPointerUp(event));
+			this.plugin.registerDomEvent(this.editorDocument(), 'pointercancel', () => this.cancelDrag());
+			this.plugin.registerDomEvent(this.editorDocument(), 'keydown', (event: KeyboardEvent) => {
+				if (event.key === 'Escape') this.cancelDrag();
+			});
+			this.plugin.registerDomEvent(this.scrollerElement(), 'scroll', () => this.onEditorScroll(), { passive: true });
+			this.plugin.registerDomEvent(this.controlsEl, 'wheel', (event: WheelEvent) => this.forwardWheelToScroller(event));
 			this.plugin.registerDomEvent(this.addButtonEl, 'click', (event: MouseEvent) => this.onAddClick(event));
 			this.plugin.registerDomEvent(this.addButtonEl, 'mouseenter', () => this.scheduleTooltip());
 			this.plugin.registerDomEvent(this.addButtonEl, 'mouseleave', () => this.hideTooltip());
+			this.plugin.registerDomEvent(this.dragHandleEl, 'pointerdown', (event: PointerEvent) => this.onDragHandlePointerDown(event));
 			this.plugin.registerDomEvent(this.dragHandleEl, 'dragstart', (event: DragEvent) => {
 				event.preventDefault();
 				event.stopPropagation();
@@ -59,15 +95,28 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			}
 			if (update.docChanged || update.viewportChanged || update.geometryChanged) {
 				this.positionControls();
+				this.positionDragVisuals();
 			}
 		}
 
 		destroy(): void {
+			this.cancelDrag();
 			this.clearTooltipTimer();
 			this.controlsEl.remove();
+			this.selectionEl.remove();
+			this.dropLineEl.remove();
 		}
 
 		private onPointerMove(event: PointerEvent): void {
+			if (this.dragState.kind === 'pressed') {
+				this.updatePressedDrag(event.clientY);
+				return;
+			}
+			if (this.dragState.kind === 'dragging') {
+				this.updateDrag(event.clientY);
+				return;
+			}
+
 			if (!this.isLivePreview() || !this.isActiveVisibleEditor()) {
 				this.hideControls();
 				return;
@@ -102,7 +151,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				return;
 			}
 
-			const lineEl = pointEl.closest('.cm-line, .cm-html-embed.cm-embed-block, .be-image-widget');
+			const lineEl = pointEl.closest(BLOCK_ELEMENT_SELECTOR);
 			if (lineEl === null || !this.view.dom.contains(lineEl)) {
 				this.hideControls();
 				return;
@@ -121,8 +170,128 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			}
 
 			this.hoveredBlock = block;
-			this.hoveredRect = this.anchorRectForBlock(block, lineEl);
+			this.hoveredRect = this.controlRectForBlock(block, lineEl);
 			this.positionControls();
+		}
+
+		private onDragHandlePointerDown(event: PointerEvent): void {
+			if (event.button !== 0 || this.hoveredBlock === null) return;
+
+			event.preventDefault();
+			event.stopPropagation();
+			this.clearTooltipTimer();
+			this.tooltipEl.removeClass('is-visible');
+			this.view.focus();
+
+			const source = this.hoveredBlock;
+			this.dragState = {
+				kind: 'pressed',
+				source,
+				slice: this.moveSliceForBlock(source),
+				startY: event.clientY,
+			};
+
+			this.controlsEl.addClass('is-dragging');
+			this.view.dom.addClass('be-block-dragging-editor');
+			this.positionDragVisuals();
+		}
+
+		private onPointerUp(event: PointerEvent): void {
+			if (this.dragState.kind === 'pressed') {
+				event.preventDefault();
+				event.stopPropagation();
+				this.cancelDrag();
+				return;
+			}
+			if (this.dragState.kind !== 'dragging') return;
+			event.preventDefault();
+			event.stopPropagation();
+			this.finishDrag();
+		}
+
+		private updatePressedDrag(clientY: number): void {
+			if (this.dragState.kind !== 'pressed') return;
+			if (Math.abs(clientY - this.dragState.startY) < DRAG_START_THRESHOLD_PX) return;
+
+			this.dragState = {
+				kind: 'dragging',
+				source: this.dragState.source,
+				slice: this.dragState.slice,
+				target: null,
+			};
+			this.updateDrag(clientY);
+		}
+
+		private updateDrag(clientY: number): void {
+			if (this.dragState.kind !== 'dragging') return;
+
+			const target = this.dropBoundaryFromY(clientY, this.dragState.source, this.dragState.slice);
+			this.dragState = { ...this.dragState, target };
+			this.positionDragVisuals();
+		}
+
+		private onEditorScroll(): void {
+			if (this.dragState.kind !== 'idle') {
+				this.positionDragVisuals();
+				return;
+			}
+			this.hideControls();
+		}
+
+		private forwardWheelToScroller(event: WheelEvent): void {
+			if (this.dragState.kind !== 'idle') return;
+			event.preventDefault();
+			this.scrollerElement().scrollBy({
+				left: event.deltaX,
+				top: event.deltaY,
+				behavior: 'instant',
+			});
+			this.hideControls();
+		}
+
+		private finishDrag(): void {
+			if (this.dragState.kind !== 'dragging') return;
+
+			const { slice, source, target } = this.dragState;
+			this.resetDragUi();
+			if (target === null) return;
+			if (target.isOriginal) return;
+			if (target.pos >= slice.from && target.pos <= slice.to) return;
+
+			const movedText = this.textForDrop(slice.text, target, source);
+			const finalCursor = target.pos < slice.from
+				? target.pos + movedText.length
+				: target.pos;
+
+			const changes = target.pos < slice.from
+				? [
+					{ from: target.pos, to: target.pos, insert: movedText },
+					{ from: slice.from, to: slice.to, insert: '' },
+				]
+				: [
+					{ from: slice.from, to: slice.to, insert: '' },
+					{ from: target.pos, to: target.pos, insert: movedText },
+				];
+
+			this.view.dispatch({
+				changes,
+				selection: { anchor: finalCursor },
+				scrollIntoView: true,
+			});
+			this.view.focus();
+		}
+
+		private cancelDrag(): void {
+			if (this.dragState.kind === 'idle') return;
+			this.resetDragUi();
+		}
+
+		private resetDragUi(): void {
+			this.dragState = { kind: 'idle' };
+			this.controlsEl.removeClass('is-dragging');
+			this.view.dom.removeClass('be-block-dragging-editor');
+			this.selectionEl.removeClass('is-visible');
+			this.dropLineEl.removeClass('is-visible');
 		}
 
 		private onAddClick(event: MouseEvent): void {
@@ -161,10 +330,40 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private hideControls(): void {
+			if (this.dragState.kind !== 'idle') return;
 			this.hoveredBlock = null;
 			this.hoveredRect = null;
 			this.controlsEl.removeClass('is-visible');
 			this.hideTooltip();
+		}
+
+		private positionDragVisuals(): void {
+			if (this.dragState.kind === 'idle') return;
+
+			const sourceRect = this.selectionRectForBlock(this.dragState.source);
+			if (sourceRect === null) {
+				this.selectionEl.removeClass('is-visible');
+			} else {
+				this.positionFixedElement(this.selectionEl, sourceRect.top, sourceRect.left, sourceRect.width, sourceRect.height);
+				this.selectionEl.addClass('is-visible');
+			}
+
+			const target = this.dragState.kind === 'dragging' ? this.dragState.target : null;
+			const contentRect = this.contentRect();
+			if (target === null || contentRect === null) {
+				this.dropLineEl.removeClass('is-visible');
+				return;
+			}
+
+			this.positionFixedElement(this.dropLineEl, target.top, contentRect.left, contentRect.width, 2);
+			this.dropLineEl.addClass('is-visible');
+		}
+
+		private positionFixedElement(el: HTMLElement, top: number, left: number, width: number, height: number): void {
+			el.style.top = `${top}px`;
+			el.style.left = `${left}px`;
+			el.style.width = `${Math.max(1, width)}px`;
+			el.style.height = `${Math.max(1, height)}px`;
 		}
 
 		private scheduleTooltip(): void {
@@ -204,26 +403,228 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				return Number.isNaN(parsed) ? null : parsed;
 			}
 
+			const sourceEl = lineEl.matches('.internal-embed.image-embed')
+				? lineEl.closest('.cm-line') ?? lineEl
+				: lineEl;
+
 			try {
-				return this.view.posAtDOM(lineEl, 0);
+				return this.view.posAtDOM(sourceEl, 0);
 			} catch {
 				return null;
 			}
 		}
 
 		private lineHitFromY(clientY: number): { block: BlockRange; rect: DOMRect } | null {
-			const lineElements = Array.from(this.view.dom.querySelectorAll('.cm-line, .cm-html-embed.cm-embed-block, .be-image-widget'))
+			const lineElements = Array.from(this.view.dom.querySelectorAll(BLOCK_ELEMENT_SELECTOR))
 				.filter((el): el is Element => el.instanceOf(Element));
-			for (const lineEl of lineElements) {
-				const rect = lineEl.getBoundingClientRect();
-				if (clientY < rect.top || clientY > rect.bottom) continue;
 
-				const pos = this.posFromLineElement(lineEl);
-				if (pos === null) return null;
-				const block = this.blockAt(pos);
-				return block === null ? null : { block, rect: this.anchorRectForBlock(block, lineEl) };
+			for (const lineEl of lineElements) {
+				const lineRect = lineEl.getBoundingClientRect();
+				if (clientY < lineRect.top || clientY > lineRect.bottom) continue;
+
+				const hit = this.blockHitFromLineElement(lineEl);
+				if (hit !== null) return hit;
+			}
+
+			const seenBlocks = new Set<string>();
+			for (const lineEl of lineElements) {
+				const hit = this.blockHitFromLineElement(lineEl);
+				if (hit === null) continue;
+
+				const key = `${hit.block.from}:${hit.block.to}`;
+				if (seenBlocks.has(key)) continue;
+				seenBlocks.add(key);
+
+				const rect = this.visibleRectForBlock(hit.block, lineEl);
+				if (clientY < rect.top || clientY > rect.bottom) continue;
+				return hit;
 			}
 			return null;
+		}
+
+		private blockHitFromLineElement(lineEl: Element): { block: BlockRange; rect: DOMRect } | null {
+			const pos = this.posFromLineElement(lineEl);
+			if (pos === null) return null;
+
+			const block = this.blockAt(pos);
+			return block === null
+				? null
+				: { block, rect: this.controlRectForBlock(block, lineEl) };
+		}
+
+		private dropBoundaryFromY(clientY: number, source: BlockRange, slice: MoveSlice): DropBoundary | null {
+			let best: { boundary: DropBoundary; distance: number } | null = null;
+
+			for (const boundary of this.visibleDropBoundaries(source, slice)) {
+				const distance = Math.abs(clientY - boundary.top);
+				if (best === null || distance < best.distance) best = { boundary, distance };
+			}
+
+			return best?.boundary ?? null;
+		}
+
+		private visibleDropBoundaries(source: BlockRange, slice: MoveSlice): DropBoundary[] {
+			const boundaries: DropBoundary[] = [];
+
+			for (const { block, rect } of this.visibleBlocks()) {
+				this.addDropBoundary(boundaries, source, slice, {
+					pos: block.from,
+					top: rect.top,
+					side: 'before',
+				});
+				this.addDropBoundary(boundaries, source, slice, {
+					pos: this.positionAfterBlock(block),
+					top: rect.bottom,
+					side: 'after',
+				});
+			}
+
+			for (const { pos, rect } of this.visibleBlankLines()) {
+				this.addDropBoundary(boundaries, source, slice, {
+					pos,
+					top: rect.bottom,
+					side: 'after',
+				});
+			}
+
+			return boundaries;
+		}
+
+		private addDropBoundary(
+			boundaries: DropBoundary[],
+			source: BlockRange,
+			slice: MoveSlice,
+			boundary: Omit<DropBoundary, 'isOriginal'>,
+		): void {
+			const isOriginalTop = boundary.pos === source.from;
+			if (!isOriginalTop && boundary.pos >= slice.from && boundary.pos <= slice.to) return;
+			if (boundaries.some(existing => existing.pos === boundary.pos && Math.abs(existing.top - boundary.top) < 0.5)) return;
+
+			boundaries.push({ ...boundary, isOriginal: isOriginalTop });
+		}
+
+		private visibleBlankLines(): Array<{ pos: number; rect: DOMRect }> {
+			const result: Array<{ pos: number; rect: DOMRect }> = [];
+			const lineElements = Array.from(this.view.dom.querySelectorAll('.cm-line'))
+				.filter((el): el is Element => el.instanceOf(Element));
+			const text = this.view.state.doc.toString();
+
+			for (const lineEl of lineElements) {
+				const rect = lineEl.getBoundingClientRect();
+				if (rect.height <= 0 || lineEl.textContent?.trim() !== '') continue;
+
+				const pos = this.posFromLineElement(lineEl);
+				if (pos === null) continue;
+
+				const line = this.view.state.doc.lineAt(pos);
+				const afterLine = line.to < text.length && text[line.to] === '\n' ? line.to + 1 : line.to;
+				result.push({ pos: afterLine, rect });
+			}
+
+			return result;
+		}
+
+		private selectionRectForBlock(block: BlockRange): DOMRect | null {
+			if (block.kind !== 'heading') return this.blockRect(block);
+
+			const line = this.view.state.doc.line(block.lineFrom);
+			const dom = this.view.domAtPos(line.from);
+			const element = this.asElement(dom.node);
+			const lineEl = element?.closest('.cm-line');
+			return lineEl ? this.visibleTextRect(lineEl) : this.blockRect(block);
+		}
+
+		private visibleRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
+			return this.blockRect(block) ?? this.anchorRectForBlock(block, fallbackLineEl);
+		}
+
+		private controlRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
+			const firstLineEl = this.lineElementForLine(block.lineFrom);
+			return this.anchorRectForBlock(block, firstLineEl ?? fallbackLineEl);
+		}
+
+		private visibleBlocks(): Array<{ block: BlockRange; rect: DOMRect }> {
+			const blocks = new Map<string, { block: BlockRange; rect: DOMRect }>();
+			const lineElements = Array.from(this.view.dom.querySelectorAll(BLOCK_ELEMENT_SELECTOR))
+				.filter((el): el is Element => el.instanceOf(Element));
+
+			for (const lineEl of lineElements) {
+				const rect = lineEl.getBoundingClientRect();
+				if (rect.height <= 0) continue;
+
+				const pos = this.posFromLineElement(lineEl);
+				if (pos === null) continue;
+
+				const block = this.blockAt(pos);
+				if (block === null) continue;
+
+				const key = `${block.from}:${block.to}`;
+				if (blocks.has(key)) continue;
+				blocks.set(key, { block, rect: this.visibleRectForBlock(block, lineEl) });
+			}
+
+			return Array.from(blocks.values()).sort((a, b) => a.block.from - b.block.from);
+		}
+
+		private moveSliceForBlock(block: BlockRange): MoveSlice {
+			const text = this.view.state.doc.toString();
+			let from = block.from;
+			let to = block.to;
+
+			if (to < text.length && text[to] === '\n') {
+				to++;
+			} else if (from > 0 && text[from - 1] === '\n') {
+				from--;
+			}
+
+			return { from, to, text: text.slice(from, to) };
+		}
+
+		private textForDrop(text: string, target: DropBoundary, source: BlockRange): string {
+			const quoteSafeText = this.quoteSafeTextForDrop(text, source);
+			if (!this.shouldSeparateFromHorizontalRule(quoteSafeText, target, source)) return quoteSafeText;
+			if (source.kind === 'horizontal-rule') return text.startsWith('\n') ? text : `\n${text}`;
+			return quoteSafeText.endsWith('\n') ? `${quoteSafeText}\n` : `${quoteSafeText}\n\n`;
+		}
+
+		private quoteSafeTextForDrop(text: string, source: BlockRange): string {
+			if (source.kind !== 'blockquote') return text;
+			return text.endsWith('\n\n') ? text : `${text.replace(/\n?$/, '\n')}\n`;
+		}
+
+		private shouldSeparateFromHorizontalRule(text: string, target: DropBoundary, source: BlockRange): boolean {
+			if (target.side === 'before') {
+				if (!this.isParagraphLike(source)) return false;
+				if (!this.isHorizontalRuleLineAt(target.pos)) return false;
+				return text.trim().length > 0 && !text.endsWith('\n\n');
+			}
+
+			if (source.kind !== 'horizontal-rule') return false;
+			if (!this.isParagraphLikeLineBefore(target.pos)) return false;
+			return text.trim().length > 0 && !text.startsWith('\n');
+		}
+
+		private isParagraphLike(block: BlockRange): boolean {
+			return block.kind === 'paragraph' || block.kind === 'native-image';
+		}
+
+		private isHorizontalRuleLineAt(pos: number): boolean {
+			if (pos < 0 || pos > this.view.state.doc.length) return false;
+			const line = this.view.state.doc.lineAt(Math.min(pos, this.view.state.doc.length));
+			if (line.number > 1 && this.blockAt(line.from)?.kind === 'heading') return false;
+			return /^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/.test(line.text);
+		}
+
+		private isParagraphLikeLineBefore(pos: number): boolean {
+			if (pos <= 0) return false;
+			const before = this.view.state.doc.lineAt(Math.max(0, pos - 1));
+			const block = this.blockAt(before.from);
+			return block !== null && this.isParagraphLike(block);
+		}
+
+		private positionAfterBlock(block: BlockRange): number {
+			const text = this.view.state.doc.toString();
+			return block.to < text.length && text[block.to] === '\n' ? block.to + 1 : block.to;
 		}
 
 		private anchorRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
@@ -268,11 +669,14 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private lineElementRect(lineNumber: number): DOMRect | null {
+			return this.lineElementForLine(lineNumber)?.getBoundingClientRect() ?? null;
+		}
+
+		private lineElementForLine(lineNumber: number): Element | null {
 			const line = this.view.state.doc.line(lineNumber);
 			const dom = this.view.domAtPos(line.from);
 			const element = this.asElement(dom.node);
-			const lineEl = element?.closest('.cm-line, .cm-html-embed.cm-embed-block, .be-image-widget');
-			return lineEl?.getBoundingClientRect() ?? null;
+			return element?.closest(BLOCK_ELEMENT_SELECTOR) ?? null;
 		}
 
 		private coordsRect(pos: number): DOMRect | null {
@@ -283,7 +687,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 			const dom = this.view.domAtPos(pos);
 			const element = this.asElement(dom.node);
-			return element?.closest('.cm-line, .cm-html-embed.cm-embed-block, .be-image-widget')?.getBoundingClientRect() ?? null;
+			return element?.closest(BLOCK_ELEMENT_SELECTOR)?.getBoundingClientRect() ?? null;
 		}
 
 		private asElement(node: Node): Element | null {
@@ -292,6 +696,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private contentRect(): DOMRect | null {
 			return this.view.dom.querySelector('.cm-content')?.getBoundingClientRect() ?? null;
+		}
+
+		private scrollerElement(): HTMLElement {
+			return this.view.scrollDOM;
 		}
 
 		private isActiveVisibleEditor(): boolean {
