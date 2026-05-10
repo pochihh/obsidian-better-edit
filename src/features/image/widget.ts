@@ -124,7 +124,7 @@ class ImageWidget extends WidgetType {
 			frame.appendChild(img);
 		}
 
-		if (this.block.caption) {
+		if (this.block.caption !== undefined) {
 			frame.appendChild(this.buildCaption(view));
 		}
 
@@ -151,19 +151,25 @@ class ImageWidget extends WidgetType {
 		});
 		caption.textContent = this.block.caption ?? '';
 
+		let captionClosed = false;
+		const save = () => {
+			if (captionClosed) return;
+			const text = (caption.textContent ?? '').trim();
+			if (text !== (this.block.caption ?? '').trim()) {
+				captionClosed = true;
+				this.updateBlock(view, { caption: text || undefined });
+			}
+		};
+
 		this.plugin.registerDomEvent(caption, 'mousedown', (e: MouseEvent) => e.stopPropagation());
 		this.plugin.registerDomEvent(caption, 'click',     (e: MouseEvent) => e.stopPropagation());
 
 		this.plugin.registerDomEvent(caption, 'keydown', (e: KeyboardEvent) => {
-			if (e.key === 'Enter')  { e.preventDefault(); caption.blur(); }
-			if (e.key === 'Escape') { caption.textContent = this.block.caption ?? ''; caption.blur(); }
+			if (e.key === 'Enter')  { e.preventDefault(); save(); caption.blur(); }
+			if (e.key === 'Escape') { captionClosed = true; caption.textContent = this.block.caption ?? ''; caption.blur(); }
 		});
 
-		this.plugin.registerDomEvent(caption, 'blur', () => {
-			const text = (caption.textContent ?? '').trim();
-			if (text === (this.block.caption ?? '').trim()) return;
-			this.updateBlock(view, { caption: text || undefined });
-		});
+		this.plugin.registerDomEvent(caption, 'blur', save);
 
 		return caption;
 	}
@@ -276,11 +282,11 @@ class ImageWidget extends WidgetType {
 			bar.appendChild(createDiv({ cls: 'be-toolbar-sep' }));
 
 			const captionBtn = createToolbarButton(this.plugin, 'caption', 'Caption');
-			if (this.block.caption) captionBtn.addClass('is-active');
+			if (this.block.caption !== undefined) captionBtn.addClass('is-active');
 			this.plugin.registerDomEvent(captionBtn, 'click', (e: MouseEvent) => {
 				e.preventDefault();
 				e.stopPropagation();
-				this.updateBlock(view, { caption: this.block.caption ? undefined : 'Caption' });
+				this.updateBlock(view, { caption: this.block.caption !== undefined ? undefined : '' });
 			});
 			bar.appendChild(captionBtn);
 
@@ -326,9 +332,9 @@ class ImageWidget extends WidgetType {
 
 		// Group 2 — Caption, Crop, Replace
 		menu.addItem(item => {
-			item.setTitle(this.block.caption ? 'Remove caption' : 'Add caption');
-			if (this.block.caption) item.setChecked(true);
-			item.onClick(() => this.updateBlock(view, { caption: this.block.caption ? undefined : 'Caption' }));
+			item.setTitle(this.block.caption !== undefined ? 'Remove caption' : 'Add caption');
+			if (this.block.caption !== undefined) item.setChecked(true);
+			item.onClick(() => this.updateBlock(view, { caption: this.block.caption !== undefined ? undefined : '' }));
 		});
 
 		menu.addItem(item => {

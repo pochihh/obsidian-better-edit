@@ -95,7 +95,7 @@ export function singleImageHtml(
 		return (
 			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
 			`  <img src="${src}"${altAttr} style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
-			(caption ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
+			(caption !== undefined ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
 			`</div>`
 		);
 	}
@@ -105,7 +105,7 @@ export function singleImageHtml(
 	return (
 		`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
 		`  <img src="${src}"${altAttr} style="width: 100%; max-width: 100%;" />\n` +
-		(caption ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
+		(caption !== undefined ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
 		`</div>`
 	);
 }

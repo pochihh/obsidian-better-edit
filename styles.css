@@ -27,6 +27,10 @@
 	opacity: 0.5;
 }
 
+.be-block-dragging-editor {
+	user-select: none;
+}
+
 .be-block-add,
 .be-block-handle {
 	width: 22px;
@@ -119,10 +123,23 @@ body .be-block-controls > button.be-block-handle:active {
 	background: var(--interactive-accent);
 	pointer-events: none;
 	border-radius: 2px;
-	box-shadow: 0 0 0 1px rgba(var(--interactive-accent-rgb), 0.15);
+	box-shadow: var(--shadow-s);
 }
 
 .be-block-drop-line.is-visible {
+	display: block;
+}
+
+.be-block-selection {
+	position: fixed;
+	z-index: 28;
+	display: none;
+	pointer-events: none;
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+}
+
+.be-block-selection.is-visible {
 	display: block;
 }
 
@@ -184,13 +201,18 @@ body .be-block-controls > button.be-block-handle:active {
 	display: block;
 	font-size: 0.85em;
 	color: var(--text-muted);
-	text-align: center;
 	padding: 4px 4px 2px;
 	line-height: 1.4;
 	cursor: text;
 	outline: none;
 	min-width: 60px;
 	border-radius: 2px;
+}
+
+.be-image-caption:empty::before {
+	content: 'Write a caption...';
+	color: var(--text-faint);
+	pointer-events: none;
 }
 
 .be-image-caption:focus {

@@ -7,6 +7,28 @@ and the rules enforced by `eslint-plugin-obsidianmd`.
 
 ---
 
+## Core Design Principle — Editing UX Only, Never Rendering
+
+This plugin improves **editing experience**. It must never become a rendering layer.
+
+**Rule:** Plugin CSS and widget DOM exist only to support editing interactions (selection rings, toolbars, drag handles, popovers). They must never change how content *looks* to the reader.
+
+**Corollary:** The HTML written to `.md` files is the source of truth for appearance. Any visual property that matters to the reader (font size, color, alignment, spacing) must be expressed as an inline style in the saved HTML — not in `styles.css`. If a property only appears in `styles.css`, it will be invisible in reading mode, other editors, and exported documents, which means the editing view lies about what the file contains.
+
+**Checklist before adding a CSS property to `.be-image-caption`, `.be-image-frame`, or similar content-facing classes:**
+
+- [ ] Does this property affect how content looks (alignment, color, font, spacing)?  
+  → If yes: does the saved HTML already express it as an inline style?  
+  → If no inline style exists in the file, **remove the CSS property** — you are adding a fake rendering layer.
+- [ ] Is this property purely about interaction affordance (cursor, outline, opacity on hover)?  
+  → Safe to add to `styles.css`.
+
+**Example violation:** `.be-image-caption { text-align: center }` in `styles.css` while the saved `<p>` has no `text-align`. The user sees centered text while editing but left-aligned text in reading mode. This is a rendering lie — remove it.
+
+**Example correct:** `.be-image-caption { cursor: text; outline: none }` — these are interaction properties only, invisible to the reader.
+
+---
+
 ## Manifest (`manifest.json`)
 
 | Field | Rule |
