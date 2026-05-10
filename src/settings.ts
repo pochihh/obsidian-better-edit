@@ -1,6 +1,7 @@
 import { App, Plugin, PluginSettingTab, Setting } from 'obsidian';
 import { ImageSettings, IMAGE_DEFAULT_SETTINGS } from './features/image/settings';
 import { BlocksSettings, BLOCKS_DEFAULT_SETTINGS } from './features/blocks/settings';
+import { refreshImageDecorations } from './features/image/index';
 
 export interface BetterEditSettings {
 	image: ImageSettings;
@@ -43,12 +44,13 @@ export class BetterEditSettingTab extends PluginSettingTab {
 
 		new Setting(containerEl)
 			.setName('Enable image arrangement')
-			.setDesc('Intercept image paste and drop to insert rich HTML image blocks.')
+			.setDesc('Intercept image paste and drop to insert rich HTML image blocks. Existing image blocks become regular HTML when disabled.')
 			.addToggle(toggle => toggle
 				.setValue(s().enabled)
 				.onChange(async (value) => {
 					s().enabled = value;
 					await save();
+					refreshImageDecorations(this.plugin.app);
 				}));
 
 		new Setting(containerEl)
@@ -108,6 +110,20 @@ export class BetterEditSettingTab extends PluginSettingTab {
 					if (Number.isNaN(parsed)) return;
 					s().compactToolbarThresholdPx = Math.max(1, parsed);
 					await save();
+				}));
+
+		new Setting(containerEl)
+			.setName('Image corner radius')
+			.setDesc('Border-radius applied to image corners in pixels. Set to 0 for sharp corners. Applied to the saved HTML on next edit.')
+			.addText(text => text
+				.setPlaceholder('4')
+				.setValue(String(s().imageCornerRadiusPx))
+				.onChange(async (value) => {
+					const parsed = parseInt(value.trim(), 10);
+					if (Number.isNaN(parsed)) return;
+					s().imageCornerRadiusPx = Math.max(0, parsed);
+					await save();
+					refreshImageDecorations(this.plugin.app);
 				}));
 	}
 

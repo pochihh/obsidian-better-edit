@@ -10,10 +10,8 @@ export default class BetterEditPlugin extends Plugin {
 		await this.loadSettings();
 		this.addSettingTab(new BetterEditSettingTab(this.app, this));
 
-		if (this.settings.image.enabled) {
-			initImageFeature(this);
-			this.registerEditorExtension(createImageExtension(this));
-		}
+		initImageFeature(this);
+		this.registerEditorExtension(createImageExtension(this));
 		if (this.settings.blocks.enabled) {
 			this.registerEditorExtension(createBlocksExtension(this));
 		}

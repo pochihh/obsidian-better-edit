@@ -17,6 +17,10 @@ export interface ImageSettings {
 	// Toolbar
 	/** Image frame width (px) below which the toolbar collapses to compact (More-only) mode. */
 	compactToolbarThresholdPx: number;
+
+	// Appearance
+	/** Border-radius applied to image corners (px). Set to 0 for square corners. */
+	imageCornerRadiusPx: number;
 }
 
 export const IMAGE_DEFAULT_SETTINGS: ImageSettings = {
@@ -28,4 +32,5 @@ export const IMAGE_DEFAULT_SETTINGS: ImageSettings = {
 	minImageWidthPx: 80,
 	minImageHeightPx: 56,
 	compactToolbarThresholdPx: 220,
+	imageCornerRadiusPx: 4,
 };

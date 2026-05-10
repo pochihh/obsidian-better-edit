@@ -11,15 +11,25 @@
 
 import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection, EditorState, Extension, Prec } from '@codemirror/state';
-import { editorLivePreviewField } from 'obsidian';
+import { App, editorLivePreviewField } from 'obsidian';
 import { registerPasteDropHandlers } from './paste-handler';
-import { createImageDecorationField, createImageWidgetExtension } from './widget';
+import { createImageDecorationField, createImageWidgetExtension, imageFeatureEnabledEffect } from './widget';
 import { parseImageBlock } from './html-schema';
 import { imageSelectionField, deselectImageBlock } from './selection';
 import type BetterEditPlugin from '../../main';
 
 export function initImageFeature(plugin: BetterEditPlugin): void {
 	registerPasteDropHandlers(plugin);
+}
+
+/** Dispatches an effect to all open editors so image decorations recompute immediately. */
+export function refreshImageDecorations(app: App): void {
+	app.workspace.iterateAllLeaves(leaf => {
+		const cm: EditorView | undefined = (leaf.view as any)?.editor?.cm;
+		if (cm instanceof EditorView) {
+			cm.dispatch({ effects: imageFeatureEnabledEffect.of(true) });
+		}
+	});
 }
 
 export function createImageExtension(plugin: BetterEditPlugin): Extension {

@@ -19,7 +19,7 @@ import {
 	EditorView,
 	WidgetType,
 } from '@codemirror/view';
-import { EditorState, Extension, Range, StateField } from '@codemirror/state';
+import { EditorState, Extension, Range, StateEffect, StateField } from '@codemirror/state';
 // syntaxTree removed — Obsidian uses a custom HyperMD parser with non-standard
 // node names (no 'HTMLBlock'); we scan raw document text for our marker instead.
 import { editorLivePreviewField, Menu, normalizePath, TFile } from 'obsidian';
@@ -42,6 +42,10 @@ import {
 	SelectedImageBlock,
 } from './selection';
 import type BetterEditPlugin from '../../main';
+
+// Dispatching this effect to an EditorView forces the image decoration field
+// to recompute immediately — used when the enabled setting changes at runtime.
+export const imageFeatureEnabledEffect = StateEffect.define<boolean>();
 
 // ---------------------------------------------------------------------------
 // Widget — Placeholder
@@ -103,6 +107,8 @@ class ImageWidget extends WidgetType {
 		const imgSrc = this.resolveImageSrc(this.block.src);
 		const img = createEl('img', { attr: { src: imgSrc, draggable: 'false' } });
 
+		const r = this.plugin.settings.image.imageCornerRadiusPx;
+
 		if (this.block.crop) {
 			const { crop } = this.block;
 			const blockW = parseInt(this.block.width, 10) || 1;
@@ -117,10 +123,12 @@ class ImageWidget extends WidgetType {
 			const mtPct    = (crop.offsetY  / blockW * 100).toFixed(3);
 			img.style.cssText = `width: ${widthPct}%; max-width: none; margin-left: -${mlPct}%; margin-top: -${mtPct}%; display: block;`;
 			const clipDiv = createDiv({ cls: 'be-image-crop-clip' });
+			if (crop.shape !== 'circle' && r > 0) clipDiv.style.borderRadius = `${r}px`;
 			clipDiv.appendChild(img);
 			frame.appendChild(clipDiv);
 		} else {
-			img.style.cssText = 'width: 100%; max-width: 100%; display: block;';
+			const radiusStyle = r > 0 ? ` border-radius: ${r}px;` : '';
+			img.style.cssText = `width: 100%; max-width: 100%; display: block;${radiusStyle}`;
 			frame.appendChild(img);
 		}
 
@@ -443,7 +451,7 @@ class ImageWidget extends WidgetType {
 			changes: {
 				from: this.from,
 				to: this.to,
-				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption, next.crop, next.alt),
+				insert: singleImageHtml(next.src, next.width, next.alignment, next.caption, next.crop, next.alt, this.plugin.settings.image.imageCornerRadiusPx),
 			},
 		});
 	}
@@ -728,6 +736,7 @@ function buildDecorations(
 	plugin: BetterEditPlugin,
 	selection: SelectedImageBlock | null,
 ): DecorationSet {
+	if (!plugin.settings.image.enabled) return Decoration.none;
 	if (!state.field(editorLivePreviewField, false)) {
 		return Decoration.none;
 	}
@@ -782,7 +791,8 @@ export function createImageDecorationField(plugin: BetterEditPlugin): Extension 
 			const prevSelection = tr.startState.field(imageSelectionField, false) ?? null;
 			const selChanged = nextSelection !== prevSelection;
 			const modeChanged = tr.state.field(editorLivePreviewField, false) !== tr.startState.field(editorLivePreviewField, false);
-			if (tr.docChanged || tr.selection || selChanged || modeChanged) {
+			const enabledToggled = tr.effects.some(e => e.is(imageFeatureEnabledEffect));
+			if (tr.docChanged || tr.selection || selChanged || modeChanged || enabledToggled) {
 				return buildDecorations(tr.state, plugin, nextSelection);
 			}
 			return decos.map(tr.changes);

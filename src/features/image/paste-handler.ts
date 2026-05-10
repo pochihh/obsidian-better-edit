@@ -108,8 +108,8 @@ async function handleImageInsert(
 	const savedPath = await saveImageToVault(plugin, imageFile, activeFile);
 	if (!savedPath) return;
 
-	const { defaultImageWidth, defaultImageAlignment } = plugin.settings.image;
-	const html = singleImageHtml(savedPath, defaultImageWidth, defaultImageAlignment);
+	const { defaultImageWidth, defaultImageAlignment, imageCornerRadiusPx } = plugin.settings.image;
+	const html = singleImageHtml(savedPath, defaultImageWidth, defaultImageAlignment, undefined, undefined, undefined, imageCornerRadiusPx);
 
 	// Check if the cursor is inside a placeholder block and replace it; otherwise insert at cursor
 	const cursorOffset = editor.posToOffset(editor.getCursor());
@@ -142,8 +142,8 @@ function handleExistingImageInsert(
 }
 
 function buildManagedImageHtml(plugin: BetterEditPlugin, imageFile: TFile): string {
-	const { defaultImageWidth, defaultImageAlignment } = plugin.settings.image;
-	return singleImageHtml(imageFile.path, defaultImageWidth, defaultImageAlignment);
+	const { defaultImageWidth, defaultImageAlignment, imageCornerRadiusPx } = plugin.settings.image;
+	return singleImageHtml(imageFile.path, defaultImageWidth, defaultImageAlignment, undefined, undefined, undefined, imageCornerRadiusPx);
 }
 
 function markPendingNativeDrop(editor: Editor): void {

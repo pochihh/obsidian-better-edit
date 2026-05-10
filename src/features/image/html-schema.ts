@@ -69,8 +69,9 @@ function outerStyleForAlignment(alignment: ImageAlignment): string {
 }
 
 /** Returns the outer div style for a cropped image (overflow:hidden + alignment via margins). */
-function cropOuterStyle(alignment: ImageAlignment, height: number, circle: boolean): string {
-	const clip = `overflow: hidden; height: ${height}px;${circle ? ' border-radius: 50%;' : ''}`;
+function cropOuterStyle(alignment: ImageAlignment, height: number, circle: boolean, cornerRadius = 0): string {
+	const radiusPart = circle ? ' border-radius: 50%;' : (cornerRadius > 0 ? ` border-radius: ${cornerRadius}px;` : '');
+	const clip = `overflow: hidden; height: ${height}px;${radiusPart}`;
 	switch (alignment) {
 		case 'left':        return `${clip} margin-right: auto;`;
 		case 'center':      return `${clip} margin: 0 auto;`;
@@ -87,11 +88,13 @@ export function singleImageHtml(
 	caption?: string,
 	crop?: ImageCrop,
 	alt?: string,
+	cornerRadius = 4,
 ): string {
 	const altAttr = alt ? ` alt="${escapeHtmlAttr(alt)}"` : '';
+	const radiusStyle = cornerRadius > 0 ? ` border-radius: ${cornerRadius}px;` : '';
 
 	if (crop) {
-		const outerStyle = cropOuterStyle(alignment, crop.height, crop.shape === 'circle');
+		const outerStyle = cropOuterStyle(alignment, crop.height, crop.shape === 'circle', cornerRadius);
 		return (
 			`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
 			`  <img src="${src}"${altAttr} style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
@@ -104,7 +107,7 @@ export function singleImageHtml(
 
 	return (
 		`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
-		`  <img src="${src}"${altAttr} style="width: 100%; max-width: 100%;" />\n` +
+		`  <img src="${src}"${altAttr} style="width: 100%; max-width: 100%;${radiusStyle}" />\n` +
 		(caption !== undefined ? `  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n` : '') +
 		`</div>`
 	);
