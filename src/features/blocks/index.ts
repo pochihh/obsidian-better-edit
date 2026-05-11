@@ -1,6 +1,6 @@
-import { Extension } from '@codemirror/state';
+import { Extension, StateEffect } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { editorLivePreviewField } from 'obsidian';
+import { App, editorLivePreviewField } from 'obsidian';
 import type BetterEditPlugin from '../../main';
 import { BlockRange, getBlockAtPos, getBlocksInRange } from './block-model';
 
@@ -33,7 +33,18 @@ type DragState =
 	| { kind: 'dragging'; source: DragSource; slice: MoveSlice; target: DropBoundary | null };
 
 const DRAG_START_THRESHOLD_PX = 4;
-const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .be-image-widget, .internal-embed.image-embed';
+const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .cm-preview-code-block.cm-embed-block, .be-image-widget, .internal-embed.image-embed';
+const blocksFeatureEnabledEffect = StateEffect.define<boolean>();
+
+export function refreshBlockControls(app: App): void {
+	app.workspace.iterateAllLeaves(leaf => {
+		const viewWithEditor = leaf.view as { editor?: { cm?: unknown } };
+		const cm = viewWithEditor.editor?.cm;
+		if (cm instanceof EditorView) {
+			cm.dispatch({ effects: blocksFeatureEnabledEffect.of(true) });
+		}
+	});
+}
 
 export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 	return ViewPlugin.fromClass(class {
@@ -101,7 +112,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		update(update: ViewUpdate): void {
-			if (!this.isLivePreview()) {
+			if (!this.blocksEnabled() || !this.isLivePreview()) {
 				this.hideControls();
 				this.clearPersistedSelection();
 				return;
@@ -134,7 +145,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				return;
 			}
 
-			if (!this.isLivePreview() || !this.isActiveVisibleEditor()) {
+			if (!this.blocksEnabled() || !this.isLivePreview() || !this.isActiveVisibleEditor()) {
 				this.hideControls();
 				return;
 			}
@@ -163,14 +174,16 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				return;
 			}
 
-			if (pointEl.closest('.be-image-frame')) {
-				this.hideControls();
-				return;
-			}
-
 			const lineEl = pointEl.closest(BLOCK_ELEMENT_SELECTOR);
 			if (lineEl === null || !this.view.dom.contains(lineEl)) {
-				this.hideControls();
+				const hit = this.blockHitFromCoords(event.clientX, event.clientY);
+				if (hit === null) {
+					this.hideControls();
+					return;
+				}
+				this.hoveredBlock = hit.block;
+				this.hoveredRect = hit.rect;
+				this.positionControls();
 				return;
 			}
 
@@ -192,7 +205,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private onDragHandlePointerDown(event: PointerEvent): void {
-			if (event.button !== 0 || this.hoveredBlock === null) return;
+			if (event.button !== 0 || this.hoveredBlock === null || !this.blocksEnabled()) return;
 
 			event.preventDefault();
 			event.stopPropagation();
@@ -229,6 +242,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private onDocumentPointerDown(): void {
 			if (this.dragState.kind !== 'idle') return;
+			if (!this.blocksEnabled()) return;
 			this.clearPersistedSelection();
 		}
 
@@ -353,7 +367,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private onAddClick(event: MouseEvent): void {
 			event.preventDefault();
 			event.stopPropagation();
-			if (this.hoveredBlock === null || !this.plugin.settings.blocks.showAddButton) return;
+			if (this.hoveredBlock === null || !this.blocksEnabled() || !this.plugin.settings.blocks.showAddButton) return;
 
 			const insertAbove = event.altKey;
 			const insertAt = insertAbove ? this.hoveredBlock.from : this.hoveredBlock.to;
@@ -367,7 +381,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private positionControls(): void {
-			if (this.hoveredBlock === null || !this.isLivePreview() || !this.isActiveVisibleEditor()) {
+			if (this.hoveredBlock === null || !this.blocksEnabled() || !this.isLivePreview() || !this.isActiveVisibleEditor()) {
 				this.hideControls();
 				return;
 			}
@@ -452,6 +466,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private isLivePreview(): boolean {
 			return this.view.state.field(editorLivePreviewField, false) === true;
+		}
+
+		private blocksEnabled(): boolean {
+			return this.plugin.settings.blocks.enabled;
 		}
 
 		private blockAt(pos: number): BlockRange | null {
@@ -563,6 +581,17 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return block === null
 				? null
 				: { block, rect: this.controlRectForBlock(block, lineEl) };
+		}
+
+		private blockHitFromCoords(clientX: number, clientY: number): { block: BlockRange; rect: DOMRect } | null {
+			const pos = this.view.posAtCoords({ x: clientX, y: clientY }, false);
+			if (pos === null) return null;
+
+			const block = this.blockAt(pos);
+			if (block === null) return null;
+
+			const rect = this.blockRect(block) ?? this.coordsRect(block.from);
+			return rect === null ? null : { block, rect };
 		}
 
 		private dropBoundaryFromY(clientY: number, source: DragSource, slice: MoveSlice): DropBoundary | null {

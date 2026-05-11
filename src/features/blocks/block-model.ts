@@ -249,23 +249,47 @@ function isTableLine(text: string): boolean {
 }
 
 function getHtmlBlock(state: EditorState, lineNumber: number): BlockRange | null {
-	let start = lineNumber;
-	while (start >= 1 && !HTML_OPEN_RE.test(state.doc.line(start).text)) start--;
-	if (start < 1) return null;
+	const text = state.doc.toString();
 
-	const tag = HTML_OPEN_RE.exec(state.doc.line(start).text)?.[1]?.toLowerCase();
-	if (!tag) return null;
+	for (let start = lineNumber; start >= 1; start--) {
+		const line = state.doc.line(start);
+		const openMatch = HTML_OPEN_RE.exec(line.text);
+		if (!openMatch) continue;
 
-	const closeRe = new RegExp(`</${tag}>`, 'i');
-	for (let n = start; n <= state.doc.lines; n++) {
-		if (closeRe.test(state.doc.line(n).text)) {
-			return lineNumber >= start && lineNumber <= n
-				? rangeFromLines(state, start, n, 'html')
-				: null;
+		const tag = openMatch[1]?.toLowerCase();
+		if (!tag) continue;
+
+		const openIdx = line.from + openMatch.index + line.text.slice(openMatch.index).toLowerCase().indexOf(`<${tag}`);
+		const endOffset = findMatchingHtmlClose(text, openIdx, tag);
+		if (endOffset === -1) continue;
+
+		const endLine = state.doc.lineAt(Math.max(0, endOffset - 1)).number;
+		if (lineNumber >= start && lineNumber <= endLine) {
+			return rangeFromLines(state, start, endLine, 'html');
 		}
 	}
 
 	return null;
+}
+
+function findMatchingHtmlClose(text: string, openIdx: number, tag: string): number {
+	const tagPattern = new RegExp(`</?${tag}\\b[^>]*>`, 'ig');
+	tagPattern.lastIndex = openIdx;
+
+	let depth = 0;
+	let match: RegExpExecArray | null;
+	while ((match = tagPattern.exec(text)) !== null) {
+		const token = match[0] ?? '';
+		if (token.startsWith('</')) {
+			depth--;
+			if (depth === 0) return match.index + token.length;
+			continue;
+		}
+
+		if (!token.endsWith('/>')) depth++;
+	}
+
+	return -1;
 }
 
 function lineBlock(state: EditorState, lineNumber: number, kind: BlockKind): BlockRange {
