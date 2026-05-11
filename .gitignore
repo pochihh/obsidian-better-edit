@@ -19,6 +19,9 @@ Thumbs.db
 .vscode/
 .idea/
 
+# Local UI references
+docs/ref/
+
 # Env / secrets
 .env
 .env.*
