@@ -55,6 +55,46 @@ export function getBlockAtPos(state: EditorState, pos: number, options: BlockDet
 	);
 }
 
+export function getBlocksInRange(
+	state: EditorState,
+	from: number,
+	to: number,
+	options: BlockDetectionOptions,
+): BlockRange[] {
+	if (state.doc.length === 0) return [];
+
+	const start = Math.max(0, Math.min(from, to));
+	const end = Math.min(state.doc.length, Math.max(from, to));
+	const startLine = state.doc.lineAt(start).number;
+	const endLine = state.doc.lineAt(Math.max(start, end - 1)).number;
+	const blocks: BlockRange[] = [];
+	let lineNumber = startLine;
+
+	while (lineNumber <= endLine) {
+		const line = state.doc.line(lineNumber);
+		if (line.text.trim() === '') {
+			lineNumber++;
+			continue;
+		}
+
+		const block = getBlockAtPos(state, line.from, options);
+		if (block === null) {
+			lineNumber++;
+			continue;
+		}
+
+		if (block.to > start && block.from < end) {
+			const previous = blocks[blocks.length - 1];
+			if (previous === undefined || previous.from !== block.from || previous.to !== block.to) {
+				blocks.push(block);
+			}
+		}
+		lineNumber = Math.max(lineNumber + 1, block.lineTo + 1);
+	}
+
+	return blocks;
+}
+
 function getSingleLineBlock(state: EditorState, lineNumber: number): BlockRange | null {
 	const line = state.doc.line(lineNumber);
 	if (HEADING_RE.test(line.text)) return lineBlock(state, lineNumber, 'heading');

@@ -2,7 +2,7 @@ import { Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { editorLivePreviewField } from 'obsidian';
 import type BetterEditPlugin from '../../main';
-import { BlockRange, getBlockAtPos } from './block-model';
+import { BlockRange, getBlockAtPos, getBlocksInRange } from './block-model';
 
 interface DropBoundary {
 	pos: number;
@@ -17,10 +17,20 @@ interface MoveSlice {
 	text: string;
 }
 
+interface DragSource {
+	kind: 'single' | 'multi';
+	blocks: BlockRange[];
+	from: number;
+	to: number;
+	lineFrom: number;
+	lineTo: number;
+	primary: BlockRange;
+}
+
 type DragState =
 	| { kind: 'idle' }
-	| { kind: 'pressed'; source: BlockRange; slice: MoveSlice; startY: number }
-	| { kind: 'dragging'; source: BlockRange; slice: MoveSlice; target: DropBoundary | null };
+	| { kind: 'pressed'; source: DragSource; slice: MoveSlice; startY: number }
+	| { kind: 'dragging'; source: DragSource; slice: MoveSlice; target: DropBoundary | null };
 
 const DRAG_START_THRESHOLD_PX = 4;
 const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .be-image-widget, .internal-embed.image-embed';
@@ -39,6 +49,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private hoveredRect: DOMRect | null = null;
 		private tooltipTimer: number | null = null;
 		private dragState: DragState = { kind: 'idle' };
+		private persistedSelectionSource: DragSource | null = null;
 
 		constructor(view: EditorView) {
 			this.view = view;
@@ -71,6 +82,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.hideControls();
 
 			this.plugin.registerDomEvent(this.editorDocument(), 'pointermove', (event: PointerEvent) => this.onPointerMove(event));
+			this.plugin.registerDomEvent(this.editorDocument(), 'pointerdown', () => this.onDocumentPointerDown());
 			this.plugin.registerDomEvent(this.editorDocument(), 'pointerup', (event: PointerEvent) => this.onPointerUp(event));
 			this.plugin.registerDomEvent(this.editorDocument(), 'pointercancel', () => this.cancelDrag());
 			this.plugin.registerDomEvent(this.editorDocument(), 'keydown', (event: KeyboardEvent) => {
@@ -91,11 +103,16 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		update(update: ViewUpdate): void {
 			if (!this.isLivePreview()) {
 				this.hideControls();
+				this.clearPersistedSelection();
 				return;
+			}
+			if (update.docChanged && this.dragState.kind === 'idle') {
+				this.clearPersistedSelection();
 			}
 			if (update.docChanged || update.viewportChanged || update.geometryChanged) {
 				this.positionControls();
 				this.positionDragVisuals();
+				this.positionPersistedSelection();
 			}
 		}
 
@@ -182,12 +199,13 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.clearTooltipTimer();
 			this.tooltipEl.removeClass('is-visible');
 			this.view.focus();
+			this.clearPersistedSelection();
 
-			const source = this.hoveredBlock;
+			const source = this.dragSourceForBlock(this.hoveredBlock);
 			this.dragState = {
 				kind: 'pressed',
 				source,
-				slice: this.moveSliceForBlock(source),
+				slice: this.moveSliceForSource(source),
 				startY: event.clientY,
 			};
 
@@ -207,6 +225,11 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			event.preventDefault();
 			event.stopPropagation();
 			this.finishDrag();
+		}
+
+		private onDocumentPointerDown(): void {
+			if (this.dragState.kind !== 'idle') return;
+			this.clearPersistedSelection();
 		}
 
 		private updatePressedDrag(clientY: number): void {
@@ -235,6 +258,9 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				this.positionDragVisuals();
 				return;
 			}
+			if (this.persistedSelectionSource !== null) {
+				this.positionPersistedSelection();
+			}
 			this.hideControls();
 		}
 
@@ -259,6 +285,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			if (target.pos >= slice.from && target.pos <= slice.to) return;
 
 			const movedText = this.textForDrop(slice.text, target, source);
+			const movedSliceFrom = target.pos < slice.from
+				? target.pos
+				: target.pos - (slice.to - slice.from);
+			const movedSliceTo = movedSliceFrom + movedText.length;
 			const finalCursor = target.pos < slice.from
 				? target.pos + movedText.length
 				: target.pos;
@@ -279,6 +309,9 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				scrollIntoView: true,
 			});
 			this.view.focus();
+			if (source.kind === 'multi') {
+				this.persistSelectionForRange(movedSliceFrom, movedSliceTo);
+			}
 		}
 
 		private cancelDrag(): void {
@@ -292,6 +325,29 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.view.dom.removeClass('be-block-dragging-editor');
 			this.selectionEl.removeClass('is-visible');
 			this.dropLineEl.removeClass('is-visible');
+		}
+
+		private persistSelectionForRange(from: number, to: number): void {
+			const blocks = this.blocksInRange(from, to);
+			const first = blocks[0];
+			const last = blocks[blocks.length - 1];
+			if (first === undefined || last === undefined) return;
+
+			this.persistedSelectionSource = {
+				kind: blocks.length === 1 ? 'single' : 'multi',
+				blocks,
+				from: first.from,
+				to: last.to,
+				lineFrom: first.lineFrom,
+				lineTo: last.lineTo,
+				primary: first,
+			};
+			this.positionPersistedSelection();
+		}
+
+		private clearPersistedSelection(): void {
+			this.persistedSelectionSource = null;
+			if (this.dragState.kind === 'idle') this.selectionEl.removeClass('is-visible');
 		}
 
 		private onAddClick(event: MouseEvent): void {
@@ -340,13 +396,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private positionDragVisuals(): void {
 			if (this.dragState.kind === 'idle') return;
 
-			const sourceRect = this.selectionRectForBlock(this.dragState.source);
-			if (sourceRect === null) {
-				this.selectionEl.removeClass('is-visible');
-			} else {
-				this.positionFixedElement(this.selectionEl, sourceRect.top, sourceRect.left, sourceRect.width, sourceRect.height);
-				this.selectionEl.addClass('is-visible');
-			}
+			this.positionSelectionOverlay(this.dragState.source);
 
 			const target = this.dragState.kind === 'dragging' ? this.dragState.target : null;
 			const contentRect = this.contentRect();
@@ -357,6 +407,21 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 			this.positionFixedElement(this.dropLineEl, target.top, contentRect.left, contentRect.width, 2);
 			this.dropLineEl.addClass('is-visible');
+		}
+
+		private positionPersistedSelection(): void {
+			if (this.dragState.kind !== 'idle' || this.persistedSelectionSource === null) return;
+			this.positionSelectionOverlay(this.persistedSelectionSource);
+		}
+
+		private positionSelectionOverlay(source: DragSource): void {
+			const sourceRect = this.selectionRectForSource(source);
+			if (sourceRect === null) {
+				this.selectionEl.removeClass('is-visible');
+				return;
+			}
+			this.positionFixedElement(this.selectionEl, sourceRect.top, sourceRect.left, sourceRect.width, sourceRect.height);
+			this.selectionEl.addClass('is-visible');
 		}
 
 		private positionFixedElement(el: HTMLElement, top: number, left: number, width: number, height: number): void {
@@ -394,6 +459,54 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				enableListItemDrag: this.plugin.settings.blocks.enableListItemDrag,
 				enableHtmlBlockDrag: this.plugin.settings.blocks.enableHtmlBlockDrag,
 			});
+		}
+
+		private blocksInRange(from: number, to: number): BlockRange[] {
+			return getBlocksInRange(this.view.state, from, to, {
+				enableListItemDrag: this.plugin.settings.blocks.enableListItemDrag,
+				enableHtmlBlockDrag: this.plugin.settings.blocks.enableHtmlBlockDrag,
+			});
+		}
+
+		private dragSourceForBlock(block: BlockRange): DragSource {
+			const selectedSource = this.selectedDragSourceForBlock(block);
+			if (selectedSource !== null) return selectedSource;
+			return this.singleDragSource(block);
+		}
+
+		private selectedDragSourceForBlock(block: BlockRange): DragSource | null {
+			const range = this.view.state.selection.main;
+			if (range.empty) return null;
+
+			const blocks = this.blocksInRange(range.from, range.to);
+			if (blocks.length === 0) return null;
+
+			const first = blocks[0];
+			const last = blocks[blocks.length - 1];
+			if (first === undefined || last === undefined) return null;
+			if (block.to <= first.from || block.from >= last.to) return null;
+
+			return {
+				kind: blocks.length === 1 ? 'single' : 'multi',
+				blocks,
+				from: first.from,
+				to: last.to,
+				lineFrom: first.lineFrom,
+				lineTo: last.lineTo,
+				primary: block,
+			};
+		}
+
+		private singleDragSource(block: BlockRange): DragSource {
+			return {
+				kind: 'single',
+				blocks: [block],
+				from: block.from,
+				to: block.to,
+				lineFrom: block.lineFrom,
+				lineTo: block.lineTo,
+				primary: block,
+			};
 		}
 
 		private posFromLineElement(lineEl: Element): number | null {
@@ -452,7 +565,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				: { block, rect: this.controlRectForBlock(block, lineEl) };
 		}
 
-		private dropBoundaryFromY(clientY: number, source: BlockRange, slice: MoveSlice): DropBoundary | null {
+		private dropBoundaryFromY(clientY: number, source: DragSource, slice: MoveSlice): DropBoundary | null {
 			let best: { boundary: DropBoundary; distance: number } | null = null;
 
 			for (const boundary of this.visibleDropBoundaries(source, slice)) {
@@ -463,7 +576,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return best?.boundary ?? null;
 		}
 
-		private visibleDropBoundaries(source: BlockRange, slice: MoveSlice): DropBoundary[] {
+		private visibleDropBoundaries(source: DragSource, slice: MoveSlice): DropBoundary[] {
 			const boundaries: DropBoundary[] = [];
 
 			for (const { block, rect } of this.visibleBlocks()) {
@@ -492,7 +605,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private addDropBoundary(
 			boundaries: DropBoundary[],
-			source: BlockRange,
+			source: DragSource,
 			slice: MoveSlice,
 			boundary: Omit<DropBoundary, 'isOriginal'>,
 		): void {
@@ -524,14 +637,28 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return result;
 		}
 
-		private selectionRectForBlock(block: BlockRange): DOMRect | null {
-			if (block.kind !== 'heading') return this.blockRect(block);
+		private selectionRectForSource(source: DragSource): DOMRect | null {
+			if (source.kind !== 'single' || source.primary.kind !== 'heading') {
+				return this.sourceRect(source);
+			}
 
-			const line = this.view.state.doc.line(block.lineFrom);
+			const line = this.view.state.doc.line(source.primary.lineFrom);
 			const dom = this.view.domAtPos(line.from);
 			const element = this.asElement(dom.node);
 			const lineEl = element?.closest('.cm-line');
-			return lineEl ? this.visibleTextRect(lineEl) : this.blockRect(block);
+			return lineEl ? this.visibleTextRect(lineEl) : this.sourceRect(source);
+		}
+
+		private sourceRect(source: DragSource): DOMRect | null {
+			const first = this.lineElementRect(source.lineFrom) ?? this.coordsRect(source.from);
+			const last = this.lineElementRect(source.lineTo) ?? this.coordsRect(source.to);
+			if (first === null) return null;
+
+			const top = first.top;
+			const bottom = last?.bottom ?? first.bottom;
+			const left = Math.min(first.left, last?.left ?? first.left);
+			const right = Math.max(first.right, last?.right ?? first.right);
+			return new DOMRect(left, top, right - left, bottom - top);
 		}
 
 		private visibleRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
@@ -566,10 +693,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return Array.from(blocks.values()).sort((a, b) => a.block.from - b.block.from);
 		}
 
-		private moveSliceForBlock(block: BlockRange): MoveSlice {
+		private moveSliceForSource(source: DragSource): MoveSlice {
 			const text = this.view.state.doc.toString();
-			let from = block.from;
-			let to = block.to;
+			let from = source.from;
+			let to = source.to;
 
 			if (to < text.length && text[to] === '\n') {
 				to++;
@@ -580,28 +707,36 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return { from, to, text: text.slice(from, to) };
 		}
 
-		private textForDrop(text: string, target: DropBoundary, source: BlockRange): string {
+		private textForDrop(text: string, target: DropBoundary, source: DragSource): string {
 			const quoteSafeText = this.quoteSafeTextForDrop(text, source);
 			if (!this.shouldSeparateFromHorizontalRule(quoteSafeText, target, source)) return quoteSafeText;
-			if (source.kind === 'horizontal-rule') return text.startsWith('\n') ? text : `\n${text}`;
+			if (this.firstSourceBlock(source).kind === 'horizontal-rule') return text.startsWith('\n') ? text : `\n${text}`;
 			return quoteSafeText.endsWith('\n') ? `${quoteSafeText}\n` : `${quoteSafeText}\n\n`;
 		}
 
-		private quoteSafeTextForDrop(text: string, source: BlockRange): string {
-			if (source.kind !== 'blockquote') return text;
+		private quoteSafeTextForDrop(text: string, source: DragSource): string {
+			if (this.lastSourceBlock(source).kind !== 'blockquote') return text;
 			return text.endsWith('\n\n') ? text : `${text.replace(/\n?$/, '\n')}\n`;
 		}
 
-		private shouldSeparateFromHorizontalRule(text: string, target: DropBoundary, source: BlockRange): boolean {
+		private shouldSeparateFromHorizontalRule(text: string, target: DropBoundary, source: DragSource): boolean {
 			if (target.side === 'before') {
-				if (!this.isParagraphLike(source)) return false;
+				if (!this.isParagraphLike(this.lastSourceBlock(source))) return false;
 				if (!this.isHorizontalRuleLineAt(target.pos)) return false;
 				return text.trim().length > 0 && !text.endsWith('\n\n');
 			}
 
-			if (source.kind !== 'horizontal-rule') return false;
+			if (this.firstSourceBlock(source).kind !== 'horizontal-rule') return false;
 			if (!this.isParagraphLikeLineBefore(target.pos)) return false;
 			return text.trim().length > 0 && !text.startsWith('\n');
+		}
+
+		private firstSourceBlock(source: DragSource): BlockRange {
+			return source.blocks[0] ?? source.primary;
+		}
+
+		private lastSourceBlock(source: DragSource): BlockRange {
+			return source.blocks[source.blocks.length - 1] ?? source.primary;
 		}
 
 		private isParagraphLike(block: BlockRange): boolean {

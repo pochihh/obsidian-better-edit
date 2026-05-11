@@ -74,7 +74,6 @@ Do not expose block handles inside fenced code, inline code, raw HTML internals,
 
 | Area | Reason |
 |---|---|
-| Multi-block selection drag | More complex selection semantics; can come later |
 | Dragging partial paragraph text | Native text editing should handle this |
 | Reparenting list items by horizontal drag | Requires indentation UX; start with vertical reorder only |
 | Horizontal drag behavior | Too ambiguous; this feature is vertical reorder only |
@@ -223,6 +222,18 @@ During drag:
 - Do not allow dropping inside the block being dragged.
 - Do not allow dropping inside atomic blocks like code, HTML, image, or table.
 - Do not reparent list items, change indentation, create columns, or infer side-by-side layout.
+
+### Multi-block drag
+
+First pass:
+
+- Use native editor text selection as the source of truth.
+- If the native selection overlaps the block whose handle is dragged, expand that selection to complete block boundaries and move the selected blocks as one contiguous source slice.
+- If there is no selection, or the selection does not overlap the dragged block, move only the hovered block.
+- Do not support non-contiguous multi-cursor selections in the first pass.
+- Do not move partial text selections; selected text is always normalized to whole blocks.
+- Preserve blank lines inside the selected source range, but use the same outer newline policy as single-block moves.
+- After a successful multi-block drop, keep the visual source highlight on the moved blocks until the next ordinary click or pointer down.
 
 ### Selection and drop visuals
 
