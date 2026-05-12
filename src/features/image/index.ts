@@ -14,7 +14,7 @@ import { EditorSelection, EditorState, Extension, Prec } from '@codemirror/state
 import { App, editorLivePreviewField } from 'obsidian';
 import { registerPasteDropHandlers } from './paste-handler';
 import { createImageDecorationField, createImageWidgetExtension, imageFeatureEnabledEffect } from './widget';
-import { parseImageBlock } from './html-schema';
+import { parseImageBlock, findBlockEnd } from './html-schema';
 import { imageSelectionField, deselectImageBlock } from './selection';
 import type BetterEditPlugin from '../../main';
 
@@ -202,17 +202,15 @@ function findManagedImageRanges(state: EditorState): Array<{ from: number; to: n
 	const ranges: Array<{ from: number; to: number }> = [];
 	const fullText = state.doc.toString();
 	const openMarker = '<div data-better-edit-image=';
-	const closeTag = '</div>';
 	let searchFrom = 0;
 
 	while (true) {
 		const openIdx = fullText.indexOf(openMarker, searchFrom);
 		if (openIdx === -1) break;
 
-		const closeIdx = fullText.indexOf(closeTag, openIdx);
-		if (closeIdx === -1) break;
+		const blockEnd = findBlockEnd(fullText, openIdx);
+		if (blockEnd === -1) break;
 
-		const blockEnd = closeIdx + closeTag.length;
 		const rawHtml = fullText.slice(openIdx, blockEnd);
 		if (parseImageBlock(rawHtml)) {
 			ranges.push({ from: openIdx, to: blockEnd });

@@ -58,7 +58,7 @@ export function registerPasteDropHandlers(plugin: BetterEditPlugin): void {
 			}
 
 			evt.preventDefault();
-			handleExistingImageInsert(plugin, editor, existingImage);
+			handleExistingImageInsert(plugin, editor, view, existingImage);
 		}),
 	);
 
@@ -111,34 +111,17 @@ async function handleImageInsert(
 	const { defaultImageWidth, defaultImageAlignment, imageCornerRadiusPx } = plugin.settings.image;
 	const html = singleImageHtml(savedPath, defaultImageWidth, defaultImageAlignment, undefined, undefined, undefined, imageCornerRadiusPx);
 
-	// Check if the cursor is inside a placeholder block and replace it; otherwise insert at cursor
-	const cursorOffset = editor.posToOffset(editor.getCursor());
-	const docText = editor.getValue();
-	const replacedDoc = tryReplacePlaceholder(docText, cursorOffset, html);
-
-	if (replacedDoc !== null) {
-		editor.setValue(replacedDoc);
-	} else {
-		insertHtmlAtCursor(editor, html);
-	}
+	insertHtmlAtCursor(editor, html);
 }
 
 function handleExistingImageInsert(
 	plugin: BetterEditPlugin,
 	editor: Editor,
+	view: MarkdownView,
 	imageFile: TFile,
 ): void {
 	const html = buildManagedImageHtml(plugin, imageFile);
-
-	const cursorOffset = editor.posToOffset(editor.getCursor());
-	const docText = editor.getValue();
-	const replacedDoc = tryReplacePlaceholder(docText, cursorOffset, html);
-
-	if (replacedDoc !== null) {
-		editor.setValue(replacedDoc);
-	} else {
-		insertHtmlAtCursor(editor, html);
-	}
+	insertHtmlAtCursor(editor, html);
 }
 
 function buildManagedImageHtml(plugin: BetterEditPlugin, imageFile: TFile): string {
@@ -310,39 +293,6 @@ function insertHtmlAtCursor(editor: Editor, html: string): void {
 	const htmlLineCount = html.split('\n').length;
 	const targetLine = cursor.line + (isEmptyLine ? 0 : 1) + htmlLineCount;
 	editor.setCursor({ line: targetLine, ch: 0 });
-}
-
-/**
- * If `cursorOffset` falls inside a `<div data-placeholder="image" …>` block,
- * replaces that placeholder with `replacement` in `docText` and returns the
- * new document string. Returns null if no placeholder was found at that offset.
- */
-function tryReplacePlaceholder(
-	docText: string,
-	cursorOffset: number,
-	replacement: string,
-): string | null {
-	const placeholderOpen = '<div data-placeholder="image"';
-	let searchFrom = 0;
-
-	while (true) {
-		const start = docText.indexOf(placeholderOpen, searchFrom);
-		if (start === -1) break;
-
-		// Find the closing </div>
-		const end = docText.indexOf('</div>', start);
-		if (end === -1) break;
-
-		const blockEnd = end + '</div>'.length;
-
-		if (cursorOffset >= start && cursorOffset <= blockEnd) {
-			return docText.slice(0, start) + replacement + docText.slice(blockEnd);
-		}
-
-		searchFrom = blockEnd;
-	}
-
-	return null;
 }
 
 /** Strips characters that are invalid in vault filenames. */

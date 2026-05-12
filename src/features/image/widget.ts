@@ -31,8 +31,8 @@ import {
 	SingleImageBlock,
 	parseImageBlock,
 	singleImageHtml,
+	findBlockEnd,
 } from './html-schema';
-import { buildImageToolbarIcon, type ImageIconName } from './icons';
 import { CropModal } from './crop-modal';
 import { notePotentialNativeImageDrop, saveImageToVault } from './paste-handler';
 import {
@@ -41,6 +41,8 @@ import {
 	deselectImageBlock,
 	SelectedImageBlock,
 } from './selection';
+import { buildImageToolbarIcon, type ImageIconName } from '../../icons';
+import { renderImagePlaceholderIcon } from '../../icons';
 import type BetterEditPlugin from '../../main';
 
 // Dispatching this effect to an EditorView forces the image decoration field
@@ -52,16 +54,88 @@ export const imageFeatureEnabledEffect = StateEffect.define<boolean>();
 // ---------------------------------------------------------------------------
 
 class PlaceholderWidget extends WidgetType {
-	toDOM(_view: EditorView): HTMLElement {
-		const el = createDiv({ cls: 'be-image-placeholder' });
-		el.setText('Paste or drop an image here');
-		return el;
+	private readonly plugin: BetterEditPlugin;
+	private readonly from: number;
+	private readonly to: number;
+	private readonly selected: boolean;
+
+	constructor(plugin: BetterEditPlugin, from: number, to: number, selected: boolean) {
+		super();
+		this.plugin = plugin;
+		this.from = from;
+		this.to = to;
+		this.selected = selected;
 	}
 
-	eq(_other: PlaceholderWidget): boolean { return true; }
+	toDOM(view: EditorView): HTMLElement {
+		const wrapper = createDiv({ cls: 'be-image-widget' });
+		wrapper.setAttribute('data-be-from', String(this.from));
+		wrapper.setAttribute('data-be-to',   String(this.to));
 
-	ignoreEvent(event: Event): boolean {
-		return event.type === 'mousedown';
+		const el = createDiv({ cls: 'be-image-placeholder' });
+		if (this.selected) el.addClass('is-selected');
+
+		const iconWrapper = createDiv({ cls: 'be-image-placeholder-icon' });
+		renderImagePlaceholderIcon(iconWrapper);
+		const textEl = createDiv({ cls: 'be-image-placeholder-text', text: 'Add an image' });
+
+		el.appendChild(iconWrapper);
+		el.appendChild(textEl);
+
+		this.plugin.registerDomEvent(el, 'mousedown', (e: MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+		});
+
+		this.plugin.registerDomEvent(el, 'click', (e: MouseEvent) => {
+			e.preventDefault();
+			e.stopPropagation();
+			this.openReplacePanel(view, el);
+		});
+
+		wrapper.appendChild(el);
+		return wrapper;
+	}
+
+	eq(other: PlaceholderWidget): boolean {
+		return this.from === other.from && this.to === other.to && this.selected === other.selected;
+	}
+
+	ignoreEvent(): boolean {
+		return true;
+	}
+
+	private openReplacePanel(view: EditorView, anchorEl: HTMLElement): void {
+		openReplacePanel(anchorEl, {
+			onFile:   (file) => this.insertFile(view, file),
+			onSrc:    (src)  => { this.insertSrc(view, src); },
+			onDelete: ()     => { this.deletePlaceholder(view); },
+			linkInitialValue: '',
+			scrollAnchor: anchorEl,
+		});
+	}
+
+	private deletePlaceholder(view: EditorView): void {
+		let from = this.from;
+		let to   = this.to;
+		const text = view.state.doc.toString();
+		if (to < text.length && text[to] === '\n')   to++;
+		else if (from > 0 && text[from - 1] === '\n') from--;
+		view.dispatch({ changes: { from, to, insert: '' } });
+	}
+
+	private insertSrc(view: EditorView, src: string): void {
+		const { defaultImageWidth, defaultImageAlignment, imageCornerRadiusPx } = this.plugin.settings.image;
+		const html = singleImageHtml(src, defaultImageWidth, defaultImageAlignment, undefined, undefined, undefined, imageCornerRadiusPx);
+		view.dispatch({ changes: { from: this.from, to: this.to, insert: html } });
+	}
+
+	private async insertFile(view: EditorView, file: File): Promise<void> {
+		const activeFile = this.plugin.app.workspace.getActiveFile();
+		if (!activeFile) return;
+		const savedPath = await saveImageToVault(this.plugin, file, activeFile);
+		if (!savedPath) return;
+		this.insertSrc(view, savedPath);
 	}
 }
 
@@ -109,6 +183,8 @@ class ImageWidget extends WidgetType {
 
 		const r = this.plugin.settings.image.imageCornerRadiusPx;
 
+		const media = createDiv({ cls: 'be-image-media' });
+
 		if (this.block.crop) {
 			const { crop } = this.block;
 			const blockW = parseInt(this.block.width, 10) || 1;
@@ -128,12 +204,14 @@ class ImageWidget extends WidgetType {
 			const topPct   = (crop.offsetY  / crop.height * 100).toFixed(3);
 			img.style.cssText = `position: absolute; width: ${widthPct}%; max-width: none; left: -${leftPct}%; top: -${topPct}%; display: block;`;
 			clipDiv.appendChild(img);
-			frame.appendChild(clipDiv);
+			media.appendChild(clipDiv);
 		} else {
 			const radiusStyle = r > 0 ? ` border-radius: ${r}px;` : '';
 			img.style.cssText = `width: 100%; max-width: 100%; display: block;${radiusStyle}`;
-			frame.appendChild(img);
+			media.appendChild(img);
 		}
+
+		frame.appendChild(media);
 
 		if (this.block.caption !== undefined && !this.block.captionHidden) {
 			frame.appendChild(this.buildCaption(view));
@@ -146,10 +224,10 @@ class ImageWidget extends WidgetType {
 				e.stopPropagation();
 				this.openAltTextPopover(view, frame);
 			});
-			frame.appendChild(badge);
+			media.appendChild(badge);
 		}
 
-		frame.appendChild(this.buildResizeHandle(view, frame, img));
+		media.appendChild(this.buildResizeHandle(view, frame, img));
 		frame.appendChild(this.buildToolbar(view, frame));
 		wrapper.appendChild(frame);
 		return wrapper;
@@ -297,7 +375,7 @@ class ImageWidget extends WidgetType {
 			this.plugin.registerDomEvent(captionBtn, 'click', (e: MouseEvent) => {
 				e.preventDefault();
 				e.stopPropagation();
-				this.updateBlock(view, this.captionTogglePatch());
+				this.toggleCaption(view);
 			});
 			bar.appendChild(captionBtn);
 
@@ -344,12 +422,9 @@ class ImageWidget extends WidgetType {
 		// Group 2 — Caption, Crop, Replace
 		menu.addItem(item => {
 			const visible = this.block.caption !== undefined && !this.block.captionHidden;
-			item.setTitle(
-				this.block.caption === undefined ? 'Add caption' :
-				this.block.captionHidden ? 'Show caption' : 'Hide caption',
-			);
-			if (visible) item.setChecked(true);
-			item.onClick(() => this.updateBlock(view, this.captionTogglePatch()));
+			item.setTitle('Caption');
+			item.setChecked(visible);
+			item.onClick(() => this.toggleCaption(view));
 		});
 
 		menu.addItem(item => {
@@ -366,8 +441,8 @@ class ImageWidget extends WidgetType {
 
 		// Group 3 — Alt text
 		menu.addItem(item => {
-			item.setTitle(this.block.alt ? 'Edit alt text' : 'Add alt text');
-			if (this.block.alt) item.setChecked(true);
+			item.setTitle('Alt text');
+			item.setChecked(!!this.block.alt);
 			item.onClick(() => this.openAltTextPopover(view, frameEl));
 		});
 
@@ -459,6 +534,18 @@ class ImageWidget extends WidgetType {
 		return { captionHidden: this.block.captionHidden ? undefined : true };
 	}
 
+	private toggleCaption(view: EditorView): void {
+		const enabling = this.block.caption === undefined || this.block.captionHidden;
+		this.updateBlock(view, this.captionTogglePatch());
+		if (enabling) {
+			// Widget re-renders synchronously after dispatch; find the new caption and focus it.
+			requestAnimationFrame(() => {
+				const wrapper = view.dom.querySelector<HTMLElement>(`[data-be-from="${this.from}"]`);
+				wrapper?.querySelector<HTMLElement>('.be-image-caption')?.focus();
+			});
+		}
+	}
+
 	private updateBlock(view: EditorView, patch: Partial<SingleImageBlock>): void {
 		const next: SingleImageBlock = { ...this.block, ...patch };
 		view.dispatch({
@@ -487,94 +574,12 @@ class ImageWidget extends WidgetType {
 	}
 
 	private openReplacePanel(view: EditorView, frameEl: HTMLElement): void {
-		activeDocument.querySelector('.be-replace-panel')?.remove();
-
-		const panel = createDiv({ cls: 'be-replace-panel' });
-
-		// Position below frame, clamped to viewport
-		const rect  = frameEl.getBoundingClientRect();
-		const panelW = 360;
-		panel.style.top  = `${rect.bottom + 8}px`;
-		panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - panelW - 16))}px`;
-
-		// ── Tab bar ───────────────────────────────────────────────────────────
-		const tabBar    = createDiv({ cls: 'be-replace-tabs' });
-		const uploadTab = createEl('button', { cls: 'be-replace-tab is-active', text: 'Upload' });
-		const linkTab   = createEl('button', { cls: 'be-replace-tab', text: 'Link' });
-		tabBar.append(uploadTab, linkTab);
-
-		// ── Upload pane ───────────────────────────────────────────────────────
-		const uploadPane = createDiv({ cls: 'be-replace-pane' });
-		const uploadArea = createDiv({ cls: 'be-replace-upload-area' });
-		const uploadBtn  = createEl('button', { cls: 'be-replace-upload-btn', text: 'Upload file' });
-		const fileInput  = createEl('input', { attr: { type: 'file', accept: 'image/*', style: 'display:none' } });
-		uploadArea.append(uploadBtn, fileInput);
-		uploadPane.appendChild(uploadArea);
-
-		// ── Link pane ─────────────────────────────────────────────────────────
-		const linkPane  = createDiv({ cls: 'be-replace-pane', attr: { style: 'display:none' } });
-		const linkInput = createEl('input', { cls: 'be-replace-link-input', attr: {
-			type: 'text', value: this.block.src, placeholder: 'Paste image URL or vault path…',
-		} }) as HTMLInputElement;
-		linkPane.appendChild(linkInput);
-
-		panel.append(tabBar, uploadPane, linkPane);
-
-		// ── Tab switching ─────────────────────────────────────────────────────
-		uploadTab.addEventListener('click', () => {
-			uploadTab.addClass('is-active'); linkTab.removeClass('is-active');
-			uploadPane.style.display = ''; linkPane.style.display = 'none';
+		openReplacePanel(frameEl, {
+			onFile: (file) => this.replaceWithFile(view, file),
+			onSrc:  (src)  => { this.updateBlock(view, { src }); },
+			linkInitialValue: this.block.src,
+			scrollAnchor: null,
 		});
-		linkTab.addEventListener('click', () => {
-			linkTab.addClass('is-active'); uploadTab.removeClass('is-active');
-			linkPane.style.display = ''; uploadPane.style.display = 'none';
-			requestAnimationFrame(() => { linkInput.focus(); linkInput.select(); });
-		});
-
-		// ── Close helper (guards against double-fire) ─────────────────────────
-		let panelClosed = false;
-		const closePanel = () => {
-			if (panelClosed) return;
-			panelClosed = true;
-			activeDocument.removeEventListener('mousedown', closeOnOutside, true);
-			panel.remove();
-		};
-
-		// ── Upload file picker ────────────────────────────────────────────────
-		uploadBtn.addEventListener('click', () => fileInput.click());
-		fileInput.addEventListener('change', () => {
-			const file = fileInput.files?.[0];
-			if (!file) return;
-			void this.replaceWithFile(view, file).then(() => closePanel());
-		});
-
-		// Drag onto the upload pane
-		uploadArea.addEventListener('dragover', ev => { ev.preventDefault(); uploadArea.addClass('is-over'); });
-		uploadArea.addEventListener('dragleave', () => uploadArea.removeClass('is-over'));
-		uploadArea.addEventListener('drop', ev => {
-			ev.preventDefault();
-			uploadArea.removeClass('is-over');
-			const file = Array.from(ev.dataTransfer?.files ?? []).find(f => f.type.startsWith('image/'));
-			if (!file) return;
-			void this.replaceWithFile(view, file).then(() => closePanel());
-		});
-
-		// ── Link apply on Enter ───────────────────────────────────────────────
-		linkInput.addEventListener('keydown', ev => {
-			if (ev.key !== 'Enter') return;
-			const src = linkInput.value.trim();
-			if (!src) return;
-			this.updateBlock(view, { src });
-			closePanel();
-		});
-
-		// ── Outside click ─────────────────────────────────────────────────────
-		const closeOnOutside = (ev: MouseEvent) => {
-			if (!panel.contains(ev.target as Node)) closePanel();
-		};
-		setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
-
-		activeDocument.body.appendChild(panel);
 	}
 
 	private async replaceWithFile(view: EditorView, file: File): Promise<void> {
@@ -582,8 +587,8 @@ class ImageWidget extends WidgetType {
 		if (!activeFile) return;
 		const savedPath = await saveImageToVault(this.plugin, file, activeFile);
 		if (!savedPath) return;
-		// Clear crop when replacing — the new image has different dimensions
-		this.updateBlock(view, { src: savedPath, crop: undefined });
+		const crop = this.block.crop ? await recalibrateCrop(this.block.crop, file) : undefined;
+		this.updateBlock(view, { src: savedPath, crop });
 	}
 
 	private openAltTextPopover(view: EditorView, frameEl: HTMLElement): void {
@@ -591,12 +596,13 @@ class ImageWidget extends WidgetType {
 
 		const popover = createDiv({ cls: 'be-alt-popover' });
 
-		// Position below frame, right-aligned
-		const rect     = frameEl.getBoundingClientRect();
-		const popW     = 280;
-		const left     = Math.max(8, Math.min(rect.right - popW, window.innerWidth - popW - 16));
-		popover.style.top  = `${rect.bottom + 8}px`;
-		popover.style.left = `${left}px`;
+		const positionPopover = () => {
+			const rect = frameEl.getBoundingClientRect();
+			const popW = 280;
+			const left = Math.max(8, Math.min(rect.right - popW, window.innerWidth - popW - 16));
+			popover.style.top  = `${rect.bottom + 8}px`;
+			popover.style.left = `${left}px`;
+		};
 
 		const header   = createDiv({ cls: 'be-alt-popover-header' });
 		header.createSpan({ text: 'Alt text' });
@@ -614,13 +620,14 @@ class ImageWidget extends WidgetType {
 
 		popover.append(header, desc, input);
 
-		// `closed` prevents double-dispatch when Enter fires blur on the input
-		// (removing the popover from the DOM fires blur on the focused input).
 		let altClosed = false;
+		const scroller = frameEl.closest('.cm-scroller');
+
 		const closePopover = (save: boolean) => {
 			if (altClosed) return;
 			altClosed = true;
 			activeDocument.removeEventListener('mousedown', closeOnOutside, true);
+			scroller?.removeEventListener('scroll', positionPopover);
 			if (save) {
 				const alt = input.value.trim() || undefined;
 				this.updateBlock(view, { alt });
@@ -640,7 +647,10 @@ class ImageWidget extends WidgetType {
 		};
 		setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
 
+		scroller?.addEventListener('scroll', positionPopover, { passive: true });
+
 		activeDocument.body.appendChild(popover);
+		positionPopover();
 		requestAnimationFrame(() => input.focus());
 	}
 
@@ -680,6 +690,148 @@ class ImageWidget extends WidgetType {
 		// Prevent CM6 from processing mousedown (no cursor positioning)
 		return event.type === 'mousedown';
 	}
+}
+
+// ---------------------------------------------------------------------------
+// Crop recalibration — keep horizontal crop exactly, clamp vertical to new ratio
+// ---------------------------------------------------------------------------
+
+function recalibrateCrop(crop: ImageCrop, imageSource: File | string): Promise<ImageCrop> {
+	const url = imageSource instanceof File ? URL.createObjectURL(imageSource) : imageSource;
+	return new Promise<ImageCrop>((resolve) => {
+		const img = new Image();
+		const cleanup = () => { if (imageSource instanceof File) URL.revokeObjectURL(url); };
+		img.onload = () => {
+			cleanup();
+			if (!img.naturalWidth || !img.naturalHeight) { resolve(crop); return; }
+			// How tall the full image renders at the stored imgWidth
+			const renderedH = crop.imgWidth * img.naturalHeight / img.naturalWidth;
+			const height  = Math.min(crop.height, renderedH);
+			const offsetY = Math.max(0, Math.min(crop.offsetY, renderedH - height));
+			resolve({ ...crop, height: Math.round(height), offsetY: Math.round(offsetY) });
+		};
+		img.onerror = () => { cleanup(); resolve(crop); };
+		img.src = url;
+	});
+}
+
+// ---------------------------------------------------------------------------
+// Shared replace panel
+// ---------------------------------------------------------------------------
+
+interface ReplacePanelOptions {
+	onFile: (file: File) => Promise<void>;
+	onSrc:  (src: string) => void;
+	onDelete?: () => void;
+	linkInitialValue: string;
+	scrollAnchor: HTMLElement | null;
+}
+
+function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): void {
+	activeDocument.querySelector('.be-replace-panel')?.remove();
+
+	const panel = createDiv({ cls: 'be-replace-panel' });
+
+	const positionPanel = () => {
+		const rect  = anchorEl.getBoundingClientRect();
+		const panelW = 360;
+		panel.style.top  = `${rect.bottom + 8}px`;
+		panel.style.left = `${Math.max(8, Math.min(rect.left, window.innerWidth - panelW - 16))}px`;
+	};
+
+	const tabBar    = createDiv({ cls: 'be-replace-tabs' });
+	const uploadTab = createEl('button', { cls: 'be-replace-tab is-active', text: 'Upload' });
+	const linkTab   = createEl('button', { cls: 'be-replace-tab', text: 'Link' });
+	tabBar.append(uploadTab, linkTab);
+
+	const uploadPane = createDiv({ cls: 'be-replace-pane' });
+	uploadPane.createDiv({ cls: 'be-replace-upload-desc', text: 'Drag an image here, or click below to browse.' });
+	const uploadArea = createDiv({ cls: 'be-replace-upload-area' });
+	const uploadBtn  = createDiv({ cls: 'be-replace-upload-btn', text: 'Upload file' });
+	const fileInput  = createEl('input', { attr: { type: 'file', accept: 'image/*', style: 'display:none' } });
+	uploadArea.append(uploadBtn, fileInput);
+	uploadPane.appendChild(uploadArea);
+
+	const linkPane  = createDiv({ cls: 'be-replace-pane', attr: { style: 'display:none' } });
+	const linkInput = createEl('input', { cls: 'be-replace-link-input', attr: {
+		type: 'text', value: opts.linkInitialValue, placeholder: 'Paste image URL or vault path…',
+	} }) as HTMLInputElement;
+	linkPane.appendChild(linkInput);
+
+	panel.append(tabBar, uploadPane, linkPane);
+
+	uploadTab.addEventListener('click', () => {
+		uploadTab.addClass('is-active'); linkTab.removeClass('is-active');
+		uploadPane.style.display = ''; linkPane.style.display = 'none';
+	});
+	linkTab.addEventListener('click', () => {
+		linkTab.addClass('is-active'); uploadTab.removeClass('is-active');
+		linkPane.style.display = ''; uploadPane.style.display = 'none';
+		requestAnimationFrame(() => { linkInput.focus(); if (opts.linkInitialValue) linkInput.select(); });
+	});
+
+	const cleanups: Array<() => void> = [];
+	let panelClosed = false;
+	const closePanel = () => {
+		if (panelClosed) return;
+		panelClosed = true;
+		activeDocument.removeEventListener('mousedown', closeOnOutside, true);
+		opts.scrollAnchor?.closest('.cm-scroller')?.removeEventListener('scroll', positionPanel);
+		for (const fn of cleanups) fn();
+		panel.remove();
+	};
+
+	const pickFile = (file: File) => void opts.onFile(file).then(() => closePanel());
+
+	uploadBtn.addEventListener('click', () => fileInput.click());
+	fileInput.addEventListener('change', () => {
+		const file = fileInput.files?.[0];
+		if (file) pickFile(file);
+	});
+
+	let dragCount = 0;
+	panel.addEventListener('dragenter', ev => { ev.preventDefault(); dragCount++; panel.addClass('is-over'); });
+	panel.addEventListener('dragleave', () => { if (--dragCount <= 0) { dragCount = 0; panel.removeClass('is-over'); } });
+	panel.addEventListener('dragover',  ev => ev.preventDefault());
+	panel.addEventListener('drop', ev => {
+		ev.preventDefault();
+		dragCount = 0;
+		panel.removeClass('is-over');
+		const file = Array.from(ev.dataTransfer?.files ?? []).find(f => f.type.startsWith('image/'));
+		if (file) pickFile(file);
+	});
+
+	linkInput.addEventListener('keydown', ev => {
+		if (ev.key !== 'Enter') return;
+		const src = linkInput.value.trim();
+		if (!src) return;
+		opts.onSrc(src);
+		closePanel();
+	});
+
+	const closeOnOutside = (ev: MouseEvent) => {
+		if (!panel.contains(ev.target as Node)) closePanel();
+	};
+	setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+
+	if (opts.onDelete) {
+		const onKeyDown = (ev: KeyboardEvent) => {
+			if (ev.key !== 'Delete' && ev.key !== 'Backspace') return;
+			if (ev.target instanceof HTMLInputElement || ev.target instanceof HTMLTextAreaElement) return;
+			ev.preventDefault();
+			closePanel();
+			opts.onDelete!();
+		};
+		activeDocument.addEventListener('keydown', onKeyDown, true);
+		cleanups.push(() => activeDocument.removeEventListener('keydown', onKeyDown, true));
+	}
+
+	if (opts.scrollAnchor) {
+		opts.scrollAnchor.closest('.cm-scroller')?.addEventListener('scroll', positionPanel, { passive: true });
+	}
+
+	activeDocument.body.appendChild(panel);
+	positionPanel();
 }
 
 function createToolbarButton(plugin: BetterEditPlugin, icon: ImageIconName, title: string): HTMLButtonElement {
@@ -758,26 +910,23 @@ function buildDecorations(
 	const decorations: Range<Decoration>[] = [];
 	const fullText = state.doc.toString();
 	const OPEN_MARKER = '<div data-better-edit-image=';
-	const CLOSE_TAG   = '</div>';
 	let searchFrom = 0;
 
 	while (true) {
 		const openIdx = fullText.indexOf(OPEN_MARKER, searchFrom);
 		if (openIdx === -1) break;
 
-		const closeIdx = fullText.indexOf(CLOSE_TAG, openIdx);
-		if (closeIdx === -1) break;
-
-		const blockEnd = closeIdx + CLOSE_TAG.length;
+		const blockEnd = findBlockEnd(fullText, openIdx);
+		if (blockEnd === -1) break;
 		const rawHtml  = fullText.slice(openIdx, blockEnd);
 		const block    = parseImageBlock(rawHtml);
 		if (!block) { searchFrom = blockEnd; continue; }
 
+		const isSelected = selection !== null && selection.from === openIdx;
 		let widget: WidgetType;
 		if (block.kind === 'placeholder') {
-			widget = new PlaceholderWidget();
+			widget = new PlaceholderWidget(plugin, openIdx, blockEnd, isSelected);
 		} else {
-			const isSelected = selection !== null && selection.from === openIdx;
 			widget = new ImageWidget(block, rawHtml, plugin, openIdx, blockEnd, isSelected);
 		}
 
@@ -835,7 +984,7 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 					plugin.registerDomEvent(view.dom, 'mousedown', (event: MouseEvent) => {
 						const target = event.target;
 					if (!(target instanceof Element)) return;
-					if (target.closest('.be-resize-handle, .be-image-toolbar, .be-image-caption')) return;
+					if (target.closest('.be-resize-handle, .be-image-toolbar, .be-image-caption, .be-image-alt-badge, .be-image-placeholder')) return;
 
 					const hitWidget = target.closest<HTMLElement>('[data-be-from]');
 					if (hitWidget) {
@@ -843,7 +992,7 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 						const to   = parseInt(hitWidget.dataset.beTo   ?? '', 10);
 						if (isNaN(from) || isNaN(to)) return;
 
-						if (!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption')) {
+						if (!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption, .be-image-placeholder')) {
 							event.preventDefault();
 						}
 						view.dispatch({

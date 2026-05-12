@@ -49,13 +49,7 @@ export type ImageBlock = SingleImageBlock | PlaceholderBlock;
 
 /** Returns the placeholder HTML inserted by the slash command. */
 export function placeholderHtml(): string {
-	return (
-		'<div data-better-edit-image="placeholder" style="border: 2px dashed #ccc; ' +
-		'border-radius: 4px; padding: 32px 16px; text-align: center; color: #999; ' +
-		'font-size: 0.9em; min-height: 80px;">\n' +
-		'  Paste or drop an image here\n' +
-		'</div>'
-	);
+	return '<div data-better-edit-image="placeholder"></div>';
 }
 
 /** Returns the outer div style for a given alignment. */
@@ -126,6 +120,34 @@ export function singleImageHtml(
 		captionHtml +
 		`</div>`
 	);
+}
+
+// ---------------------------------------------------------------------------
+// Block boundary detection
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns the index of the character immediately after the closing `</div>` that
+ * matches the opening `<div` at `openIdx`. Handles nested `<div>` elements.
+ * Returns -1 if no matching close tag is found.
+ */
+export function findBlockEnd(text: string, openIdx: number): number {
+	let depth = 1;
+	let pos = openIdx + 4; // skip past '<div'
+	while (pos < text.length) {
+		const nextOpen  = text.indexOf('<div', pos);
+		const nextClose = text.indexOf('</div>', pos);
+		if (nextClose === -1) return -1;
+		if (nextOpen !== -1 && nextOpen < nextClose) {
+			depth++;
+			pos = nextOpen + 4;
+		} else {
+			depth--;
+			if (depth === 0) return nextClose + 6;
+			pos = nextClose + 6;
+		}
+	}
+	return -1;
 }
 
 // ---------------------------------------------------------------------------

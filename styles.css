@@ -4,6 +4,472 @@
  * File content always uses inline styles only.
  * -------------------------------------------------------------------------*/
 
+/* ── Settings tab ─────────────────────────────────────────────────────────*/
+
+/* HR between feature sections */
+.be-settings-divider {
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+	margin: 16px 0;
+}
+
+/* Feature header: plain row, no card */
+.be-settings-root .be-settings-feature-header.setting-item {
+	background: transparent;
+	border-radius: 0;
+	box-shadow: none;
+	border: none;
+	padding: 4px 16px 10px 0;
+}
+
+.be-settings-root .be-settings-feature-header .setting-item-name {
+	font-weight: 600;
+}
+
+/* Child settings: one card wrapping all rows */
+.be-settings-root .be-settings-feature-body {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.be-settings-root .be-settings-feature-body.is-disabled {
+	display: none;
+}
+
+.be-settings-root .be-settings-feature-body .setting-item {
+	background: transparent;
+	border-radius: 0;
+	box-shadow: none;
+	border-top: 1px solid var(--background-modifier-border);
+	padding: 10px 16px;
+}
+
+.be-settings-root .be-settings-feature-body .setting-item:first-child {
+	border-top: none;
+}
+
+/* ── Slash command settings ───────────────────────────────────────────────*/
+.be-command-settings-note {
+	padding: 10px 16px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.be-command-zone {
+	padding: 10px 12px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.be-command-zone-title {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	margin: 0 4px 8px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.be-command-list {
+	position: relative;
+	min-height: 12px;
+}
+
+.be-command-drop-line {
+	display: none;
+	height: 2px;
+	margin: 2px 8px;
+	border-radius: 999px;
+	background: var(--interactive-accent);
+	box-shadow: 0 0 0 1px rgb(from var(--interactive-accent) r g b / 0.15);
+	pointer-events: none;
+}
+
+.be-command-drop-line.is-visible {
+	display: block;
+}
+
+.be-command-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 4px;
+	border-radius: var(--radius-s);
+}
+
+.be-command-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.be-command-row-handle {
+	width: 22px;
+	color: var(--text-faint);
+	cursor: grab;
+	letter-spacing: -2px;
+	text-align: center;
+}
+
+.be-command-row-meta {
+	flex: 1;
+	min-width: 0;
+}
+
+.be-command-row-title {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: 500;
+}
+
+.be-command-row-icon {
+	width: 18px;
+	height: 18px;
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+.be-command-row-icon svg {
+	width: 100%;
+	height: 100%;
+}
+
+.be-command-row-subtitle {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.be-command-row-aliases {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.be-command-row-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.be-command-add-button {
+	margin: 12px 16px;
+}
+
+.be-command-modal-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 12px 0;
+}
+
+.be-command-modal-field.is-disabled {
+	opacity: 0.55;
+}
+
+.be-command-modal-icon-control {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.be-command-modal-icon-button {
+	width: 30px;
+	height: 30px;
+	min-width: 30px;
+	min-height: 30px;
+	padding: 0 !important;
+	margin: 0;
+	line-height: 0;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	overflow: hidden;
+	border-radius: var(--radius-s);
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--text-muted);
+	box-shadow: none;
+	transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.be-command-modal-icon-slot {
+	width: 18px;
+	height: 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.be-command-modal-icon-slot svg {
+	width: 18px;
+	height: 18px;
+	display: block;
+}
+
+.be-command-modal-icon-button:hover:not(:disabled) {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.be-command-modal-icon-button:disabled {
+	opacity: 0.45;
+}
+
+.be-icon-picker-modal input[type="search"] {
+	width: 100%;
+	margin: 10px 0 12px;
+}
+
+.be-icon-picker-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+	gap: 6px;
+	max-height: 320px;
+	overflow: auto;
+	padding: 2px;
+}
+
+.be-icon-picker-item {
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.be-icon-picker-item-icon {
+	width: 18px;
+	height: 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.be-icon-picker-item-icon svg {
+	width: 18px;
+	height: 18px;
+	display: block;
+}
+
+.be-icon-picker-item.is-selected {
+	background: var(--background-modifier-hover);
+}
+
+.be-command-modal-field label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.be-command-modal-field textarea {
+	min-height: 130px;
+	resize: vertical;
+}
+
+.be-command-modal-help {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-top: 8px;
+}
+
+.be-command-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
+
+/* ── Slash command menu ──────────────────────────────────────────────────*/
+.be-slash-empty-hint {
+	color: var(--text-faint);
+	pointer-events: none;
+}
+
+.be-slash-menu {
+	display: none;
+	width: 324px;
+	min-width: 180px;
+	max-width: calc(100vw - 24px);
+	max-height: min(384px, 34vh);
+	overflow: hidden;
+	padding: 6px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 12px;
+	background: var(--background-primary);
+	box-shadow: var(--shadow-l);
+	color: var(--text-normal);
+	opacity: 1;
+	scrollbar-width: thin;
+}
+
+.be-slash-tooltip {
+	position: relative;
+	overflow: visible;
+}
+
+.cm-tooltip.be-slash-tooltip,
+.cm-editor .cm-tooltip.be-slash-tooltip,
+.theme-dark .cm-tooltip.be-slash-tooltip,
+.theme-light .cm-tooltip.be-slash-tooltip {
+	border-color: var(--background-modifier-border);
+	background-color: var(--background-primary);
+	color: var(--text-normal);
+}
+
+.be-slash-menu.is-visible {
+	display: flex;
+	flex-direction: column;
+}
+
+.be-slash-menu-list {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	scrollbar-width: thin;
+}
+
+.be-slash-section-title {
+	padding: 8px 10px 4px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	line-height: 1.2;
+}
+
+.be-slash-item {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	min-height: 34px;
+	padding: 3px 8px;
+	border-radius: 6px;
+	cursor: pointer;
+	color: var(--text-normal);
+}
+
+.be-slash-item.is-selected,
+.be-slash-menu:not(:has(.be-slash-item.is-selected)) .be-slash-item:hover {
+	background: var(--background-modifier-hover);
+}
+
+.be-slash-item-icon {
+	display: flex;
+	flex: 0 0 24px;
+	align-items: center;
+	justify-content: center;
+	width: 24px;
+	height: 24px;
+	color: var(--text-muted);
+	font-size: 12px;
+	font-weight: 600;
+	line-height: 1;
+}
+
+.be-slash-item-icon svg {
+	width: 20px;
+	height: 20px;
+	display: block;
+	fill: currentColor;
+}
+
+.be-slash-item-label {
+	display: flex;
+	flex: 1 1 auto;
+	flex-direction: column;
+	min-width: 0;
+	justify-content: center;
+}
+
+.be-slash-item-name {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: 500;
+	line-height: 1.25;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.be-slash-empty {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	line-height: 1.2;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.be-slash-item-shortcut {
+	flex: 0 0 auto;
+	max-width: 64px;
+	overflow: hidden;
+	padding-inline-end: 2px;
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.be-slash-empty {
+	padding: 8px;
+}
+
+.be-slash-footer {
+	position: sticky;
+	bottom: 0;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 10px;
+	padding: 8px 10px 10px;
+	margin-top: auto;
+	background: linear-gradient(to bottom, color-mix(in srgb, var(--background-primary) 40%, transparent), var(--background-primary) 35%);
+	border-top: 1px solid var(--background-modifier-border);
+}
+
+.be-slash-footer::before {
+	content: '';
+	position: absolute;
+	left: 0;
+	right: 0;
+	top: -10px;
+	height: 10px;
+	background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--background-primary) 90%, transparent));
+	pointer-events: none;
+}
+
+.be-slash-close-button {
+	padding: 0;
+	border: 0;
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: 600;
+}
+
+.be-slash-close-button:hover,
+.be-slash-close-button:focus-visible {
+	background: transparent;
+	box-shadow: none;
+	color: var(--text-accent);
+}
+
+.be-slash-close-shortcut {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+}
+
 /* ── Block controls ───────────────────────────────────────────────────────*/
 .be-block-controls {
 	position: fixed;
@@ -169,17 +635,19 @@ body .be-block-controls > button.be-block-handle:active {
 	position: relative;
 	max-width: 100%;
 	vertical-align: top;
-	border-radius: 4px;
 	line-height: 0;
 	overflow: visible;
 }
 
-/* ── Selection ring ── on the frame so it wraps just the image ────────────*/
-.be-image-frame.is-selected {
-	border-radius: 4px;
+/* ── Media wrapper — contains image/clip only, not caption ───────────────*/
+.be-image-media {
+	display: block;
+	position: relative;
+	line-height: 0;
 }
 
-.be-image-frame.is-selected::after {
+/* ── Selection ring ── on the media wrapper so caption is excluded ────────*/
+.be-image-frame.is-selected .be-image-media::after {
 	content: "";
 	position: absolute;
 	inset: 0;
@@ -341,7 +809,14 @@ body .be-block-controls > button.be-block-handle:active {
 	opacity: 1;
 }
 
-/* Hide Obsidian's HTML-block edit affordance without hiding the rendered image. */
+/* Placeholder: Obsidian's cm-html-embed renders the raw HTML alongside our widget.
+   Hide it — our widget is the authoritative rendering. */
+.cm-html-embed:has([data-better-edit-image="placeholder"]) {
+	display: none !important;
+}
+
+/* Filled images: suppress edit affordance and focus ring; the embed content itself
+   is invisible (broken vault paths) so we don't need to hide the element. */
 .cm-html-embed:has([data-better-edit-image]) > .edit-block-button {
 	display: none !important;
 }
@@ -354,21 +829,49 @@ body .be-block-controls > button.be-block-handle:active {
 
 /* ── Placeholder widget ───────────────────────────────────────────────────*/
 .be-image-placeholder {
-	display: block;
-	border: 2px dashed var(--background-modifier-border);
-	border-radius: 4px;
-	padding: 32px 16px;
-	text-align: center;
+	display: flex;
+	align-items: center;
+	padding: 12px;
+	padding-inline-end: 36px;
+	border-radius: 10px;
+	overflow: hidden;
+	background: var(--background-modifier-hover);
 	color: var(--text-muted);
-	font-size: 0.9em;
-	min-height: 80px;
 	cursor: pointer;
 	user-select: none;
+	transition: background 100ms ease, color 100ms ease;
 }
 
 .be-image-placeholder:hover {
-	border-color: var(--interactive-accent);
+	background: var(--background-modifier-active-hover);
 	color: var(--text-normal);
+}
+
+.be-image-placeholder.is-selected {
+	background: var(--background-modifier-active-hover);
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+	color: var(--text-normal);
+}
+
+.be-image-placeholder-icon {
+	flex-shrink: 0;
+	margin-inline-end: 12px;
+	display: flex;
+	align-items: center;
+}
+
+.be-image-placeholder-icon svg {
+	width: 25px;
+	height: 25px;
+	fill: currentColor;
+}
+
+.be-image-placeholder-text {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 0.9em;
 }
 
 /* ── Crop clip — in-flow block; padding-top% provides crop-window height ─*/
@@ -382,8 +885,11 @@ body .be-block-controls > button.be-block-handle:active {
 }
 
 /* ── Circle crop rendering ────────────────────────────────────────────────*/
-.be-image-frame.be-circle-crop .be-image-crop-clip,
-.be-image-frame.be-circle-crop::after {
+.be-image-frame.be-circle-crop .be-image-crop-clip {
+	border-radius: 50%;
+}
+
+.be-image-frame.be-circle-crop.is-selected .be-image-media::after {
 	border-radius: 50%;
 }
 
@@ -426,33 +932,41 @@ body .be-block-controls > button.be-block-handle:active {
 	overflow: hidden;
 }
 
-/* Tab bar — scrollable row, underline indicator on active tab */
+/* Tab bar — underline indicator on active tab, no scrollbar */
 .be-replace-tabs {
 	display: flex;
 	padding: 0 8px;
 	border-bottom: 1px solid var(--background-modifier-border);
-	overflow-x: auto;
+	overflow: hidden;
 }
 
-.be-replace-tab {
+.be-replace-tab,
+body .be-replace-panel .be-replace-tab {
 	padding: 8px 10px;
 	font-size: 13px;
-	background: transparent;
-	border: none;
-	border-bottom: 2px solid transparent;
+	background: transparent !important;
+	border: none !important;
+	border-bottom: 2px solid transparent !important;
+	box-shadow: none !important;
 	margin-bottom: -1px;
 	cursor: pointer;
 	color: var(--text-muted);
 	white-space: nowrap;
-	border-radius: 4px 4px 0 0;
-	transition: color 100ms ease, background 100ms ease;
+	border-radius: 0;
+	transition: color 100ms ease;
 }
 
-.be-replace-tab:hover { background: var(--background-modifier-hover); }
-
-.be-replace-tab.is-active {
+.be-replace-tab:hover,
+body .be-replace-panel .be-replace-tab:hover {
+	background: transparent !important;
+	box-shadow: none !important;
 	color: var(--text-normal);
-	border-bottom-color: var(--interactive-accent);
+}
+
+.be-replace-tab.is-active,
+body .be-replace-panel .be-replace-tab.is-active {
+	color: var(--text-normal);
+	border-bottom: 2px solid var(--interactive-accent) !important;
 }
 
 /* Pane wrapper */
@@ -460,13 +974,20 @@ body .be-block-controls > button.be-block-handle:active {
 	padding: 12px;
 }
 
-/* Upload area — full-width button, drag-over highlight */
+.be-replace-upload-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-bottom: 10px;
+	line-height: 1.5;
+}
+
+/* Upload area */
 .be-replace-upload-area {
-	padding: 12px 0 2px;
 	display: flex;
 	justify-content: center;
 }
 
+/* div-based, so no Obsidian button shadow interference */
 .be-replace-upload-btn {
 	width: 100%;
 	padding: 8px 16px;
@@ -480,9 +1001,16 @@ body .be-block-controls > button.be-block-handle:active {
 	transition: background 100ms ease, border-color 100ms ease;
 }
 
-.be-replace-upload-btn:hover { background: var(--background-modifier-active-hover); }
+.be-replace-upload-btn:hover {
+	background: var(--background-modifier-active-hover);
+}
 
-.be-replace-upload-area.is-over .be-replace-upload-btn {
+/* Panel-level drag-over highlight */
+.be-replace-panel.is-over {
+	border-color: var(--interactive-accent);
+}
+
+.be-replace-panel.is-over .be-replace-upload-btn {
 	border-color: var(--interactive-accent);
 	background: var(--background-modifier-active-hover);
 }
@@ -495,6 +1023,7 @@ body .be-block-controls > button.be-block-handle:active {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background: var(--background-modifier-form-field, var(--background-secondary));
+	box-shadow: none !important;
 	color: var(--text-normal);
 	font-size: 13px;
 }
@@ -533,8 +1062,9 @@ body .be-block-controls > button.be-block-handle:active {
 }
 
 .be-alt-popover-close {
-	background: transparent;
-	border: none;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
 	color: var(--text-muted);
 	cursor: pointer;
 	font-size: 16px;
@@ -556,6 +1086,7 @@ body .be-block-controls > button.be-block-handle:active {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background: var(--background-modifier-form-field, var(--background-secondary));
+	box-shadow: none !important;
 	color: var(--text-normal);
 	font-size: 13px;
 }
@@ -657,6 +1188,7 @@ body .be-block-controls > button.be-block-handle:active {
 
 .be-crop-container img {
 	display: block;
+	min-width: min(300px, 70vw);
 	max-width: min(70vw, 740px);
 	max-height: calc(min(90vh, 700px) - 80px);
 	object-fit: contain;

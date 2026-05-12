@@ -2,6 +2,8 @@ import { Plugin } from 'obsidian';
 import { BetterEditSettings, DEFAULT_SETTINGS, BetterEditSettingTab } from './settings';
 import { initImageFeature, createImageExtension } from './features/image/index';
 import { createBlocksExtension } from './features/blocks/index';
+import { createSlashCommandExtension } from './features/slash-command/index';
+import { normalizeSlashCommandSettings } from './features/slash-command/settings';
 
 export default class BetterEditPlugin extends Plugin {
 	settings: BetterEditSettings;
@@ -12,9 +14,8 @@ export default class BetterEditPlugin extends Plugin {
 
 		initImageFeature(this);
 		this.registerEditorExtension(createImageExtension(this));
-		if (this.settings.blocks.enabled) {
-			this.registerEditorExtension(createBlocksExtension(this));
-		}
+		this.registerEditorExtension(createBlocksExtension(this));
+		this.registerEditorExtension(createSlashCommandExtension(this));
 	}
 
 	onunload() {}
@@ -44,8 +45,10 @@ export default class BetterEditPlugin extends Plugin {
 
 		// Current shape: deep merge each feature namespace
 		this.settings = {
-			image: Object.assign({}, DEFAULT_SETTINGS.image, (raw.image as Partial<typeof DEFAULT_SETTINGS.image>) ?? {}),
-			blocks: Object.assign({}, DEFAULT_SETTINGS.blocks, (raw.blocks as Partial<typeof DEFAULT_SETTINGS.blocks>) ?? {}),
+			image:        Object.assign({}, DEFAULT_SETTINGS.image,        (raw.image        as Partial<typeof DEFAULT_SETTINGS.image>)        ?? {}),
+			blocks:       Object.assign({}, DEFAULT_SETTINGS.blocks,       (raw.blocks       as Partial<typeof DEFAULT_SETTINGS.blocks>)       ?? {}),
+			slashCommand: normalizeSlashCommandSettings(raw.slashCommand as Partial<typeof DEFAULT_SETTINGS.slashCommand> | undefined),
+			textStyling:  Object.assign({}, DEFAULT_SETTINGS.textStyling,  (raw.textStyling  as Partial<typeof DEFAULT_SETTINGS.textStyling>)  ?? {}),
 		};
 	}
 

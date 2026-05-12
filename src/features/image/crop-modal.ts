@@ -154,14 +154,34 @@ export class CropModal extends Modal {
 		this.imgRenderedW = this.imgEl.offsetWidth;
 		this.imgRenderedH = this.imgEl.offsetHeight;
 
-		const scale = this.docImgWidth > 0 ? this.imgRenderedW / this.docImgWidth : 1;
+		let valid = false;
+		if (this.initialCrop && this.docImgWidth > 0) {
+			// Express stored crop as fractions of the stored imgWidth, then map to
+			// the modal's actual rendered dimensions. This stays correct even when
+			// the replacement image has a different intrinsic size.
+			const wFrac = this.docDisplayWidth    / this.initialCrop.imgWidth;
+			const lFrac = this.initialCrop.offsetX / this.initialCrop.imgWidth;
+			// For vertical we use the new image's rendered aspect ratio as the basis.
+			const renderedH = this.imgRenderedW * (this.imgEl.naturalHeight / this.imgEl.naturalWidth) || this.imgRenderedH;
+			const oldImgH   = this.initialCrop.imgWidth * (this.imgEl.naturalHeight / this.imgEl.naturalWidth);
+			const hFrac = oldImgH > 0 ? this.initialCrop.height  / oldImgH : 1;
+			const tFrac = oldImgH > 0 ? this.initialCrop.offsetY / oldImgH : 0;
 
-		if (this.initialCrop) {
-			this.cropX = this.initialCrop.offsetX * scale;
-			this.cropY = this.initialCrop.offsetY * scale;
-			this.cropW = this.docDisplayWidth * scale;
-			this.cropH = this.initialCrop.height * scale;
-		} else {
+			this.cropW = wFrac * this.imgRenderedW;
+			this.cropH = hFrac * renderedH;
+			this.cropX = lFrac * this.imgRenderedW;
+			this.cropY = tFrac * renderedH;
+
+			// Clamp to image bounds
+			this.cropW = Math.min(this.cropW, this.imgRenderedW - this.cropX);
+			this.cropH = Math.min(this.cropH, renderedH - this.cropY);
+			this.cropX = Math.max(0, this.cropX);
+			this.cropY = Math.max(0, this.cropY);
+
+			valid = this.cropW >= 4 && this.cropH >= 4;
+		}
+
+		if (!valid) {
 			this.cropX = 0;
 			this.cropY = 0;
 			this.cropW = this.imgRenderedW;
