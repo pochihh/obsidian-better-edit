@@ -12,7 +12,7 @@ without making notes depend on proprietary plugin syntax.
 |---|---|---|---|
 | 01 | Image Arrangement | Partially complete | `docs/features/image.md` |
 | 02 | Blocks Drag and Drop | In progress | `docs/features/blocks.md` |
-| 03 | Slash Command | Planned | No detailed feature doc yet |
+| 03 | Slash Command | In progress | `docs/features/slash-command.md` |
 | 04 | Text Styling | Planned | No detailed feature doc yet |
 
 Current implementation focus: image arrangement and block drag-and-drop.
@@ -88,8 +88,10 @@ and nested list movement.
 
 ### Slash Command
 
-Planned. The slash menu should insert native Markdown/HTML templates and integrate
-with the block model and image placeholder flow.
+Detailed design: `docs/features/slash-command.md`
+
+Current scope is a customizable `/` menu backed by one reusable command structure
+for built-in and custom template commands.
 
 ### Text Styling
 

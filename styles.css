@@ -294,19 +294,36 @@
 
 .be-slash-menu {
 	display: none;
+	position: relative;
 	width: 324px;
 	min-width: 180px;
 	max-width: calc(100vw - 24px);
-	max-height: min(384px, 34vh);
 	overflow: hidden;
+	overscroll-behavior: contain;
 	padding: 6px;
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 12px;
 	background: var(--background-primary);
 	box-shadow: var(--shadow-l);
 	color: var(--text-normal);
+}
+
+.be-slash-menu::before {
+	content: '';
+	position: absolute;
+	top: 6px;
+	left: 6px;
+	right: 6px;
+	height: 24px;
+	background: linear-gradient(to bottom, var(--background-primary), transparent);
+	pointer-events: none;
+	z-index: 1;
+	opacity: 0;
+	transition: opacity 0.15s ease;
+}
+
+.be-slash-menu.is-scrolled::before {
 	opacity: 1;
-	scrollbar-width: thin;
 }
 
 .be-slash-tooltip {
@@ -318,9 +335,10 @@
 .cm-editor .cm-tooltip.be-slash-tooltip,
 .theme-dark .cm-tooltip.be-slash-tooltip,
 .theme-light .cm-tooltip.be-slash-tooltip {
-	border-color: var(--background-modifier-border);
-	background-color: var(--background-primary);
-	color: var(--text-normal);
+	border: none !important;
+	background: transparent !important;
+	padding: 0 !important;
+	box-shadow: none !important;
 }
 
 .be-slash-menu.is-visible {
@@ -333,9 +351,32 @@
 	flex: 1 1 auto;
 	flex-direction: column;
 	min-height: 0;
+	max-height: 250px;
 	overflow-y: auto;
 	overflow-x: hidden;
+	overscroll-behavior: contain;
+	padding-bottom: 10px;
+	scroll-padding-top: 30px;
+	scroll-padding-bottom: 14px;
 	scrollbar-width: thin;
+	scrollbar-color: var(--scrollbar-thumb-bg) transparent;
+}
+
+.be-slash-menu-list::-webkit-scrollbar {
+	width: 8px;
+}
+
+.be-slash-menu-list::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.be-slash-menu-list::-webkit-scrollbar-thumb {
+	background: var(--scrollbar-thumb-bg);
+	border-radius: 999px;
+}
+
+.be-slash-menu-list::-webkit-scrollbar-corner {
+	background: transparent;
 }
 
 .be-slash-section-title {
@@ -380,6 +421,11 @@
 	height: 20px;
 	display: block;
 	fill: currentColor;
+}
+
+/* Lucide icons rendered by setIcon use stroke, not fill */
+.be-slash-item-icon .svg-icon {
+	fill: none;
 }
 
 .be-slash-item-label {
@@ -431,10 +477,27 @@
 	align-items: center;
 	justify-content: space-between;
 	gap: 10px;
-	padding: 8px 10px 10px;
+	padding: 10px 10px 10px;
 	margin-top: auto;
 	background: linear-gradient(to bottom, color-mix(in srgb, var(--background-primary) 40%, transparent), var(--background-primary) 35%);
 	border-top: 1px solid var(--background-modifier-border);
+	border-bottom-left-radius: 8px;
+	border-bottom-right-radius: 8px;
+	cursor: pointer;
+}
+
+.be-slash-footer:hover {
+	background: var(--background-modifier-hover);
+}
+
+.be-slash-footer:hover .be-slash-close-button,
+.be-slash-footer:hover .be-slash-close-shortcut {
+	color: var(--text-normal);
+}
+
+/* Suppress item selection highlight while the close footer is hovered */
+.be-slash-menu:has(.be-slash-footer:hover) .be-slash-item.is-selected {
+	background: transparent;
 }
 
 .be-slash-footer::before {
@@ -448,21 +511,14 @@
 	pointer-events: none;
 }
 
-.be-slash-close-button {
-	padding: 0;
-	border: 0;
-	background: transparent;
-	box-shadow: none;
-	color: var(--text-normal);
-	font-size: var(--font-ui-small);
-	font-weight: 600;
+.be-slash-footer:hover::before {
+	display: none;
 }
 
-.be-slash-close-button:hover,
-.be-slash-close-button:focus-visible {
-	background: transparent;
-	box-shadow: none;
-	color: var(--text-accent);
+.be-slash-close-button {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	font-weight: 500;
 }
 
 .be-slash-close-shortcut {
