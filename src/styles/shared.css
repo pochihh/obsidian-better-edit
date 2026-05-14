@@ -1,0 +1,187 @@
+/* ── Shared toolbar primitives ───────────────────────────────────────────*/
+.be-toolbar-btn {
+	display: flex !important;
+	align-items: center !important;
+	justify-content: center !important;
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	cursor: pointer;
+	padding: 0 !important;
+	border-radius: 4px;
+	color: var(--text-muted);
+	min-width: 26px;
+	height: 26px;
+	transition: background 120ms ease, color 120ms ease;
+}
+
+.be-toolbar-btn:hover {
+	background: var(--background-modifier-hover) !important;
+	color: var(--text-normal);
+}
+
+.be-toolbar-btn.is-active {
+	background: var(--background-modifier-hover) !important;
+	color: var(--text-accent);
+}
+
+.be-toolbar-btn.is-disabled,
+.be-toolbar-btn:disabled {
+	opacity: 0.45;
+	cursor: default;
+	pointer-events: none;
+}
+
+.be-toolbar-icon {
+	display: block;
+	width: 16px;
+	height: 16px;
+}
+
+.be-toolbar-sep {
+	width: 1px;
+	height: 16px;
+	margin: 0 2px;
+	background: var(--background-modifier-border);
+	border-radius: 2px;
+	flex-shrink: 0;
+}
+
+.be-toolbar-tooltip {
+	position: fixed;
+	left: 0;
+	top: 0;
+	transform: translate(-50%, calc(-100% - 8px));
+	padding: 6px 10px;
+	border-radius: 6px;
+	background: var(--background-tooltip, rgba(22, 22, 22, 0.98));
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	color: var(--text-on-accent, rgba(255, 255, 255, 0.94));
+	font-size: 12px;
+	font-weight: 500;
+	line-height: 1;
+	white-space: nowrap;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease;
+	z-index: 1000;
+}
+
+.be-toolbar-tooltip.is-visible {
+	opacity: 1;
+}
+
+/* ── Shared replace/import panel primitives ──────────────────────────────*/
+.be-replace-panel {
+	position: fixed;
+	z-index: 200;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+	width: 360px;
+	max-width: calc(100vw - 24px);
+	overflow: hidden;
+}
+
+.be-replace-tabs {
+	display: flex;
+	padding: 0 8px;
+	border-bottom: 1px solid var(--background-modifier-border);
+	overflow: hidden;
+}
+
+.be-replace-tab,
+body .be-replace-panel .be-replace-tab {
+	padding: 8px 10px;
+	font-size: 13px;
+	background: transparent !important;
+	border: none !important;
+	border-bottom: 2px solid transparent !important;
+	box-shadow: none !important;
+	margin-bottom: -1px;
+	cursor: pointer;
+	color: var(--text-muted);
+	white-space: nowrap;
+	border-radius: 0;
+	transition: color 100ms ease;
+}
+
+.be-replace-tab:hover,
+body .be-replace-panel .be-replace-tab:hover {
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var(--text-normal);
+}
+
+.be-replace-tab.is-active,
+body .be-replace-panel .be-replace-tab.is-active {
+	color: var(--text-normal);
+	border-bottom: 2px solid var(--interactive-accent) !important;
+}
+
+.be-replace-pane {
+	padding: 12px;
+}
+
+.be-replace-upload-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-bottom: 10px;
+	line-height: 1.5;
+}
+
+.be-replace-upload-area {
+	display: flex;
+	justify-content: center;
+}
+
+.be-replace-upload-btn {
+	width: 100%;
+	padding: 8px 16px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+	font-size: 14px;
+	cursor: pointer;
+	text-align: center;
+	transition: background 100ms ease, border-color 100ms ease;
+}
+
+.be-replace-upload-btn:hover {
+	background: var(--background-modifier-active-hover);
+}
+
+.be-replace-panel.is-over {
+	border-color: var(--interactive-accent);
+}
+
+.be-replace-panel.is-over .be-replace-upload-btn {
+	border-color: var(--interactive-accent);
+	background: var(--background-modifier-active-hover);
+}
+
+.be-replace-link-input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 6px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-modifier-form-field, var(--background-secondary));
+	box-shadow: none !important;
+	color: var(--text-normal);
+	font-size: 13px;
+}
+
+.be-replace-apply-btn {
+	align-self: flex-end;
+	padding: 4px 14px;
+	border-radius: 4px;
+	border: 1px solid transparent;
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	font-size: 13px;
+	cursor: pointer;
+}

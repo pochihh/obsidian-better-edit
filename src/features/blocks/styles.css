@@ -1,0 +1,139 @@
+/* ── Block controls ───────────────────────────────────────────────────────*/
+.be-block-controls {
+	position: fixed;
+	z-index: 30;
+	display: none;
+	gap: 0;
+	align-items: center;
+	height: 24px;
+	pointer-events: auto;
+	background: transparent;
+	box-shadow: none;
+	border: 0;
+	padding: 0;
+}
+
+.be-block-controls.is-visible {
+	display: flex;
+}
+
+.be-block-controls.is-dragging {
+	opacity: 0.5;
+}
+
+.be-block-dragging-editor {
+	user-select: none;
+}
+
+.be-block-add,
+.be-block-handle {
+	width: 22px;
+	height: 22px;
+	padding: 0;
+	border: 0;
+	box-shadow: none;
+	background: transparent;
+	background-color: transparent;
+	appearance: none;
+	color: var(--text-faint);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	line-height: 22px;
+	cursor: pointer;
+	opacity: 0.9;
+}
+
+body .be-block-controls > button.be-block-add,
+body .be-block-controls > button.be-block-handle {
+	background: transparent !important;
+	background-color: transparent !important;
+	box-shadow: none !important;
+	border-color: transparent !important;
+	border-width: 0 !important;
+	outline: none !important;
+}
+
+.be-block-add {
+	font-size: 15px;
+	font-weight: 200;
+	transform: translateY(-1px);
+}
+
+.be-block-handle {
+	cursor: grab;
+	font-size: 15px;
+	letter-spacing: -2px;
+	margin-left: -2px;
+	transform: translateY(0);
+}
+
+.be-block-add:hover,
+.be-block-handle:hover {
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
+	color: var(--text-muted);
+	opacity: 1;
+}
+
+body .be-block-controls > button.be-block-add:hover,
+body .be-block-controls > button.be-block-handle:hover,
+body .be-block-controls > button.be-block-add:focus,
+body .be-block-controls > button.be-block-handle:focus,
+body .be-block-controls > button.be-block-add:active,
+body .be-block-controls > button.be-block-handle:active {
+	background: transparent !important;
+	background-color: transparent !important;
+	box-shadow: none !important;
+}
+
+.be-block-tooltip {
+	position: absolute;
+	top: 28px;
+	left: 0;
+	display: none;
+	white-space: nowrap;
+	padding: 6px 8px;
+	border-radius: 6px;
+	background: var(--background-primary);
+	color: var(--text-normal);
+	border: 1px solid var(--background-modifier-border);
+	box-shadow: var(--shadow-s);
+	font-size: 12px;
+	line-height: 1.2;
+}
+
+.be-block-tooltip.is-visible {
+	display: block;
+}
+
+.be-block-drop-line {
+	position: fixed;
+	z-index: 29;
+	display: none;
+	height: 2px;
+	background: var(--interactive-accent);
+	pointer-events: none;
+	border-radius: 2px;
+	box-shadow: var(--shadow-s);
+}
+
+.be-block-drop-line.is-visible {
+	display: block;
+}
+
+.be-block-selection {
+	position: fixed;
+	z-index: 28;
+	display: none;
+	pointer-events: none;
+	border-radius: var(--radius-s);
+	background: var(--background-modifier-hover);
+}
+
+.be-block-selection.is-visible {
+	display: block;
+}
+

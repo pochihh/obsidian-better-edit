@@ -1,0 +1,288 @@
+/* -------------------------------------------------------------------------
+ * Better Edit — plugin UI styles
+ * These styles apply only to ephemeral widget DOM, never to file content.
+ * File content always uses inline styles only.
+ * -------------------------------------------------------------------------*/
+
+/* ── Settings tab ─────────────────────────────────────────────────────────*/
+
+/* HR between feature sections */
+.be-settings-divider {
+	border: none;
+	border-top: 1px solid var(--background-modifier-border);
+	margin: 16px 0;
+}
+
+/* Feature header: plain row, no card */
+.be-settings-root .be-settings-feature-header.setting-item {
+	background: transparent;
+	border-radius: 0;
+	box-shadow: none;
+	border: none;
+	padding: 4px 16px 10px 0;
+}
+
+.be-settings-root .be-settings-feature-header .setting-item-name {
+	font-weight: 600;
+}
+
+/* Child settings: one card wrapping all rows */
+.be-settings-root .be-settings-feature-body {
+	background: var(--background-secondary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: var(--radius-m);
+	overflow: hidden;
+}
+
+.be-settings-root .be-settings-feature-body.is-disabled {
+	display: none;
+}
+
+.be-settings-root .be-settings-feature-body .setting-item {
+	background: transparent;
+	border-radius: 0;
+	box-shadow: none;
+	border-top: 1px solid var(--background-modifier-border);
+	padding: 10px 16px;
+}
+
+.be-settings-root .be-settings-feature-body .setting-item:first-child {
+	border-top: none;
+}
+
+/* ── Slash command settings ───────────────────────────────────────────────*/
+.be-command-settings-note {
+	padding: 10px 16px;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.be-command-zone {
+	padding: 10px 12px 12px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.be-command-zone-title {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	font-weight: 600;
+	margin: 0 4px 8px;
+	text-transform: uppercase;
+	letter-spacing: 0.04em;
+}
+
+.be-command-list {
+	position: relative;
+	min-height: 12px;
+}
+
+.be-command-drop-line {
+	display: none;
+	height: 2px;
+	margin: 2px 8px;
+	border-radius: 999px;
+	background: var(--interactive-accent);
+	box-shadow: 0 0 0 1px rgb(from var(--interactive-accent) r g b / 0.15);
+	pointer-events: none;
+}
+
+.be-command-drop-line.is-visible {
+	display: block;
+}
+
+.be-command-row {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 4px;
+	border-radius: var(--radius-s);
+}
+
+.be-command-row:hover {
+	background: var(--background-modifier-hover);
+}
+
+.be-command-row-handle {
+	width: 22px;
+	color: var(--text-faint);
+	cursor: grab;
+	letter-spacing: -2px;
+	text-align: center;
+}
+
+.be-command-row-meta {
+	flex: 1;
+	min-width: 0;
+}
+
+.be-command-row-title {
+	color: var(--text-normal);
+	font-size: var(--font-ui-small);
+	font-weight: 500;
+}
+
+.be-command-row-icon {
+	width: 18px;
+	height: 18px;
+	flex: 0 0 auto;
+	color: var(--text-muted);
+}
+
+.be-command-row-icon svg {
+	width: 100%;
+	height: 100%;
+}
+
+.be-command-row-subtitle {
+	color: var(--text-muted);
+	font-size: var(--font-ui-smaller);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.be-command-row-aliases {
+	color: var(--text-faint);
+	font-size: var(--font-ui-smaller);
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.be-command-row-actions {
+	display: flex;
+	gap: 6px;
+}
+
+.be-command-add-button {
+	margin: 12px 16px;
+}
+
+.be-command-modal-field {
+	display: flex;
+	flex-direction: column;
+	gap: 6px;
+	margin: 12px 0;
+}
+
+.be-command-modal-field.is-disabled {
+	opacity: 0.55;
+}
+
+.be-command-modal-icon-control {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+}
+
+.be-command-modal-icon-button {
+	width: 30px;
+	height: 30px;
+	min-width: 30px;
+	min-height: 30px;
+	padding: 0 !important;
+	margin: 0;
+	line-height: 0;
+	box-sizing: border-box;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	flex: 0 0 auto;
+	overflow: hidden;
+	border-radius: var(--radius-s);
+	background: transparent;
+	border: 1px solid transparent;
+	color: var(--text-muted);
+	box-shadow: none;
+	transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.be-command-modal-icon-slot {
+	width: 18px;
+	height: 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.be-command-modal-icon-slot svg {
+	width: 18px;
+	height: 18px;
+	display: block;
+}
+
+.be-command-modal-icon-button:hover:not(:disabled) {
+	background: var(--background-modifier-hover);
+	border-color: var(--background-modifier-border);
+	color: var(--text-normal);
+}
+
+.be-command-modal-icon-button:disabled {
+	opacity: 0.45;
+}
+
+.be-icon-picker-modal input[type="search"] {
+	width: 100%;
+	margin: 10px 0 12px;
+}
+
+.be-icon-picker-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fill, minmax(36px, 1fr));
+	gap: 6px;
+	max-height: 320px;
+	overflow: auto;
+	padding: 2px;
+}
+
+.be-icon-picker-item {
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.be-icon-picker-item-icon {
+	width: 18px;
+	height: 18px;
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.be-icon-picker-item-icon svg {
+	width: 18px;
+	height: 18px;
+	display: block;
+}
+
+.be-icon-picker-item.is-selected {
+	background: var(--background-modifier-hover);
+}
+
+.be-command-modal-field label {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+}
+
+.be-command-modal-field textarea {
+	min-height: 130px;
+	resize: vertical;
+}
+
+.be-command-modal-help {
+	color: var(--text-muted);
+	font-size: var(--font-ui-small);
+	margin-top: 8px;
+}
+
+.be-command-modal-actions {
+	display: flex;
+	justify-content: flex-end;
+	gap: 8px;
+	margin-top: 16px;
+}
+

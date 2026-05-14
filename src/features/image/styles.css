@@ -1,0 +1,440 @@
+/* ── Outer wrapper ────────────────────────────────────────────────────────
+   Full-width block; controls alignment via text-align / float.
+   Holds data-be-from/to for click detection.                              */
+.be-image-widget {
+	display: block;
+	max-width: 100%;
+	cursor: default;
+	padding: 2px 0;
+	overflow: visible;
+}
+
+.be-image-widget.be-align-left   { text-align: left; }
+.be-image-widget.be-align-center { text-align: center; }
+.be-image-widget.be-align-right  { text-align: right; }
+
+.be-image-widget.be-float-left  { float: left;  margin: 0 16px 12px 0; overflow: visible; }
+.be-image-widget.be-float-right { float: right; margin: 0 0 12px 16px; overflow: visible; }
+
+/* ── Inner frame ──────────────────────────────────────────────────────────
+   Shrinks to match the image's rendered width.
+   Position context for the resize handle and toolbar.                     */
+.be-image-frame {
+	display: inline-block;
+	position: relative;
+	max-width: 100%;
+	vertical-align: top;
+	line-height: 0;
+	overflow: visible;
+}
+
+/* ── Media wrapper — contains image/clip only, not caption ───────────────*/
+.be-image-media {
+	display: block;
+	position: relative;
+	line-height: 0;
+}
+
+/* ── Selection ring ── on the media wrapper so caption is excluded ────────*/
+.be-image-frame.is-selected .be-image-media::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	border: 2px solid var(--interactive-accent);
+	border-radius: 4px;
+	pointer-events: none;
+	z-index: 3;
+}
+
+/* ── Image ────────────────────────────────────────────────────────────────*/
+.be-image-frame img {
+	display: block;
+	max-width: 100%;
+}
+
+/* ── Caption ──────────────────────────────────────────────────────────────*/
+.be-image-caption {
+	display: block;
+	font-size: 0.85em;
+	color: var(--text-muted);
+	padding: 4px 4px 2px;
+	line-height: 1.4;
+	cursor: text;
+	outline: none;
+	min-width: 60px;
+	border-radius: 2px;
+}
+
+.be-image-caption:empty::before {
+	content: 'Write a caption...';
+	color: var(--text-faint);
+	pointer-events: none;
+}
+
+.be-image-caption:focus {
+	background: var(--background-modifier-form-field, rgba(0, 0, 0, 0.04));
+}
+
+/* ── Resize handle — Notion-style pill, right edge of frame ──────────────*/
+.be-resize-handle {
+	display: none;
+	position: absolute;
+	top: 50%;
+	right: 6px;
+	transform: translateY(-50%);
+	width: 16px;
+	height: 64px;
+	cursor: col-resize;
+	align-items: center;
+	justify-content: center;
+	z-index: 10;
+}
+
+.be-image-frame:hover .be-resize-handle {
+	display: flex;
+}
+
+.be-image-frame.is-resizing .be-resize-handle {
+	display: flex;
+}
+
+.be-resize-grip {
+	width: 6px;
+	height: 48px;
+	background: var(--background-primary);
+	border: 1px solid var(--interactive-accent);
+	border-radius: 3px;
+	box-shadow: 0 1px 6px rgba(0, 0, 0, 0.25);
+}
+
+/* ── Alignment toolbar — Notion-style card, top-right of frame ───────────*/
+.be-image-toolbar {
+	display: none;
+	position: absolute;
+	top: 4px;
+	inset-inline-end: 4px;
+	flex-direction: row;
+	align-items: center;
+	background: var(--background-primary);
+	box-shadow: var(--shadow-s);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 2px;
+	z-index: 20;
+	white-space: nowrap;
+	overflow: visible;
+}
+
+.be-image-frame:hover .be-image-toolbar,
+.be-image-frame.is-selected .be-image-toolbar {
+	display: flex;
+}
+
+/* Placeholder: Obsidian's cm-html-embed renders the raw HTML alongside our widget.
+   Hide it — our widget is the authoritative rendering. */
+.cm-html-embed:has([data-better-edit-image="placeholder"]) {
+	display: none !important;
+}
+
+/* Filled images: suppress edit affordance and focus ring; the embed content itself
+   is invisible (broken vault paths) so we don't need to hide the element. */
+.cm-html-embed:has([data-better-edit-image]) > .edit-block-button {
+	display: none !important;
+}
+
+.cm-html-embed:has([data-better-edit-image]),
+.cm-html-embed:has([data-better-edit-image]):hover {
+	box-shadow: none !important;
+	outline: none !important;
+}
+
+/* ── Placeholder widget ───────────────────────────────────────────────────*/
+.be-image-placeholder {
+	display: flex;
+	align-items: center;
+	padding: 12px;
+	padding-inline-end: 36px;
+	border-radius: 10px;
+	overflow: hidden;
+	background: var(--background-modifier-hover);
+	color: var(--text-muted);
+	cursor: pointer;
+	user-select: none;
+	transition: background 100ms ease, color 100ms ease;
+}
+
+.be-image-placeholder:hover {
+	background: var(--background-modifier-active-hover);
+	color: var(--text-normal);
+}
+
+.be-image-placeholder.is-selected {
+	background: var(--background-modifier-active-hover);
+	outline: 2px solid var(--interactive-accent);
+	outline-offset: -2px;
+	color: var(--text-normal);
+}
+
+.be-image-placeholder-icon {
+	flex-shrink: 0;
+	margin-inline-end: 12px;
+	display: flex;
+	align-items: center;
+}
+
+.be-image-placeholder-icon svg {
+	width: 25px;
+	height: 25px;
+	fill: currentColor;
+}
+
+.be-image-placeholder-text {
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	font-size: 0.9em;
+}
+
+/* ── Crop clip — in-flow block; padding-top% provides crop-window height ─*/
+/* The img inside is position:absolute so it renders in the padding area.  */
+.be-image-crop-clip {
+	display: block;
+	position: relative;
+	width: 100%;
+	overflow: hidden;
+	line-height: 0;
+}
+
+/* ── Circle crop rendering ────────────────────────────────────────────────*/
+.be-image-frame.be-circle-crop .be-image-crop-clip {
+	border-radius: 50%;
+}
+
+.be-image-frame.be-circle-crop.is-selected .be-image-media::after {
+	border-radius: 50%;
+}
+
+/* ── Alt text badge — bottom-right of frame, visible on hover ────────────*/
+.be-image-alt-badge {
+	position: absolute;
+	bottom: 6px;
+	right: 6px;
+	background: rgba(0, 0, 0, 0.55);
+	color: rgba(255, 255, 255, 0.9);
+	font-size: 10px;
+	font-weight: 600;
+	letter-spacing: 0.05em;
+	padding: 2px 5px;
+	border-radius: 3px;
+	cursor: pointer;
+	z-index: 5;
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease;
+	line-height: 1.5;
+}
+
+.be-image-frame:hover .be-image-alt-badge,
+.be-image-frame.is-selected .be-image-alt-badge {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* ── Alt text popover ─────────────────────────────────────────────────────*/
+.be-alt-popover {
+	position: fixed;
+	z-index: 200;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+	width: 280px;
+	padding: 12px;
+}
+
+.be-alt-popover-header {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
+	font-size: 13px;
+	font-weight: 500;
+	color: var(--text-normal);
+}
+
+.be-alt-popover-close {
+	background: transparent !important;
+	border: none !important;
+	box-shadow: none !important;
+	color: var(--text-muted);
+	cursor: pointer;
+	font-size: 16px;
+	padding: 0 2px;
+	line-height: 1;
+}
+
+.be-alt-popover-desc {
+	font-size: 12px;
+	color: var(--text-muted);
+	margin-bottom: 10px;
+	line-height: 1.5;
+}
+
+.be-alt-popover-input {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 6px 8px;
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 4px;
+	background: var(--background-modifier-form-field, var(--background-secondary));
+	box-shadow: none !important;
+	color: var(--text-normal);
+	font-size: 13px;
+}
+
+/* ── Crop modal ───────────────────────────────────────────────────────────*/
+.be-crop-modal {
+	padding: 0 !important;
+	width: min(90vw, 860px) !important;
+	max-width: min(90vw, 860px) !important;
+	max-height: min(90vh, 700px) !important;
+	overflow: hidden;
+}
+
+.be-crop-modal .modal-content {
+	padding: 0 !important;
+}
+
+.be-crop-modal-content {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+.be-crop-topbar {
+	display: flex;
+	flex-direction: row;
+	justify-content: space-between;
+	align-items: center;
+	padding: 12px 16px;
+	background: var(--background-primary);
+	border-bottom: 1px solid var(--background-modifier-border);
+	position: relative;
+	flex-shrink: 0;
+}
+
+.be-crop-title {
+	position: absolute;
+	left: 50%;
+	transform: translateX(-50%);
+	font-size: 14px;
+	font-weight: 500;
+	color: var(--text-normal);
+	pointer-events: none;
+}
+
+.be-crop-ratio-btn {
+	display: flex;
+	align-items: center;
+	gap: 4px;
+	cursor: pointer;
+	padding: 4px 8px;
+	border-radius: 4px;
+	color: var(--text-muted);
+	font-size: 13px;
+	user-select: none;
+}
+
+.be-crop-ratio-btn:hover { background: var(--background-modifier-hover); }
+
+.be-crop-topbar-actions {
+	display: flex;
+	gap: 6px;
+	align-items: center;
+}
+
+.be-crop-action-btn {
+	padding: 5px 14px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border);
+	cursor: pointer;
+	font-size: 13px;
+	font-weight: 400;
+	background: var(--background-modifier-hover);
+	color: var(--text-normal);
+}
+
+.be-crop-save-btn {
+	background: var(--interactive-accent);
+	color: var(--text-on-accent);
+	border-color: transparent;
+}
+
+.be-crop-image-area {
+	flex: 1;
+	background: var(--background-secondary);
+	padding: 30px;
+	overflow: auto;
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 0;
+}
+
+.be-crop-container {
+	position: relative;
+	line-height: 0;
+	display: inline-block;
+}
+
+.be-crop-container img {
+	display: block;
+	min-width: min(300px, 70vw);
+	max-width: min(70vw, 740px);
+	max-height: calc(min(90vh, 700px) - 80px);
+	object-fit: contain;
+	border-radius: 0;
+	user-select: none;
+}
+
+.be-crop-svg-overlay {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	pointer-events: none;
+}
+
+.be-crop-selection {
+	position: absolute;
+	cursor: move;
+	box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.8);
+	box-sizing: border-box;
+}
+
+.be-crop-selection.be-crop-circle { border-radius: 50%; }
+
+.be-crop-drag-elements {
+	position: absolute;
+	inset: 0;
+}
+
+.be-crop-handle {
+	position: absolute;
+	width: 10px;
+	height: 10px;
+	background: white;
+	border: 1px solid rgba(0, 0, 0, 0.25);
+	border-radius: 2px;
+	z-index: 2;
+}
+
+.be-crop-handle-nw { top: -5px;              left: -5px;             cursor: nw-resize; }
+.be-crop-handle-n  { top: -5px;              left: calc(50% - 5px);  cursor: n-resize;  }
+.be-crop-handle-ne { top: -5px;              right: -5px;            cursor: ne-resize; }
+.be-crop-handle-e  { top: calc(50% - 5px);   right: -5px;            cursor: e-resize;  }
+.be-crop-handle-se { bottom: -5px;           right: -5px;            cursor: se-resize; }
+.be-crop-handle-s  { bottom: -5px;           left: calc(50% - 5px);  cursor: s-resize;  }
+.be-crop-handle-sw { bottom: -5px;           left: -5px;             cursor: sw-resize; }
+.be-crop-handle-w  { top: calc(50% - 5px);   left: -5px;             cursor: w-resize;  }
