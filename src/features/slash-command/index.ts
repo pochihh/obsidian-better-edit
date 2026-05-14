@@ -12,10 +12,6 @@ interface SlashMenuState {
 	items: SlashCommandDefinition[];
 }
 
-function debugSlash(event: string, payload?: Record<string, unknown>): void {
-	console.debug('[better-edit slash]', event, payload ?? {});
-}
-
 let slashMenuScrollMemory = 0;
 
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
@@ -109,11 +105,6 @@ export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension
 	const moveSelection = (view: EditorView, delta: number): boolean => {
 		const state = view.state.field(slashMenuField, false);
 		if (state === undefined || state === null) return false;
-		debugSlash('key-move-selection', {
-			delta,
-			selectedIndex: state.selectedIndex,
-			items: state.items.length,
-		});
 		view.dispatch({ effects: moveSelectionEffect.of(delta) });
 		return true;
 	};
@@ -361,15 +352,6 @@ class SlashCommandTooltipView implements TooltipView {
 
 	update(): void {
 		const state = this.view.state.field(this.field, false);
-		debugSlash('tooltip-update', {
-			hasState: Boolean(state),
-			query: state?.query,
-			selectedIndex: state?.selectedIndex,
-			lastRenderedQuery: this.lastRenderedQuery,
-			lastSelectedIndex: this.lastSelectedIndex,
-			scrollTop: this.listEl.scrollTop,
-			interactionMode: this.interactionMode,
-		});
 
 		if (!state) {
 			this.lastRenderedQuery = undefined;
@@ -395,12 +377,6 @@ class SlashCommandTooltipView implements TooltipView {
 
 	private render(): void {
 		const state = this.view.state.field(this.field, false);
-		debugSlash('render-start', {
-			hasState: Boolean(state),
-			query: state?.query,
-			selectedIndex: state?.selectedIndex,
-			scrollTopBefore: this.listEl.scrollTop,
-		});
 		this.listEl.empty();
 		this.footerEl.empty();
 		this.menuEl.removeClass('is-visible', 'is-scrolled');
@@ -451,20 +427,9 @@ class SlashCommandTooltipView implements TooltipView {
 		this.menuEl.classList.toggle('is-scrolled', this.listEl.scrollTop > 4);
 		this.scrollSelectedItemIntoView();
 		slashMenuScrollMemory = this.listEl.scrollTop;
-		debugSlash('render-end', {
-			query: state.query,
-			selectedIndex: state.selectedIndex,
-			scrollTopAfter: this.listEl.scrollTop,
-		});
 	}
 
 	private patchSelectedItem(newIndex: number): void {
-		debugSlash('patch-selected-item', {
-			from: this.lastSelectedIndex,
-			to: newIndex,
-			interactionMode: this.interactionMode,
-			scrollTopBefore: this.listEl.scrollTop,
-		});
 		if (this.selectedEl) {
 			this.selectedEl.removeClass('is-selected');
 			this.selectedEl.removeAttribute('aria-selected');
@@ -484,39 +449,18 @@ class SlashCommandTooltipView implements TooltipView {
 			this.scrollSelectedItemIntoView();
 			this.scheduleSelectedItemIntoView();
 		}
-		debugSlash('patch-selected-item-done', {
-			selectedIndex: newIndex,
-			interactionMode: this.interactionMode,
-			scrollTopAfter: this.listEl.scrollTop,
-		});
 	}
 
 	private scrollSelectedItemIntoView(): void {
 		if (this.selectedEl === null) return;
-		debugSlash('scroll-selected-into-view', {
-			selectedIndex: this.lastSelectedIndex,
-			scrollTopBefore: this.listEl.scrollTop,
-		});
 		this.selectedEl.scrollIntoView({ block: 'nearest' });
 		slashMenuScrollMemory = this.listEl.scrollTop;
-		debugSlash('scroll-selected-into-view-done', {
-			selectedIndex: this.lastSelectedIndex,
-			scrollTopAfter: this.listEl.scrollTop,
-		});
 	}
 
 	private scheduleSelectedItemIntoView(): void {
 		if (this.selectedScrollFrame !== 0) cancelAnimationFrame(this.selectedScrollFrame);
-		debugSlash('schedule-selected-scroll', {
-			selectedIndex: this.lastSelectedIndex,
-			scrollTop: this.listEl.scrollTop,
-		});
 		this.selectedScrollFrame = requestAnimationFrame(() => {
 			this.selectedScrollFrame = 0;
-			debugSlash('run-scheduled-selected-scroll', {
-				selectedIndex: this.lastSelectedIndex,
-				scrollTopBefore: this.listEl.scrollTop,
-			});
 			this.scrollSelectedItemIntoView();
 		});
 	}
@@ -531,19 +475,8 @@ class SlashCommandTooltipView implements TooltipView {
 		let delta = event.deltaY;
 		if (event.deltaMode === 1) delta *= 40;
 		else if (event.deltaMode === 2) delta *= this.listEl.clientHeight;
-		debugSlash('wheel', {
-			delta,
-			scrollTopBefore: this.listEl.scrollTop,
-			interactionMode: this.interactionMode,
-			selectedIndex: this.lastSelectedIndex,
-		});
 		this.listEl.scrollTop += delta;
 		slashMenuScrollMemory = this.listEl.scrollTop;
-		debugSlash('wheel-done', {
-			scrollTopAfter: this.listEl.scrollTop,
-			interactionMode: this.interactionMode,
-			selectedIndex: this.lastSelectedIndex,
-		});
 	}
 
 	private onMouseDown(event: MouseEvent): void {
@@ -586,14 +519,6 @@ class SlashCommandTooltipView implements TooltipView {
 		if (hovered === null) return;
 		const index = parseInt(hovered.dataset.commandIndex ?? '', 10);
 		if (Number.isNaN(index)) return;
-		debugSlash('mouse-move', {
-			index,
-			selectedIndex: this.lastSelectedIndex,
-			scrollTop: this.listEl.scrollTop,
-			interactionMode: this.interactionMode,
-			clientX: event.clientX,
-			clientY: event.clientY,
-		});
 		this.selectItem(index);
 	}
 
@@ -607,11 +532,6 @@ class SlashCommandTooltipView implements TooltipView {
 	private selectItem(index: number): void {
 		const state = this.view.state.field(this.field, false);
 		if (state === undefined || state === null || state.selectedIndex === index) return;
-		debugSlash('mouse-select-item', {
-			from: state.selectedIndex,
-			to: index,
-			scrollTop: this.listEl.scrollTop,
-		});
 		this.lastSelectionWasMouse = true;
 		this.view.dispatch({ effects: this.setSelectionEffect.of(index) });
 	}

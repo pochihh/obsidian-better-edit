@@ -406,16 +406,17 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					const remainingLeft = remainingRunLengthAfterRemoval(action, analysis.leftRun);
 					const remainingRight = remainingRunLengthAfterRemoval(action, analysis.rightRun);
 					const coreText = analysis.raw.slice(analysis.leftRun, analysis.raw.length - analysis.rightRun);
+					const normalizedCore = normalizeSelectionForApply(coreText, action) ?? coreText;
 					const transformedInner =
 						action.delimiter.repeat(remainingLeft) +
-						coreText +
+						normalizedCore +
 						action.delimiter.repeat(remainingRight);
 					return {
 						replaceFrom,
 						replaceTo,
 						insert: wrapperPrefix + transformedInner + wrapperSuffix,
 						selectionFrom: replaceFrom + wrapperPrefix.length + remainingLeft,
-						selectionTo: replaceFrom + wrapperPrefix.length + remainingLeft + coreText.length,
+						selectionTo: replaceFrom + wrapperPrefix.length + remainingLeft + normalizedCore.length,
 					};
 				}
 
@@ -837,7 +838,7 @@ function normalizeSelectionForApply(raw: string, action: FormatAction): string |
 		case 'pairs':
 			return normalizePairRunsForApply(raw, action);
 		case 'code':
-			return raw.includes('`') ? null : raw;
+			return raw.includes(action.delimiter) ? null : raw;
 	}
 }
 
