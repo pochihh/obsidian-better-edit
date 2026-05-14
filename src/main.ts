@@ -4,6 +4,7 @@ import { initImageFeature, createImageExtension } from './features/image/index';
 import { createBlocksExtension } from './features/blocks/index';
 import { createSlashCommandExtension } from './features/slash-command/index';
 import { normalizeSlashCommandSettings } from './features/slash-command/settings';
+import { createTextStylingExtension } from './features/text-styling/index';
 
 export default class BetterEditPlugin extends Plugin {
 	settings: BetterEditSettings;
@@ -16,6 +17,7 @@ export default class BetterEditPlugin extends Plugin {
 		this.registerEditorExtension(createImageExtension(this));
 		this.registerEditorExtension(createBlocksExtension(this));
 		this.registerEditorExtension(createSlashCommandExtension(this));
+		this.registerEditorExtension(createTextStylingExtension(this));
 	}
 
 	onunload() {}

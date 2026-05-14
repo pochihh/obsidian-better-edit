@@ -387,7 +387,12 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			'Rich inline formatting shortcuts and text style controls.',
 			() => s().enabled,
 			async (v) => { s().enabled = v; await save(); },
-			null,
+			(body) => {
+				body.createDiv({
+					cls: 'be-command-settings-note',
+					text: 'Show a floating formatting toolbar for Live Preview text selections.',
+				});
+			},
 		);
 	}
 }

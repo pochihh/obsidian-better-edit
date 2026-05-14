@@ -13,7 +13,7 @@ without making notes depend on proprietary plugin syntax.
 | 01 | Image Arrangement | Partially complete | `docs/features/image.md` |
 | 02 | Blocks Drag and Drop | In progress | `docs/features/blocks.md` |
 | 03 | Slash Command | In progress | `docs/features/slash-command.md` |
-| 04 | Text Styling | Planned | No detailed feature doc yet |
+| 04 | Text Styling | In progress | `docs/features/text-styling.md` |
 
 Current implementation focus: image arrangement and block drag-and-drop.
 
@@ -95,8 +95,10 @@ for built-in and custom template commands.
 
 ### Text Styling
 
-Planned. The formatting toolbar should operate on native Markdown selections and
-write standard Markdown syntax.
+Detailed design: `docs/features/text-styling.md`
+
+Current scope is a Live Preview selection toolbar that writes native Markdown
+inline formatting syntax.
 
 ## Integration Points
 
