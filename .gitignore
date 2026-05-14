@@ -25,3 +25,6 @@ docs/ref/
 # Env / secrets
 .env
 .env.*
+
+# Local plugin runtime data
+data.json

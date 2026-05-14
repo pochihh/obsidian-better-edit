@@ -49,17 +49,28 @@ variables over hardcoded colors, shadows, or surfaces.
 ## Architecture
 
 Each major feature lives under `src/features/<feature>/` and owns its own settings,
-CodeMirror extension, DOM events, and feature-specific helpers.
+CodeMirror extension, DOM events, feature-specific helpers, and feature-local CSS.
+
+Shared UI primitives that are reused across features, such as toolbar buttons or
+replace-panel shells, live under `src/styles/`. The root `styles.css` remains the
+single Obsidian entrypoint and should only import shared and feature stylesheets.
 
 ```
 src/
   main.ts
   settings.ts
+  styles/
+    shared.css
+    settings.css
   features/
     image/
+      styles.css
     blocks/
+      styles.css
     slash-command/
+      styles.css
     text-styling/
+      styles.css
 ```
 
 `main.ts` should stay lifecycle-focused: load settings, register feature extensions,
