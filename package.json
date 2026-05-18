@@ -30,6 +30,7 @@
 		"typescript-eslint": "8.59.2"
 	},
 	"dependencies": {
+		"emojilib": "^4.0.3",
 		"obsidian": "latest"
 	}
 }

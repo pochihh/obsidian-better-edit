@@ -1,0 +1,135 @@
+/* ── Symbol / emoji picker ────────────────────────────────────────────────*/
+.be-symbol-picker {
+	position: fixed !important;
+	z-index: 200;
+	background: var(--background-primary);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 8px;
+	box-shadow: var(--shadow-l);
+	width: 288px;
+	max-width: calc(100vw - 24px);
+	overflow: hidden;
+	display: flex;
+	flex-direction: column;
+}
+
+.be-symbol-search-input {
+	display: block;
+	width: 100%;
+	box-sizing: border-box;
+	padding: 8px 10px;
+	border: none !important;
+	border-bottom: 1px solid var(--background-modifier-border) !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var(--text-normal);
+	font-size: 13px;
+	outline: none;
+}
+
+.be-symbol-search-input::placeholder {
+	color: var(--text-faint);
+}
+
+.be-symbol-history-container {
+	padding: 6px 6px 0;
+}
+
+.be-symbol-section-label {
+	font-size: 10px;
+	font-weight: 600;
+	color: var(--text-faint);
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	padding: 0 2px 4px;
+}
+
+.be-symbol-divider {
+	height: 1px;
+	background: var(--background-modifier-border);
+	margin: 6px 0 0;
+}
+
+.be-symbol-tab-bar {
+	display: flex;
+	border-bottom: 1px solid var(--background-modifier-border);
+	padding: 0 4px;
+}
+
+.be-symbol-tab {
+	padding: 6px 10px;
+	font-size: 12px;
+	background: transparent !important;
+	border: none !important;
+	border-bottom: 2px solid transparent !important;
+	box-shadow: none !important;
+	margin-bottom: -1px;
+	cursor: pointer;
+	color: var(--text-muted);
+	border-radius: 0;
+	transition: color 100ms ease;
+}
+
+.be-symbol-tab:hover {
+	color: var(--text-normal);
+}
+
+.be-symbol-tab.is-active {
+	color: var(--text-normal);
+	border-bottom: 2px solid var(--interactive-accent) !important;
+}
+
+.be-symbol-grid {
+	display: flex;
+	flex-wrap: wrap;
+	padding: 6px 10px 6px 6px;
+	overflow-y: auto;
+	max-height: 216px;
+}
+
+.be-symbol-grid::-webkit-scrollbar {
+	width: 6px;
+}
+
+.be-symbol-grid::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+.be-symbol-grid::-webkit-scrollbar-thumb {
+	background: var(--scrollbar-thumb-bg);
+	border-radius: 999px;
+}
+
+.be-symbol-history-grid {
+	max-height: none;
+	overflow: visible;
+	padding: 0;
+}
+
+.be-symbol-btn {
+	width: 32px;
+	height: 32px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 16px;
+	line-height: 1;
+	cursor: pointer;
+	border-radius: 4px;
+	border: none !important;
+	background: transparent !important;
+	box-shadow: none !important;
+	color: var(--text-normal);
+	padding: 0 !important;
+	transition: background 80ms ease;
+}
+
+.be-symbol-btn:hover {
+	background: var(--background-modifier-hover) !important;
+}
+
+.be-symbol-empty {
+	padding: 12px 8px;
+	font-size: 12px;
+	color: var(--text-faint);
+}

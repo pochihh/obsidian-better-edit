@@ -1,9 +1,3 @@
-/* -------------------------------------------------------------------------
- * Better Edit — plugin UI styles
- * These styles apply only to ephemeral widget DOM, never to file content.
- * File content always uses inline styles only.
- * -------------------------------------------------------------------------*/
-
 /* ── Settings tab ─────────────────────────────────────────────────────────*/
 
 /* HR between feature sections */
@@ -286,3 +280,25 @@
 	margin-top: 16px;
 }
 
+/* ── Shortcut recorder ───────────────────────────────────────────────────*/
+.be-shortcut-badge {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	padding: 3px 10px;
+	border-radius: 4px;
+	border: 1px solid var(--background-modifier-border) !important;
+	background: var(--background-modifier-form-field, var(--background-secondary)) !important;
+	box-shadow: none !important;
+	color: var(--text-normal);
+	font-size: 14px;
+	font-family: var(--font-monospace);
+	cursor: pointer;
+	min-width: 72px;
+	transition: border-color 100ms ease;
+}
+
+.be-shortcut-badge.is-recording {
+	border-color: var(--interactive-accent) !important;
+	color: var(--text-faint);
+}

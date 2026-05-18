@@ -15,6 +15,7 @@ const sourceFiles = [
 	'src/features/blocks/styles.css',
 	'src/features/image/styles.css',
 	'src/features/text-styling/styles.css',
+	'src/features/symbol-picker/styles.css',
 ];
 
 const header = `/* -------------------------------------------------------------------------

@@ -108,7 +108,9 @@ const FORMAT_ACTIONS: FormatAction[] = [
 	},
 ];
 
-const TOOLBAR_ROWS: Array<Array<FormatActionId | 'link'>> = [
+type ToolbarItem = FormatActionId | 'link';
+
+const TOOLBAR_ROWS: Array<Array<ToolbarItem>> = [
 	['bold', 'italic', 'strikethrough', 'highlight'],
 	['code', 'equation', 'link'],
 ];
@@ -132,7 +134,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 			constructor(private readonly view: EditorView) {
 				this.documentEl = view.dom.ownerDocument;
 				this.windowEl = this.documentEl.defaultView ?? window;
-				this.scrollerEl = view.dom.closest('.cm-scroller');
+				this.scrollerEl = view.scrollDOM;
 				this.toolbarEl = this.buildToolbar(plugin);
 				this.documentEl.body.appendChild(this.toolbarEl);
 				this.bindEvents();
@@ -257,6 +259,15 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					this.hideToolbar();
 					return;
 				}
+				// Already visible — reposition after the current update cycle finishes.
+				// coordsAtPos cannot be called during a CM6 update, so defer via rAF.
+				if (this.visible) {
+					this.updateButtonState();
+					requestAnimationFrame(() => {
+						if (this.visible) this.positionToolbar();
+					});
+					return;
+				}
 				this.showTimer = this.windowEl.setTimeout(() => {
 					this.showTimer = 0;
 					if (!this.shouldShowToolbar()) {
@@ -277,7 +288,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				if (range.empty) return false;
 				if (range.from === range.to) return false;
 				if (this.isSuppressedContext(range.from, range.to)) return false;
-				if (this.linkPopoverEl === null && !this.linkPopoverPending && !this.view.hasFocus) return false;
+				if (!this.visible && this.linkPopoverEl === null && !this.linkPopoverPending && !this.view.hasFocus) return false;
 
 				const selectedText = this.view.state.sliceDoc(range.from, range.to);
 				return selectedText.trim().length > 0;
@@ -302,6 +313,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					const active = this.analyzeFormatting(action, range.from, range.to).active;
 					const disabled =
 						(action.id === 'code' || action.id === 'equation') &&
+						!active &&
 						(this.selectedText().includes('\n') || this.selectedText().includes(action.delimiter));
 					button.toggleClass('is-active', active);
 					button.toggleClass('is-disabled', disabled);
@@ -450,7 +462,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				const left = Math.max(
 					margin,
 					Math.min(
-						rect.left + rect.width / 2 - toolbarRect.width / 2,
+						rect.right + margin,
 						this.documentEl.defaultView!.innerWidth - toolbarRect.width - margin,
 					),
 				);
@@ -463,17 +475,23 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 			}
 
 			private selectionRect(): DOMRect | null {
-				const selection = this.documentEl.getSelection();
-				if (!selection || selection.rangeCount === 0) {
+				const range = this.view.state.selection.main;
+				if (range.empty) return null;
+
+				// Use CM6 layout coords — works even when content is virtualised out of the DOM.
+				const fromCoords = this.view.coordsAtPos(range.from);
+				const toCoords = this.view.coordsAtPos(range.to);
+
+				if (fromCoords === null && toCoords === null) {
+					// Both ends scrolled out of view — keep last known rect for link popover, hide toolbar.
 					return this.linkPopoverEl !== null ? this.lastSelectionRect : null;
 				}
-				if (!this.view.dom.contains(selection.anchorNode)) {
-					return this.linkPopoverEl !== null ? this.lastSelectionRect : null;
-				}
-				const rect = selection.getRangeAt(0).getBoundingClientRect();
-				if (rect.width === 0 && rect.height === 0) {
-					return this.linkPopoverEl !== null ? this.lastSelectionRect : null;
-				}
+
+				const top = (fromCoords ?? toCoords!).top;
+				const bottom = (toCoords ?? fromCoords!).bottom;
+				const left = (fromCoords ?? toCoords!).left;
+				const right = (toCoords ?? fromCoords!).right;
+				const rect = new DOMRect(left, top, Math.max(0, right - left), Math.max(0, bottom - top));
 				this.lastSelectionRect = rect;
 				return rect;
 			}

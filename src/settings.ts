@@ -8,6 +8,7 @@ import {
 	SLASH_COMMAND_DEFAULT_SETTINGS,
 } from './features/slash-command/settings';
 import { TextStylingSettings, TEXT_STYLING_DEFAULT_SETTINGS } from './features/text-styling/settings';
+import { SymbolPickerSettings, SYMBOL_PICKER_DEFAULT_SETTINGS, formatShortcut, ShortcutDef } from './features/symbol-picker/settings';
 import { refreshImageDecorations } from './features/image/index';
 import { refreshBlockControls } from './features/blocks/index';
 
@@ -16,6 +17,7 @@ export interface BetterEditSettings {
 	blocks: BlocksSettings;
 	slashCommand: SlashCommandSettings;
 	textStyling: TextStylingSettings;
+	symbolPicker: SymbolPickerSettings;
 }
 
 export const DEFAULT_SETTINGS: BetterEditSettings = {
@@ -23,6 +25,7 @@ export const DEFAULT_SETTINGS: BetterEditSettings = {
 	blocks: BLOCKS_DEFAULT_SETTINGS,
 	slashCommand: SLASH_COMMAND_DEFAULT_SETTINGS,
 	textStyling: TEXT_STYLING_DEFAULT_SETTINGS,
+	symbolPicker: SYMBOL_PICKER_DEFAULT_SETTINGS,
 };
 
 type PluginWithSettings = Plugin & {
@@ -50,6 +53,8 @@ export class BetterEditSettingTab extends PluginSettingTab {
 		this.renderSlashCommandSection(containerEl);
 		containerEl.createEl('hr', { cls: 'be-settings-divider' });
 		this.renderTextStylingSection(containerEl);
+		containerEl.createEl('hr', { cls: 'be-settings-divider' });
+		this.renderSymbolPickerSection(containerEl);
 	}
 
 	// ---------------------------------------------------------------------------
@@ -392,6 +397,95 @@ export class BetterEditSettingTab extends PluginSettingTab {
 					cls: 'be-command-settings-note',
 					text: 'Show a floating formatting toolbar for Live Preview text selections.',
 				});
+			},
+		);
+	}
+
+	// ---------------------------------------------------------------------------
+	// Symbol & Emoji Picker
+	// ---------------------------------------------------------------------------
+
+	private renderSymbolPickerSection(containerEl: HTMLElement): void {
+		const s = () => this.plugin.settings.symbolPicker;
+		const save = () => this.plugin.saveSettings();
+
+		this.featureSection(
+			containerEl,
+			'Symbol & Emoji Picker',
+			'Insert math symbols, Greek letters, arrows, and emoji at the cursor.',
+			() => s().enabled,
+			async (v) => { s().enabled = v; await save(); },
+			(body) => {
+				new Setting(body)
+					.setName('Right-click menu')
+					.setDesc('Add "Insert symbol or emoji" to the editor context menu.')
+					.addToggle(toggle => toggle
+						.setValue(s().contextMenuEnabled)
+						.onChange(async (v) => { s().contextMenuEnabled = v; await save(); }));
+
+				const shortcutSetting = new Setting(body)
+					.setName('Keyboard shortcut')
+					.setDesc('Plugin-managed shortcut. Click the badge to record a new key combination.');
+
+				// Badge inserted first so it appears left of the reset button
+				const shortcutBadge = shortcutSetting.controlEl.createEl('button', {
+					cls: 'be-shortcut-badge',
+					text: formatShortcut(s().shortcut),
+					attr: { type: 'button', title: 'Click to record a new shortcut' },
+				});
+
+				shortcutSetting
+					.addExtraButton(btn => {
+						btn.setIcon('rotate-ccw').setTooltip('Reset to default');
+						btn.onClick(async () => {
+							s().shortcut = { modKey: true, shiftKey: true, altKey: false, key: '.' };
+							await save();
+							this.display();
+						});
+					})
+					.addToggle(toggle => toggle
+						.setValue(s().shortcutEnabled)
+						.onChange(async (v) => { s().shortcutEnabled = v; await save(); }));
+
+				let recording = false;
+				const stopRecording = (): void => {
+					recording = false;
+					shortcutBadge.removeClass('is-recording');
+				};
+
+				shortcutBadge.addEventListener('click', () => {
+					if (recording) { stopRecording(); shortcutBadge.setText(formatShortcut(s().shortcut)); return; }
+					recording = true;
+					shortcutBadge.addClass('is-recording');
+					shortcutBadge.setText('Press keys…');
+				});
+
+				shortcutBadge.addEventListener('keydown', (event: KeyboardEvent) => {
+					if (!recording) return;
+					event.preventDefault();
+					event.stopPropagation();
+					const modifierKeys = new Set(['Control', 'Meta', 'Shift', 'Alt', 'OS']);
+					if (modifierKeys.has(event.key)) return;
+					if (event.key === 'Escape') { stopRecording(); shortcutBadge.setText(formatShortcut(s().shortcut)); return; }
+					const isMac = navigator.platform.toUpperCase().includes('MAC');
+					const def: ShortcutDef = {
+						modKey: isMac ? event.metaKey : event.ctrlKey,
+						shiftKey: event.shiftKey,
+						altKey: event.altKey,
+						key: event.key,
+					};
+					s().shortcut = def;
+					void save();
+					stopRecording();
+					shortcutBadge.setText(formatShortcut(def));
+				});
+
+				new Setting(body)
+					.setName('Obsidian command')
+					.setDesc('Register "Insert symbol or emoji" in the command palette (assignable via Obsidian Hotkeys settings).')
+					.addToggle(toggle => toggle
+						.setValue(s().commandEnabled)
+						.onChange(async (v) => { s().commandEnabled = v; await save(); }));
 			},
 		);
 	}
