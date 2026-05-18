@@ -117,7 +117,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				{ capture: true },
 			);
 			this.plugin.registerDomEvent(this.scrollerElement(), 'scroll', () => this.onEditorScroll(), { passive: true });
-			this.plugin.registerDomEvent(this.controlsEl, 'wheel', (event: WheelEvent) => this.forwardWheelToScroller(event));
+			this.plugin.registerDomEvent(this.controlsEl, 'wheel', (event: WheelEvent) => this.forwardWheelToScroller(event), { passive: true });
 			this.plugin.registerDomEvent(this.addButtonEl, 'click', (event: MouseEvent) => this.onAddClick(event));
 			this.plugin.registerDomEvent(this.addButtonEl, 'mouseenter', () => this.scheduleTooltip());
 			this.plugin.registerDomEvent(this.addButtonEl, 'mouseleave', () => this.hideTooltip());
@@ -356,7 +356,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private forwardWheelToScroller(event: WheelEvent): void {
 			if (this.dragState.kind !== 'idle') return;
-			event.preventDefault();
 			this.scrollerElement().scrollBy({
 				left: event.deltaX,
 				top: event.deltaY,
