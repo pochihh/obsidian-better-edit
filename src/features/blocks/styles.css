@@ -1,4 +1,12 @@
 /* ── Block controls ───────────────────────────────────────────────────────*/
+.cm-editor.be-block-gutter-enabled .cm-sizer {
+	padding-inline-start: 40px;
+}
+
+.cm-editor.be-block-gutter-enabled .cm-contentContainer {
+	padding-inline-start: 0;
+}
+
 .be-block-controls {
 	position: fixed;
 	z-index: 30;
@@ -136,4 +144,3 @@ body .be-block-controls > button.be-block-handle:active {
 .be-block-selection.is-visible {
 	display: block;
 }
-

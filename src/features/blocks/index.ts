@@ -39,6 +39,9 @@ type DragState =
 	| { kind: 'dragging'; source: DragSource; slice: MoveSlice; target: DropBoundary | null };
 
 const DRAG_START_THRESHOLD_PX = 4;
+const BLOCK_GUTTER_RESERVE_PX = 64;
+const BLOCK_GUTTER_HIT_WIDTH_PX = 72;
+const BLOCK_GUTTER_INSET_PX = 4;
 const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .cm-preview-code-block.cm-embed-block, .cm-table-widget, .be-image-widget, .internal-embed.image-embed';
 const blocksFeatureEnabledEffect = StateEffect.define<boolean>();
 
@@ -123,9 +126,11 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				event.preventDefault();
 				event.stopPropagation();
 			});
+			this.syncEditorGutterClass();
 		}
 
 		update(update: ViewUpdate): void {
+			this.syncEditorGutterClass();
 			if (!this.blocksEnabled() || !this.isLivePreview() || !this.isPrimaryEditorView()) {
 				this.hideControls();
 				this.clearSelectedSource();
@@ -146,6 +151,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.clearTooltipTimer();
 			this.clearVisualRefreshFrame();
 			this.clearNativeTableSelectionUi();
+			this.view.dom.removeClass('be-block-gutter-enabled');
 			this.controlsEl.remove();
 			this.selectionEl.remove();
 			this.dropLineEl.remove();
@@ -175,7 +181,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			if (this.controlsEl.contains(pointEl)) return;
 
 			const contentRect = this.contentRect();
-			if (contentRect !== null && event.clientX < contentRect.left && event.clientX >= contentRect.left - 72) {
+			if (contentRect !== null && event.clientX < contentRect.left && event.clientX >= contentRect.left - BLOCK_GUTTER_HIT_WIDTH_PX) {
 				const gutterHit = this.lineHitFromY(event.clientY)
 					?? this.blockHitFromCoords(contentRect.left + 8, event.clientY);
 				if (gutterHit !== null) {
@@ -513,7 +519,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			const editorRect = this.view.dom.getBoundingClientRect();
 			const contentRect = this.contentRect() ?? editorRect;
 			this.controlsEl.style.top = `${this.controlTopForBlock(this.hoveredBlock, rect)}px`;
-			this.controlsEl.style.left = `${Math.max(editorRect.left + 4, contentRect.left - 60)}px`;
+			this.controlsEl.style.left = `${Math.max(editorRect.left + BLOCK_GUTTER_INSET_PX, contentRect.left - BLOCK_GUTTER_RESERVE_PX + BLOCK_GUTTER_INSET_PX)}px`;
 			this.controlsEl.addClass('is-visible');
 		}
 
@@ -735,9 +741,9 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 			const block = this.blockAt(pos);
 			if (block?.kind === 'table' && !lineEl.matches('.cm-table-widget')) return null;
-			return block === null
-				? null
-				: { block, rect: this.controlRectForBlock(block, lineEl) };
+			if (block === null) return null;
+			const rect = this.hoverRectForBlock(block, lineEl);
+			return rect === null ? null : { block, rect };
 		}
 
 		private blockHitFromCoords(clientX: number, clientY: number): { block: BlockRange; rect: DOMRect } | null {
@@ -747,9 +753,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			const block = this.blockAt(pos);
 			if (block === null) return null;
 
-			const rect = block.kind === 'table'
-				? this.controlRectForBlock(block, this.tableWidgetElementForBlock(block) ?? this.view.dom)
-				: this.blockRect(block) ?? this.coordsRect(block.from);
+			const rect = this.hoverRectForBlock(block);
 			return rect === null ? null : { block, rect };
 		}
 
@@ -851,6 +855,20 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private visibleRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
 			return this.blockRect(block) ?? this.anchorRectForBlock(block, fallbackLineEl);
+		}
+
+		private hoverRectForBlock(block: BlockRange, fallbackLineEl?: Element): DOMRect | null {
+			if (block.kind === 'table') {
+				const tableEl = this.tableWidgetElementForBlock(block);
+				return tableEl === null && fallbackLineEl === undefined
+					? null
+					: this.controlRectForBlock(block, tableEl ?? fallbackLineEl ?? this.view.dom);
+			}
+			const firstLineEl = this.lineElementForLine(block.lineFrom);
+			const lineEl = firstLineEl ?? fallbackLineEl;
+			return lineEl === null || lineEl === undefined
+				? this.coordsRect(block.from)
+				: this.controlRectForBlock(block, lineEl);
 		}
 
 		private controlRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
@@ -1066,13 +1084,15 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private anchorRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
 			if (block.kind === 'heading') {
-				return this.visibleTextRect(fallbackLineEl) ?? fallbackLineEl.getBoundingClientRect();
+				return this.firstVisualLineRect(fallbackLineEl) ?? fallbackLineEl.getBoundingClientRect();
 			}
 			if (block.kind === 'table') {
 				const tableEl = this.tableWidgetElementForBlock(block);
 				return this.tableControlRect(tableEl ?? fallbackLineEl);
 			}
-			return this.lineElementRect(block.lineFrom) ?? fallbackLineEl.getBoundingClientRect();
+			return this.firstVisualLineRect(fallbackLineEl)
+				?? this.lineElementRect(block.lineFrom)
+				?? fallbackLineEl.getBoundingClientRect();
 		}
 
 		private controlTopForBlock(block: BlockRange, rect: DOMRect): number {
@@ -1095,6 +1115,31 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				node = walker.nextNode();
 			}
 			return null;
+		}
+
+		private firstVisualLineRect(lineEl: Element): DOMRect | null {
+			const walker = this.editorDocument().createTreeWalker(lineEl, NodeFilter.SHOW_TEXT);
+			let bestRect: DOMRect | null = null;
+			let node = walker.nextNode();
+
+			while (node !== null) {
+				const text = node.textContent ?? '';
+				if (text.trim().length > 0) {
+					const range = this.editorDocument().createRange();
+					range.selectNodeContents(node);
+					const rects = Array.from(range.getClientRects());
+					range.detach();
+					for (const rect of rects) {
+						if (rect.height <= 0 || rect.width <= 0) continue;
+						if (bestRect === null || rect.top < bestRect.top || (rect.top === bestRect.top && rect.left < bestRect.left)) {
+							bestRect = new DOMRect(rect.left, rect.top, rect.width, rect.height);
+						}
+					}
+				}
+				node = walker.nextNode();
+			}
+
+			return bestRect;
 		}
 
 		private blockRect(block: BlockRange): DOMRect | null {
@@ -1278,6 +1323,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private editorWindow(): Window {
 			return this.view.dom.ownerDocument.defaultView ?? window;
+		}
+
+		private syncEditorGutterClass(): void {
+			this.view.dom.toggleClass('be-block-gutter-enabled', this.blocksEnabled() && this.isLivePreview() && this.isPrimaryEditorView());
 		}
 	});
 }
