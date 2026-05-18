@@ -17,6 +17,12 @@ interface MoveSlice {
 	text: string;
 }
 
+interface TableWidgetEntry {
+	block: BlockRange;
+	el: Element;
+	rect: DOMRect;
+}
+
 interface DragSource {
 	kind: 'single' | 'multi';
 	blocks: BlockRange[];
@@ -33,7 +39,7 @@ type DragState =
 	| { kind: 'dragging'; source: DragSource; slice: MoveSlice; target: DropBoundary | null };
 
 const DRAG_START_THRESHOLD_PX = 4;
-const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .cm-preview-code-block.cm-embed-block, .be-image-widget, .internal-embed.image-embed';
+const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .cm-preview-code-block.cm-embed-block, .cm-table-widget, .be-image-widget, .internal-embed.image-embed';
 const blocksFeatureEnabledEffect = StateEffect.define<boolean>();
 
 export function refreshBlockControls(app: App): void {
@@ -60,7 +66,11 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private hoveredRect: DOMRect | null = null;
 		private tooltipTimer: number | null = null;
 		private dragState: DragState = { kind: 'idle' };
+		private selectedSource: DragSource | null = null;
 		private persistedSelectionSource: DragSource | null = null;
+		private activePointerId: number | null = null;
+		private visualRefreshFrame: number | null = null;
+		private selectedTableWidgetEl: HTMLElement | null = null;
 
 		constructor(view: EditorView) {
 			this.view = view;
@@ -96,9 +106,13 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.plugin.registerDomEvent(this.editorDocument(), 'pointerdown', () => this.onDocumentPointerDown());
 			this.plugin.registerDomEvent(this.editorDocument(), 'pointerup', (event: PointerEvent) => this.onPointerUp(event));
 			this.plugin.registerDomEvent(this.editorDocument(), 'pointercancel', () => this.cancelDrag());
-			this.plugin.registerDomEvent(this.editorDocument(), 'keydown', (event: KeyboardEvent) => {
-				if (event.key === 'Escape') this.cancelDrag();
-			});
+			this.plugin.registerDomEvent(this.dragHandleEl, 'lostpointercapture', () => this.cancelDrag());
+			this.plugin.registerDomEvent(
+				this.editorDocument(),
+				'keydown',
+				(event: KeyboardEvent) => this.onKeyDown(event),
+				{ capture: true },
+			);
 			this.plugin.registerDomEvent(this.scrollerElement(), 'scroll', () => this.onEditorScroll(), { passive: true });
 			this.plugin.registerDomEvent(this.controlsEl, 'wheel', (event: WheelEvent) => this.forwardWheelToScroller(event));
 			this.plugin.registerDomEvent(this.addButtonEl, 'click', (event: MouseEvent) => this.onAddClick(event));
@@ -112,24 +126,26 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		update(update: ViewUpdate): void {
-			if (!this.blocksEnabled() || !this.isLivePreview()) {
+			if (!this.blocksEnabled() || !this.isLivePreview() || !this.isPrimaryEditorView()) {
 				this.hideControls();
+				this.clearSelectedSource();
 				this.clearPersistedSelection();
 				return;
 			}
 			if (update.docChanged && this.dragState.kind === 'idle') {
+				this.clearSelectedSource();
 				this.clearPersistedSelection();
 			}
 			if (update.docChanged || update.viewportChanged || update.geometryChanged) {
-				this.positionControls();
-				this.positionDragVisuals();
-				this.positionPersistedSelection();
+				this.scheduleVisualRefresh();
 			}
 		}
 
 		destroy(): void {
 			this.cancelDrag();
 			this.clearTooltipTimer();
+			this.clearVisualRefreshFrame();
+			this.clearNativeTableSelectionUi();
 			this.controlsEl.remove();
 			this.selectionEl.remove();
 			this.dropLineEl.remove();
@@ -145,7 +161,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				return;
 			}
 
-			if (!this.blocksEnabled() || !this.isLivePreview() || !this.isActiveVisibleEditor()) {
+			if (!this.blocksEnabled() || !this.isLivePreview() || !this.isPrimaryEditorView() || !this.isActiveVisibleEditor()) {
 				this.hideControls();
 				return;
 			}
@@ -160,7 +176,8 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 			const contentRect = this.contentRect();
 			if (contentRect !== null && event.clientX < contentRect.left && event.clientX >= contentRect.left - 72) {
-				const gutterHit = this.lineHitFromY(event.clientY);
+				const gutterHit = this.lineHitFromY(event.clientY)
+					?? this.blockHitFromCoords(contentRect.left + 8, event.clientY);
 				if (gutterHit !== null) {
 					this.hoveredBlock = gutterHit.block;
 					this.hoveredRect = gutterHit.rect;
@@ -174,8 +191,8 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				return;
 			}
 
-			const lineEl = pointEl.closest(BLOCK_ELEMENT_SELECTOR);
-			if (lineEl === null || !this.view.dom.contains(lineEl)) {
+			const lineEl = this.hoverElementForPoint(pointEl);
+			if (lineEl === null || !this.view.dom.contains(lineEl) || !this.belongsToThisEditor(lineEl)) {
 				const hit = this.blockHitFromCoords(event.clientX, event.clientY);
 				if (hit === null) {
 					this.hideControls();
@@ -195,6 +212,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 			const block = this.blockAt(pos);
 			if (block === null) {
+				this.hideControls();
+				return;
+			}
+			if (block.kind === 'table' && !lineEl.matches('.cm-table-widget')) {
 				this.hideControls();
 				return;
 			}
@@ -221,6 +242,12 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				slice: this.moveSliceForSource(source),
 				startY: event.clientY,
 			};
+			this.activePointerId = event.pointerId;
+			try {
+				this.dragHandleEl.setPointerCapture(event.pointerId);
+			} catch {
+				// Pointer capture can fail in some browser states; dragging still falls back to document events.
+			}
 
 			this.controlsEl.addClass('is-dragging');
 			this.view.dom.addClass('be-block-dragging-editor');
@@ -243,7 +270,50 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private onDocumentPointerDown(): void {
 			if (this.dragState.kind !== 'idle') return;
 			if (!this.blocksEnabled()) return;
+			this.clearSelectedSource();
 			this.clearPersistedSelection();
+		}
+
+		private onKeyDown(event: KeyboardEvent): void {
+			if (event.key === 'Escape') {
+				if (this.dragState.kind !== 'idle') {
+					this.cancelDrag();
+					return;
+				}
+				if (this.selectedSource !== null) {
+					event.preventDefault();
+					event.stopPropagation();
+					this.clearSelectedSource();
+				}
+				return;
+			}
+
+			if (!this.blocksEnabled() || !this.isLivePreview() || !this.isPrimaryEditorView() || !this.isActiveVisibleEditor()) return;
+
+			if (this.selectedSource !== null) {
+				if (event.key === 'Backspace' || event.key === 'Delete') {
+					event.preventDefault();
+					event.stopPropagation();
+					this.deleteSelectedSource();
+					return;
+				}
+				if (event.key === 'Enter') {
+					event.preventDefault();
+					event.stopPropagation();
+					this.restoreCaretAfterSelectedSource();
+				}
+				return;
+			}
+
+			if (this.dragState.kind !== 'idle') return;
+			if (event.key !== 'Backspace' && event.key !== 'Delete') return;
+
+			const source = this.tableSelectionCandidateFromCursor();
+			if (source === null) return;
+
+			event.preventDefault();
+			event.stopPropagation();
+			this.selectSource(source);
 		}
 
 		private updatePressedDrag(clientY: number): void {
@@ -272,8 +342,8 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				this.positionDragVisuals();
 				return;
 			}
-			if (this.persistedSelectionSource !== null) {
-				this.positionPersistedSelection();
+			if (this.selectionSourceForOverlay() !== null) {
+				this.positionSelectionStateOverlay();
 			}
 			this.hideControls();
 		}
@@ -333,7 +403,55 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.resetDragUi();
 		}
 
+		private selectSource(source: DragSource): void {
+			this.selectedSource = source;
+			this.clearPersistedSelection();
+			this.positionSelectionStateOverlay();
+		}
+
+		private clearSelectedSource(): void {
+			this.selectedSource = null;
+			this.clearNativeTableSelectionUi();
+			if (this.dragState.kind === 'idle' && this.persistedSelectionSource === null) {
+				this.selectionEl.removeClass('is-visible');
+			}
+		}
+
+		private deleteSelectedSource(): void {
+			if (this.selectedSource === null) return;
+
+			const { from, to } = this.moveSliceForSource(this.selectedSource);
+			this.clearSelectedSource();
+			this.view.dispatch({
+				changes: { from, to, insert: '' },
+				selection: { anchor: from },
+				scrollIntoView: true,
+			});
+			this.view.focus();
+		}
+
+		private restoreCaretAfterSelectedSource(): void {
+			if (this.selectedSource === null) return;
+
+			const source = this.selectedSource;
+			const anchor = this.ensureCaretLineAfterSource(source);
+			this.clearSelectedSource();
+			this.view.dispatch({
+				selection: { anchor },
+				scrollIntoView: true,
+			});
+			this.view.focus();
+		}
+
 		private resetDragUi(): void {
+			if (this.activePointerId !== null && this.dragHandleEl.hasPointerCapture(this.activePointerId)) {
+				try {
+					this.dragHandleEl.releasePointerCapture(this.activePointerId);
+				} catch {
+					// Ignore release failures from already-lost capture.
+				}
+			}
+			this.activePointerId = null;
 			this.dragState = { kind: 'idle' };
 			this.controlsEl.removeClass('is-dragging');
 			this.view.dom.removeClass('be-block-dragging-editor');
@@ -356,12 +474,12 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				lineTo: last.lineTo,
 				primary: first,
 			};
-			this.positionPersistedSelection();
+			this.positionSelectionStateOverlay();
 		}
 
 		private clearPersistedSelection(): void {
 			this.persistedSelectionSource = null;
-			if (this.dragState.kind === 'idle') this.selectionEl.removeClass('is-visible');
+			if (this.dragState.kind === 'idle' && this.selectedSource === null) this.selectionEl.removeClass('is-visible');
 		}
 
 		private onAddClick(event: MouseEvent): void {
@@ -423,12 +541,37 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.dropLineEl.addClass('is-visible');
 		}
 
-		private positionPersistedSelection(): void {
-			if (this.dragState.kind !== 'idle' || this.persistedSelectionSource === null) return;
-			this.positionSelectionOverlay(this.persistedSelectionSource);
+		private positionSelectionStateOverlay(): void {
+			if (this.dragState.kind !== 'idle') return;
+			const source = this.selectionSourceForOverlay();
+			if (source === null) return;
+			this.positionSelectionOverlay(source);
+		}
+
+		private scheduleVisualRefresh(): void {
+			if (this.visualRefreshFrame !== null) return;
+			this.visualRefreshFrame = this.editorWindow().requestAnimationFrame(() => {
+				this.visualRefreshFrame = null;
+				if (!this.blocksEnabled() || !this.isLivePreview()) return;
+				this.positionControls();
+				this.positionDragVisuals();
+				this.positionSelectionStateOverlay();
+			});
+		}
+
+		private clearVisualRefreshFrame(): void {
+			if (this.visualRefreshFrame === null) return;
+			this.editorWindow().cancelAnimationFrame(this.visualRefreshFrame);
+			this.visualRefreshFrame = null;
 		}
 
 		private positionSelectionOverlay(source: DragSource): void {
+			if (this.applyNativeTableSelectionUi(source)) {
+				this.selectionEl.removeClass('is-visible');
+				return;
+			}
+			this.clearNativeTableSelectionUi();
+
 			const sourceRect = this.selectionRectForSource(source);
 			if (sourceRect === null) {
 				this.selectionEl.removeClass('is-visible');
@@ -546,8 +689,17 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private lineHitFromY(clientY: number): { block: BlockRange; rect: DOMRect } | null {
+			for (const entry of this.visibleTableWidgetEntries()) {
+				if (clientY >= entry.rect.top && clientY <= entry.rect.bottom) {
+					return { block: entry.block, rect: entry.rect };
+				}
+			}
+
 			const lineElements = Array.from(this.view.dom.querySelectorAll(BLOCK_ELEMENT_SELECTOR))
-				.filter((el): el is Element => el.instanceOf(Element));
+				.filter((el): el is Element =>
+					el.instanceOf(Element)
+					&& this.belongsToThisEditor(el)
+					&& !el.matches('.cm-table-widget'));
 
 			for (const lineEl of lineElements) {
 				const lineRect = lineEl.getBoundingClientRect();
@@ -574,10 +726,15 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private blockHitFromLineElement(lineEl: Element): { block: BlockRange; rect: DOMRect } | null {
+			if (lineEl.matches('.cm-table-widget')) {
+				return this.tableWidgetHit(lineEl);
+			}
+
 			const pos = this.posFromLineElement(lineEl);
 			if (pos === null) return null;
 
 			const block = this.blockAt(pos);
+			if (block?.kind === 'table' && !lineEl.matches('.cm-table-widget')) return null;
 			return block === null
 				? null
 				: { block, rect: this.controlRectForBlock(block, lineEl) };
@@ -590,7 +747,9 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			const block = this.blockAt(pos);
 			if (block === null) return null;
 
-			const rect = this.blockRect(block) ?? this.coordsRect(block.from);
+			const rect = block.kind === 'table'
+				? this.controlRectForBlock(block, this.tableWidgetElementForBlock(block) ?? this.view.dom)
+				: this.blockRect(block) ?? this.coordsRect(block.from);
 			return rect === null ? null : { block, rect };
 		}
 
@@ -648,7 +807,7 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private visibleBlankLines(): Array<{ pos: number; rect: DOMRect }> {
 			const result: Array<{ pos: number; rect: DOMRect }> = [];
 			const lineElements = Array.from(this.view.dom.querySelectorAll('.cm-line'))
-				.filter((el): el is Element => el.instanceOf(Element));
+				.filter((el): el is Element => el.instanceOf(Element) && this.belongsToThisEditor(el));
 			const text = this.view.state.doc.toString();
 
 			for (const lineEl of lineElements) {
@@ -695,14 +854,26 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private controlRectForBlock(block: BlockRange, fallbackLineEl: Element): DOMRect {
+			if (block.kind === 'table') {
+				const tableEl = this.tableWidgetElementForBlock(block);
+				return this.tableControlRect(tableEl ?? fallbackLineEl);
+			}
 			const firstLineEl = this.lineElementForLine(block.lineFrom);
 			return this.anchorRectForBlock(block, firstLineEl ?? fallbackLineEl);
 		}
 
 		private visibleBlocks(): Array<{ block: BlockRange; rect: DOMRect }> {
 			const blocks = new Map<string, { block: BlockRange; rect: DOMRect }>();
+			for (const entry of this.visibleTableWidgetEntries()) {
+				const key = `${entry.block.from}:${entry.block.to}`;
+				blocks.set(key, { block: entry.block, rect: entry.rect });
+			}
+
 			const lineElements = Array.from(this.view.dom.querySelectorAll(BLOCK_ELEMENT_SELECTOR))
-				.filter((el): el is Element => el.instanceOf(Element));
+				.filter((el): el is Element =>
+					el.instanceOf(Element)
+					&& this.belongsToThisEditor(el)
+					&& !el.matches('.cm-table-widget'));
 
 			for (const lineEl of lineElements) {
 				const rect = lineEl.getBoundingClientRect();
@@ -738,14 +909,40 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private textForDrop(text: string, target: DropBoundary, source: DragSource): string {
 			const quoteSafeText = this.quoteSafeTextForDrop(text, source);
-			if (!this.shouldSeparateFromHorizontalRule(quoteSafeText, target, source)) return quoteSafeText;
-			if (this.firstSourceBlock(source).kind === 'horizontal-rule') return text.startsWith('\n') ? text : `\n${text}`;
-			return quoteSafeText.endsWith('\n') ? `${quoteSafeText}\n` : `${quoteSafeText}\n\n`;
+			const tableSafeText = this.tableSafeTextForDrop(quoteSafeText, target, source);
+			if (!this.shouldSeparateFromHorizontalRule(tableSafeText, target, source)) return tableSafeText;
+			if (this.firstSourceBlock(source).kind === 'horizontal-rule') return tableSafeText.startsWith('\n') ? tableSafeText : `\n${tableSafeText}`;
+			return tableSafeText.endsWith('\n') ? `${tableSafeText}\n` : `${tableSafeText}\n\n`;
 		}
 
 		private quoteSafeTextForDrop(text: string, source: DragSource): string {
 			if (this.lastSourceBlock(source).kind !== 'blockquote') return text;
 			return text.endsWith('\n\n') ? text : `${text.replace(/\n?$/, '\n')}\n`;
+		}
+
+		private tableSafeTextForDrop(text: string, target: DropBoundary, source: DragSource): string {
+			const firstBlock = this.firstSourceBlock(source);
+			const lastBlock = this.lastSourceBlock(source);
+			if (firstBlock.kind !== 'table' && lastBlock.kind !== 'table') return text;
+
+			let normalized = text;
+			const previousBlock = this.nearestBlockBefore(target.pos);
+			const nextBlock = this.nearestBlockAtOrAfter(target.pos);
+
+			if (firstBlock.kind === 'table') {
+				const needsLeadingBlank = previousBlock !== null && this.isParagraphLike(previousBlock);
+				normalized = normalized.replace(/^\n+/, '');
+				if (needsLeadingBlank) normalized = `\n${normalized}`;
+			}
+
+			if (lastBlock.kind === 'table') {
+				const minimumTrailingNewlines = nextBlock === null
+					? 0
+					: this.isParagraphLike(nextBlock) ? 2 : 1;
+				normalized = this.ensureTrailingNewlines(normalized, minimumTrailingNewlines);
+			}
+
+			return normalized;
 		}
 
 		private shouldSeparateFromHorizontalRule(text: string, target: DropBoundary, source: DragSource): boolean {
@@ -786,6 +983,82 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return block !== null && this.isParagraphLike(block);
 		}
 
+		private nearestBlockBefore(pos: number): BlockRange | null {
+			if (pos <= 0) return null;
+			let lineNumber = this.view.state.doc.lineAt(Math.max(0, pos - 1)).number;
+
+			while (lineNumber >= 1) {
+				const line = this.view.state.doc.line(lineNumber);
+				if (line.text.trim() === '') {
+					lineNumber--;
+					continue;
+				}
+
+				return this.blockAt(line.from);
+			}
+
+			return null;
+		}
+
+		private nearestBlockAtOrAfter(pos: number): BlockRange | null {
+			if (pos >= this.view.state.doc.length) return null;
+			let lineNumber = this.view.state.doc.lineAt(Math.min(pos, this.view.state.doc.length)).number;
+
+			while (lineNumber <= this.view.state.doc.lines) {
+				const line = this.view.state.doc.line(lineNumber);
+				if (line.text.trim() === '') {
+					lineNumber++;
+					continue;
+				}
+
+				return this.blockAt(line.from);
+			}
+
+			return null;
+		}
+
+		private ensureTrailingNewlines(text: string, count: number): string {
+			const content = text.replace(/\n+$/, '');
+			return `${content}${'\n'.repeat(count)}`;
+		}
+
+		private selectionSourceForOverlay(): DragSource | null {
+			return this.selectedSource ?? this.persistedSelectionSource;
+		}
+
+		private tableSelectionCandidateFromCursor(): DragSource | null {
+			const range = this.view.state.selection.main;
+			if (!range.empty) return null;
+
+			const line = this.view.state.doc.lineAt(range.from);
+			if (line.text.trim() !== '') return null;
+
+			const previous = this.nearestBlockBefore(range.from);
+			if (previous?.kind === 'table') {
+				const previousEnd = this.positionAfterBlock(previous);
+				if (line.from === previousEnd) {
+					return this.singleDragSource(previous);
+				}
+			}
+
+			const next = this.nearestBlockAtOrAfter(range.from);
+			if (next?.kind === 'table' && line.to === next.from) {
+				return this.singleDragSource(next);
+			}
+
+			return null;
+		}
+
+		private ensureCaretLineAfterSource(source: DragSource): number {
+			const pos = this.positionAfterBlock(this.lastSourceBlock(source));
+			if (pos < this.view.state.doc.length) return pos;
+
+			this.view.dispatch({
+				changes: { from: this.view.state.doc.length, to: this.view.state.doc.length, insert: '\n' },
+			});
+			return this.view.state.doc.length + 1;
+		}
+
 		private positionAfterBlock(block: BlockRange): number {
 			const text = this.view.state.doc.toString();
 			return block.to < text.length && text[block.to] === '\n' ? block.to + 1 : block.to;
@@ -795,11 +1068,15 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			if (block.kind === 'heading') {
 				return this.visibleTextRect(fallbackLineEl) ?? fallbackLineEl.getBoundingClientRect();
 			}
+			if (block.kind === 'table') {
+				const tableEl = this.tableWidgetElementForBlock(block);
+				return this.tableControlRect(tableEl ?? fallbackLineEl);
+			}
 			return this.lineElementRect(block.lineFrom) ?? fallbackLineEl.getBoundingClientRect();
 		}
 
 		private controlTopForBlock(block: BlockRange, rect: DOMRect): number {
-			if (block.kind === 'html') return rect.top;
+			if (block.kind === 'html' || block.kind === 'table') return rect.top;
 			return rect.top + (rect.height - 24) / 2;
 		}
 
@@ -843,6 +1120,114 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return element?.closest(BLOCK_ELEMENT_SELECTOR) ?? null;
 		}
 
+		private tableWidgetElementForBlock(block: BlockRange): Element | null {
+			return this.visibleTableWidgetEntries().find(entry =>
+				entry.block.from === block.from && entry.block.to === block.to,
+			)?.el ?? null;
+		}
+
+		private applyNativeTableSelectionUi(source: DragSource): boolean {
+			if (source.kind !== 'single' || source.primary.kind !== 'table') return false;
+
+			const tableEl = this.tableWidgetElementForBlock(source.primary);
+			if (!tableEl?.instanceOf(HTMLElement)) return false;
+
+			this.clearNativeTableSelectionUi();
+			tableEl.addClass('has-selection');
+			tableEl.addClass('has-focus');
+
+			const rows = Array.from(tableEl.querySelectorAll('tr'));
+			for (let rowIndex = 0; rowIndex < rows.length; rowIndex++) {
+				const row = rows[rowIndex];
+				if (row === undefined) continue;
+				if (!row.instanceOf(HTMLTableRowElement)) continue;
+				const cells = Array.from(row.querySelectorAll('th, td'));
+				for (let cellIndex = 0; cellIndex < cells.length; cellIndex++) {
+					const cell = cells[cellIndex];
+					if (cell === undefined) continue;
+					if (!cell.instanceOf(HTMLElement)) continue;
+					cell.addClass('is-selected');
+					if (cellIndex === 0) cell.addClass('start');
+					if (cellIndex === cells.length - 1) cell.addClass('end');
+					if (rowIndex === 0) cell.addClass('top');
+					if (rowIndex === rows.length - 1) cell.addClass('bottom');
+				}
+			}
+
+			this.selectedTableWidgetEl = tableEl;
+			return true;
+		}
+
+		private clearNativeTableSelectionUi(): void {
+			const tableEl = this.selectedTableWidgetEl;
+			if (tableEl === null) return;
+
+			tableEl.removeClass('has-selection');
+			const selectedCells = tableEl.querySelectorAll('.is-selected, .start, .end, .top, .bottom');
+			selectedCells.forEach(cell => {
+				if (!cell.instanceOf(HTMLElement)) return;
+				cell.removeClass('is-selected');
+				cell.removeClass('start');
+				cell.removeClass('end');
+				cell.removeClass('top');
+				cell.removeClass('bottom');
+			});
+
+			this.selectedTableWidgetEl = null;
+		}
+
+		private tableWidgetHit(tableEl: Element): { block: BlockRange; rect: DOMRect } | null {
+			const entry = this.visibleTableWidgetEntries().find(candidate => candidate.el === tableEl);
+			return entry === undefined ? null : { block: entry.block, rect: this.tableControlRect(entry.el) };
+		}
+
+		private tableControlRect(tableEl: Element): DOMRect {
+			const firstRow = tableEl.querySelector('tr');
+			return firstRow?.getBoundingClientRect() ?? tableEl.getBoundingClientRect();
+		}
+
+		private visibleTableWidgetEntries(): TableWidgetEntry[] {
+			const widgets = Array.from(this.view.dom.querySelectorAll('.cm-table-widget'))
+				.filter((el): el is Element => el.instanceOf(Element) && this.belongsToThisEditor(el))
+				.map(el => ({ el, rect: this.tableControlRect(el) }))
+				.filter(entry => entry.rect.height > 0)
+				.sort((a, b) => a.rect.top - b.rect.top);
+			const blocks = this.visibleTableBlocks();
+			const count = Math.min(widgets.length, blocks.length);
+			const entries: TableWidgetEntry[] = [];
+
+			for (let index = 0; index < count; index++) {
+				const widget = widgets[index];
+				const block = blocks[index];
+				if (widget === undefined || block === undefined) continue;
+				entries.push({ block, el: widget.el, rect: widget.rect });
+			}
+
+			return entries;
+		}
+
+		private visibleTableBlocks(): BlockRange[] {
+			const blocks = new Map<string, BlockRange>();
+
+			for (const range of this.view.visibleRanges) {
+				const from = Math.max(0, Math.min(range.from, this.view.state.doc.length));
+				const to = Math.min(this.view.state.doc.length, Math.max(range.from, range.to));
+				const startLine = this.view.state.doc.lineAt(from).number;
+				const endLine = this.view.state.doc.lineAt(Math.max(from, to - 1)).number;
+
+				for (let lineNumber = startLine; lineNumber <= endLine; lineNumber++) {
+					const line = this.view.state.doc.line(lineNumber);
+					const block = this.blockAt(line.from);
+					if (block?.kind !== 'table') continue;
+					const key = `${block.from}:${block.to}`;
+					blocks.set(key, block);
+					lineNumber = block.lineTo;
+				}
+			}
+
+			return Array.from(blocks.values()).sort((a, b) => a.from - b.from);
+		}
+
 		private coordsRect(pos: number): DOMRect | null {
 			const coords = this.view.coordsAtPos(pos);
 			if (coords !== null) {
@@ -859,7 +1244,17 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private contentRect(): DOMRect | null {
-			return this.view.dom.querySelector('.cm-content')?.getBoundingClientRect() ?? null;
+			return this.view.contentDOM.getBoundingClientRect();
+		}
+
+		private belongsToThisEditor(el: Element): boolean {
+			return el.closest('.cm-editor') === this.view.dom;
+		}
+
+		private hoverElementForPoint(pointEl: Element): Element | null {
+			const tableWidget = pointEl.closest('.cm-table-widget');
+			if (tableWidget !== null && this.view.dom.contains(tableWidget)) return tableWidget;
+			return pointEl.closest(BLOCK_ELEMENT_SELECTOR);
 		}
 
 		private scrollerElement(): HTMLElement {
@@ -869,6 +1264,12 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private isActiveVisibleEditor(): boolean {
 			if (this.view.dom.offsetParent === null) return false;
 			return this.view.dom.closest('.workspace-leaf.mod-active') !== null;
+		}
+
+		private isPrimaryEditorView(): boolean {
+			const sourceView = this.view.dom.closest('.markdown-source-view');
+			if (sourceView === null) return true;
+			return sourceView.querySelector('.cm-editor') === this.view.dom;
 		}
 
 		private editorDocument(): Document {
