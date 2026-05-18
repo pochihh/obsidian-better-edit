@@ -1,6 +1,7 @@
 /* ── Slash command menu ──────────────────────────────────────────────────*/
 .be-slash-empty-hint {
 	color: var(--text-faint);
+	font-size: 0.85em;
 	pointer-events: none;
 }
 
@@ -237,4 +238,3 @@
 	color: var(--text-faint);
 	font-size: var(--font-ui-smaller);
 }
-

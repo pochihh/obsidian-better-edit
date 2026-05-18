@@ -285,13 +285,15 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 3px 10px;
+	padding: 5px 12px;
 	border-radius: 4px;
 	border: 1px solid var(--background-modifier-border) !important;
 	background: var(--background-modifier-form-field, var(--background-secondary)) !important;
 	box-shadow: none !important;
 	color: var(--text-normal);
-	font-size: 14px;
+	font-size: 18px;
+	line-height: 1;
+	min-height: 34px;
 	font-family: var(--font-monospace);
 	cursor: pointer;
 	min-width: 72px;
@@ -301,4 +303,5 @@
 .be-shortcut-badge.is-recording {
 	border-color: var(--interactive-accent) !important;
 	color: var(--text-faint);
+	font-size: 14px;
 }
