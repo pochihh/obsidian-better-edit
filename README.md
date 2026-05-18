@@ -1,41 +1,21 @@
 # Better Edit
-Core concept: only handles edits; keep all original system functionality and rendering, so the plugin keeps full compatibility natively and accross platforms
 
-Extendability: for all features, we should also support other extensions if they also support **native first** philosophy
+Better Edit is an Obsidian plugin that adds a Notion-like editing layer to Live
+Preview while keeping note files native-first. The plugin improves editing UX
+without introducing proprietary content syntax or changing reading-mode
+rendering.
 
-## Blocks Drag and Drop
-- Key features
-    - Notion like edit experience
-    - Every content is a block. Hover on it reveals a + (add bellow or on top) and a handle (for drag and drop)
-- Key consideration
-    - What is a valid block?
-    - Easy ones: 
-        - Single line of text, check box, list item
-        - The dividers
-        - code block
-        - Completed html block
-        - Call out blocks
-    - Challenges:
-        - Uncompleted code block, html, etc
-            - potential solution: treat them as text
-        - Customized blocks, like 
-            ```sp-bar
-                my customized block
-            ```
-            - Just treat the source as the same as code block
-        
-## Text Styling
-- Key features
-    - Notion like edit experience
-    - Select
-- Challanges
-    - The native UI reveals source of the text style part when it's selected
-    - Boolean logic, for example for `**my bold text**`, if the user somehow select only `**my bold`, and choose ; or if the use select text containing none formated and formated text, what will happen?
-    - Hopefully this plug in handles that gracefully, for all the cases
+## Documentation
 
-## Slash Commnad
-- A simply slash command feature to help put in a new block, like list, checkbox, etc.
-- Potentially allow the user to register their own command, so we can support other extensions
+- Product and feature design: [`DESIGN.md`](./DESIGN.md)
+- Technical architecture and build notes: [`docs/technical.md`](./docs/technical.md)
+- Development rules and Obsidian API guidance: [`docs/guidelines.md`](./docs/guidelines.md)
 
-## Image Arrangement
-- One important feature described in @./DESIGN.md
+## Current feature areas
+
+- Blocks drag and drop
+- Slash command
+- Text styling
+- Image arrangement
+
+Detailed feature behavior lives under [`docs/features/`](./docs/features/).
