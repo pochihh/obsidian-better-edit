@@ -3,8 +3,10 @@ import { Decoration, DecorationSet, EditorView, keymap, showTooltip, Tooltip, To
 import type BetterEditPlugin from '../../main';
 import { SlashCommandDefinition, SLASH_CURSOR_TOKEN } from './settings';
 import { renderSlashCommandIcon } from '../../icons';
+import { getBlockAtPos } from '../blocks/block-model';
 
 interface SlashMenuState {
+	triggerFrom: number;
 	query: string;
 	from: number;
 	to: number;
@@ -28,6 +30,7 @@ class EmptyLineHintWidget extends WidgetType {
 }
 
 export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension {
+	const openMenuEffect = StateEffect.define<number>();
 	const moveSelectionEffect = StateEffect.define<number>();
 	const setSelectionEffect = StateEffect.define<number>();
 	const closeMenuEffect = StateEffect.define<void>();
@@ -35,18 +38,21 @@ export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension
 	let cachedTooltipFrom = -1;
 
 	const slashMenuField = StateField.define<SlashMenuState | null>({
-		create(state) {
-			return menuStateAtCursor(state, plugin, null);
+		create(_state) {
+			return null;
 		},
 		update(value, transaction) {
 			for (const effect of transaction.effects) {
 				if (effect.is(closeMenuEffect)) return null;
 			}
 
-			let next = value;
-			if (transaction.docChanged || transaction.selection) {
-				next = menuStateAtCursor(transaction.state, plugin, value);
+			let triggerFrom = value === null ? null : transaction.changes.mapPos(value.triggerFrom, -1);
+			for (const effect of transaction.effects) {
+				if (effect.is(openMenuEffect)) {
+					triggerFrom = effect.value;
+				}
 			}
+			let next = triggerFrom === null ? null : menuStateFromTrigger(transaction.state, plugin, triggerFrom, value);
 
 			for (const effect of transaction.effects) {
 				if (effect.is(moveSelectionEffect) && next !== null && next.items.length > 0) {
@@ -82,15 +88,17 @@ export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension
 
 	const insertSlashTrigger = (view: EditorView): boolean => {
 		const range = view.state.selection.main;
-		if (!plugin.settings.slashCommand.enabled || !range.empty) return false;
+		if (!plugin.settings.slashCommand.enabled || !range.empty || !isPrimaryEditorView(view)) return false;
 
 		const line = view.state.doc.lineAt(range.head);
-		if (line.text.trim().length > 0) return false;
+		if (range.head !== line.from) return false;
 		if (isSuppressedSlashContext(view, line.number)) return false;
+		const insertText = line.text.length === 0 ? '/' : '/\n';
 
 		view.dispatch({
-			changes: { from: line.from, to: line.to, insert: '/' },
+			changes: { from: line.from, to: line.from, insert: insertText },
 			selection: { anchor: line.from + 1 },
+			effects: openMenuEffect.of(line.from),
 			scrollIntoView: true,
 		});
 		return true;
@@ -123,11 +131,6 @@ export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension
 			return insertSlashTrigger(view);
 		})),
 		Prec.highest(keymap.of([
-			{
-				key: '/',
-				preventDefault: true,
-				run: insertSlashTrigger,
-			},
 			{
 				key: 'Escape',
 				preventDefault: true,
@@ -171,6 +174,7 @@ function createEmptyLineHintExtension(plugin: BetterEditPlugin): Extension {
 
 			private buildDecorations(): DecorationSet {
 				if (!plugin.settings.slashCommand.enabled) return Decoration.none;
+				if (!isPrimaryEditorView(this.view)) return Decoration.none;
 				const range = this.view.state.selection.main;
 				if (!range.empty) return Decoration.none;
 
@@ -190,9 +194,10 @@ function createEmptyLineHintExtension(plugin: BetterEditPlugin): Extension {
 	);
 }
 
-function menuStateAtCursor(
+function menuStateFromTrigger(
 	state: EditorView['state'],
 	plugin: BetterEditPlugin,
+	triggerFrom: number,
 	previous: SlashMenuState | null,
 ): SlashMenuState | null {
 	if (!plugin.settings.slashCommand.enabled) return null;
@@ -201,6 +206,7 @@ function menuStateAtCursor(
 	if (!range.empty) return null;
 
 	const line = state.doc.lineAt(range.head);
+	if (line.from !== triggerFrom) return null;
 	if (isSuppressedSlashStateContext(state, line.number)) return null;
 
 	const beforeCursor = state.doc.sliceString(line.from, range.head);
@@ -213,7 +219,7 @@ function menuStateAtCursor(
 		? Math.min(previous.selectedIndex, Math.max(0, items.length - 1))
 		: 0;
 
-	return { query, from: line.from, to: line.to, selectedIndex, items };
+	return { triggerFrom, query, from: line.from, to: line.to, selectedIndex, items };
 }
 
 function filteredCommands(plugin: BetterEditPlugin, query: string): SlashCommandDefinition[] {
@@ -228,14 +234,25 @@ function filteredCommands(plugin: BetterEditPlugin, query: string): SlashCommand
 }
 
 function isSuppressedSlashContext(view: EditorView, lineNumber: number): boolean {
+	if (!isPrimaryEditorView(view)) return true;
 	if (isSuppressedSlashStateContext(view.state, lineNumber)) return true;
 
 	const lineElement = lineElementForLine(view, lineNumber);
-	return lineElement?.matches('.HyperMD-codeblock, .HyperMD-math, .cm-math, .math-block') === true;
+	if (lineElement?.matches('.HyperMD-codeblock, .HyperMD-math, .cm-math, .math-block') === true) return true;
+	const line = view.state.doc.line(lineNumber);
+	return getBlockAtPos(view.state, line.from, {
+		enableListItemDrag: false,
+		enableHtmlBlockDrag: false,
+	})?.kind === 'table';
 }
 
 function isSuppressedSlashStateContext(state: EditorView['state'], lineNumber: number): boolean {
-	return isInsideFencedCodeBlock(state, lineNumber) || isInsideMathBlock(state, lineNumber);
+	if (isInsideFencedCodeBlock(state, lineNumber) || isInsideMathBlock(state, lineNumber)) return true;
+	const line = state.doc.line(lineNumber);
+	return getBlockAtPos(state, line.from, {
+		enableListItemDrag: false,
+		enableHtmlBlockDrag: false,
+	})?.kind === 'table';
 }
 
 function isInsideFencedCodeBlock(state: EditorView['state'], lineNumber: number): boolean {
@@ -281,6 +298,12 @@ function lineElementForLine(view: EditorView, lineNumber: number): Element | nul
 	const node = view.domAtPos(line.from).node;
 	const element = node.instanceOf(Element) ? node : node.parentElement;
 	return element?.closest('.cm-line') ?? null;
+}
+
+function isPrimaryEditorView(view: EditorView): boolean {
+	const sourceView = view.dom.closest('.markdown-source-view');
+	if (sourceView === null) return true;
+	return sourceView.querySelector('.cm-editor') === view.dom;
 }
 
 function createSlashTooltip(
@@ -477,6 +500,27 @@ class SlashCommandTooltipView implements TooltipView {
 		else if (event.deltaMode === 2) delta *= this.listEl.clientHeight;
 		this.listEl.scrollTop += delta;
 		slashMenuScrollMemory = this.listEl.scrollTop;
+		this.syncSelectionToScroll();
+	}
+
+	private syncSelectionToScroll(): void {
+		const state = this.view.state.field(this.field, false);
+		if (!state || state.items.length === 0) return;
+		const firstVisible = this.firstVisibleItemIndex();
+		if (firstVisible === -1 || firstVisible === state.selectedIndex) return;
+		this.lastSelectionWasMouse = true;
+		this.view.dispatch({ effects: this.setSelectionEffect.of(firstVisible) });
+	}
+
+	private firstVisibleItemIndex(): number {
+		const visibleTop = this.listEl.scrollTop;
+		const items = Array.from(this.listEl.querySelectorAll<HTMLElement>('[data-command-index]'));
+		for (const item of items) {
+			if (item.offsetTop + item.offsetHeight > visibleTop) {
+				return parseInt(item.dataset.commandIndex ?? '', 10);
+			}
+		}
+		return -1;
 	}
 
 	private onMouseDown(event: MouseEvent): void {
