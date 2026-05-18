@@ -28,3 +28,6 @@ docs/ref/
 
 # Local plugin runtime data
 data.json
+
+# Local Codex / Claude settings
+.claude/settings.local.json
