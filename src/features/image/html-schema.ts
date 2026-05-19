@@ -41,7 +41,18 @@ export interface PlaceholderBlock {
 	kind: 'placeholder';
 }
 
-export type ImageBlock = SingleImageBlock | PlaceholderBlock;
+export type RowJustify = 'flex-start' | 'center' | 'flex-end' | 'space-between' | 'space-around' | 'space-evenly';
+
+export interface ImageRowBlock {
+	kind: 'row';
+	images: (SingleImageBlock | PlaceholderBlock)[];
+	gap: number;
+	justify: RowJustify;
+	wrap: string;       // CSS flex-wrap value
+	alignItems: string; // CSS align-items value
+}
+
+export type ImageBlock = SingleImageBlock | PlaceholderBlock | ImageRowBlock;
 
 // ---------------------------------------------------------------------------
 // Generators
@@ -120,6 +131,61 @@ export function singleImageHtml(
 		captionHtml +
 		`</div>`
 	);
+}
+
+// ---------------------------------------------------------------------------
+// Row generators / parsers
+// ---------------------------------------------------------------------------
+
+export function isImageRowBlock(html: string): boolean {
+	return html.includes('data-better-edit-image-row');
+}
+
+export function imageRowHtml(
+	images: (SingleImageBlock | PlaceholderBlock)[],
+	gap: number,
+	justify: RowJustify,
+	wrap: string,
+	alignItems: string,
+	cornerRadius = 4,
+): string {
+	const style = `display: flex; gap: ${gap}px; flex-wrap: ${wrap}; align-items: ${alignItems}; justify-content: ${justify};`;
+	const children = images.map(img =>
+		img.kind === 'placeholder'
+			? placeholderHtml()
+			: singleImageHtml(img.src, img.width, 'center', img.caption, img.crop, img.alt, cornerRadius, img.captionHidden),
+	);
+	return `<div data-better-edit-image-row style="${style}">\n${children.join('\n')}\n</div>`;
+}
+
+export function parseImageRowBlock(html: string): ImageRowBlock | null {
+	const trimmed = html.trim();
+	if (!isImageRowBlock(trimmed)) return null;
+
+	const outerMatch = /^<div\b[^>]*data-better-edit-image-row[^>]*style="([^"]*)"/.exec(trimmed);
+	const outerStyle = outerMatch?.[1] ?? '';
+
+	const gapStr = extractStyleProp(outerStyle, 'gap');
+	const gap = gapStr ? (parseInt(gapStr, 10) || 10) : 10;
+	const justify = (extractStyleProp(outerStyle, 'justify-content') as RowJustify | null) ?? 'flex-start';
+	const wrap = extractStyleProp(outerStyle, 'flex-wrap') ?? 'nowrap';
+	const alignItems = extractStyleProp(outerStyle, 'align-items') ?? 'flex-start';
+
+	const images: (SingleImageBlock | PlaceholderBlock)[] = [];
+	const CHILD_MARKER = '<div data-better-edit-image=';
+	let pos = 0;
+
+	while (true) {
+		const childStart = trimmed.indexOf(CHILD_MARKER, pos);
+		if (childStart === -1) break;
+		const childEnd = findBlockEnd(trimmed, childStart);
+		if (childEnd === -1) break;
+		const child = parseImageBlock(trimmed.slice(childStart, childEnd));
+		if (child && child.kind !== 'row') images.push(child);
+		pos = childEnd;
+	}
+
+	return { kind: 'row', images, gap, justify, wrap, alignItems };
 }
 
 // ---------------------------------------------------------------------------

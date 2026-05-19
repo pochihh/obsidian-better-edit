@@ -98,9 +98,7 @@ body .be-block-controls > button.be-block-handle:active {
 }
 
 .be-block-tooltip {
-	position: absolute;
-	top: 28px;
-	left: 0;
+	position: fixed;
 	display: none;
 	white-space: nowrap;
 	padding: 6px 8px;
@@ -111,6 +109,7 @@ body .be-block-controls > button.be-block-handle:active {
 	box-shadow: var(--shadow-s);
 	font-size: 12px;
 	line-height: 1.2;
+	z-index: 50;
 }
 
 .be-block-tooltip.is-visible {

@@ -21,9 +21,18 @@ export default class BetterEditPlugin extends Plugin {
 		this.registerEditorExtension(createBlocksExtension(this));
 		this.registerEditorExtension(createSlashCommandExtension(this));
 		this.registerEditorExtension(createTextStylingExtension(this));
+
+		this.syncBodyClasses();
 	}
 
-	onunload() {}
+	onunload() {
+		document.body.removeClass('be-image-rows-active');
+	}
+
+	syncBodyClasses(): void {
+		const rowsActive = this.settings.image.enabled && this.settings.image.imageRows;
+		document.body.toggleClass('be-image-rows-active', rowsActive);
+	}
 
 	async loadSettings() {
 		const raw = await this.loadData() as Record<string, unknown> | null;

@@ -14,7 +14,7 @@ import { EditorSelection, EditorState, Extension, Prec } from '@codemirror/state
 import { App, editorLivePreviewField } from 'obsidian';
 import { registerPasteDropHandlers } from './paste-handler';
 import { createImageDecorationField, createImageWidgetExtension, imageFeatureEnabledEffect } from './widget';
-import { parseImageBlock, findBlockEnd } from './html-schema';
+import { parseImageBlock, parseImageRowBlock, findBlockEnd } from './html-schema';
 import { imageSelectionField, deselectImageBlock } from './selection';
 import type BetterEditPlugin from '../../main';
 
@@ -201,20 +201,28 @@ function getSelectedImage(state: EditorState) {
 function findManagedImageRanges(state: EditorState): Array<{ from: number; to: number }> {
 	const ranges: Array<{ from: number; to: number }> = [];
 	const fullText = state.doc.toString();
-	const openMarker = '<div data-better-edit-image=';
+	const SINGLE_MARKER = '<div data-better-edit-image=';
+	const ROW_MARKER    = '<div data-better-edit-image-row';
 	let searchFrom = 0;
 
 	while (true) {
-		const openIdx = fullText.indexOf(openMarker, searchFrom);
-		if (openIdx === -1) break;
+		const singleIdx = fullText.indexOf(SINGLE_MARKER, searchFrom);
+		const rowIdx    = fullText.indexOf(ROW_MARKER, searchFrom);
+
+		let openIdx: number;
+		let isRow: boolean;
+		if (singleIdx === -1 && rowIdx === -1) break;
+		if (singleIdx === -1)        { openIdx = rowIdx;    isRow = true;  }
+		else if (rowIdx === -1)      { openIdx = singleIdx; isRow = false; }
+		else if (rowIdx < singleIdx) { openIdx = rowIdx;    isRow = true;  }
+		else                         { openIdx = singleIdx; isRow = false; }
 
 		const blockEnd = findBlockEnd(fullText, openIdx);
 		if (blockEnd === -1) break;
 
 		const rawHtml = fullText.slice(openIdx, blockEnd);
-		if (parseImageBlock(rawHtml)) {
-			ranges.push({ from: openIdx, to: blockEnd });
-		}
+		const valid = isRow ? parseImageRowBlock(rawHtml) : parseImageBlock(rawHtml);
+		if (valid) ranges.push({ from: openIdx, to: blockEnd });
 		searchFrom = blockEnd;
 	}
 

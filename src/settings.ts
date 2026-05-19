@@ -31,6 +31,7 @@ export const DEFAULT_SETTINGS: BetterEditSettings = {
 type PluginWithSettings = Plugin & {
 	settings: BetterEditSettings;
 	saveSettings: () => Promise<void>;
+	syncBodyClasses: () => void;
 };
 
 export class BetterEditSettingTab extends PluginSettingTab {
@@ -100,8 +101,15 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			'Image Arrangement',
 			'Intercept image paste and drop to insert resizable, croppable HTML image blocks.',
 			() => s().enabled,
-			async (v) => { s().enabled = v; await save(); refreshImageDecorations(this.plugin.app); },
+			async (v) => { s().enabled = v; await save(); refreshImageDecorations(this.plugin.app); this.plugin.syncBodyClasses(); },
 			(body) => {
+				new Setting(body)
+					.setName('Image rows')
+					.setDesc('Enable multi-image rows — group images side by side with a shared row toolbar.')
+					.addToggle(toggle => toggle
+						.setValue(s().imageRows)
+						.onChange(async (value) => { s().imageRows = value; await save(); refreshImageDecorations(this.plugin.app); this.plugin.syncBodyClasses(); }));
+
 				new Setting(body)
 					.setName('Handle pasted images')
 					.setDesc('Save pasted image data and insert image blocks.')

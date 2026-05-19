@@ -347,10 +347,12 @@
 	pointer-events: none;
 }
 
+/* Icon size: single knob for all toolbar icons. SVG viewBox padding (set in Illustrator)
+   is the only visual inset — no additional shrinkage is applied here. */
 .be-toolbar-icon {
 	display: block;
-	width: 14px !important;
-	height: 14px !important;
+	width: 20px !important;
+	height: 20px !important;
 }
 
 .be-toolbar-sep {
@@ -362,30 +364,6 @@
 	flex-shrink: 0;
 }
 
-.be-toolbar-tooltip {
-	position: fixed;
-	left: 0;
-	top: 0;
-	transform: translate(-50%, calc(-100% - 8px));
-	padding: 6px 10px;
-	border-radius: 6px;
-	background: var(--background-tooltip, rgba(22, 22, 22, 0.98));
-	border: 1px solid var(--background-modifier-border);
-	box-shadow: var(--shadow-s);
-	color: var(--text-on-accent, rgba(255, 255, 255, 0.94));
-	font-size: 12px;
-	font-weight: 500;
-	line-height: 1;
-	white-space: nowrap;
-	opacity: 0;
-	pointer-events: none;
-	transition: opacity 120ms ease;
-	z-index: 1000;
-}
-
-.be-toolbar-tooltip.is-visible {
-	opacity: 1;
-}
 
 /* ── Shared replace/import panel primitives ──────────────────────────────*/
 .be-replace-panel {
@@ -842,9 +820,7 @@ body .be-block-controls > button.be-block-handle:active {
 }
 
 .be-block-tooltip {
-	position: absolute;
-	top: 28px;
-	left: 0;
+	position: fixed;
 	display: none;
 	white-space: nowrap;
 	padding: 6px 8px;
@@ -855,6 +831,7 @@ body .be-block-controls > button.be-block-handle:active {
 	box-shadow: var(--shadow-s);
 	font-size: 12px;
 	line-height: 1.2;
+	z-index: 50;
 }
 
 .be-block-tooltip.is-visible {
@@ -1052,6 +1029,31 @@ body .be-block-controls > button.be-block-handle:active {
 	cursor: pointer;
 	user-select: none;
 	transition: background 100ms ease, color 100ms ease;
+	position: relative;
+}
+
+/* ── Placeholder more button ──────────────────────────────────────────────*/
+.be-placeholder-more {
+	position: absolute !important;
+	right: 6px;
+	top: 50%;
+	transform: translateY(-50%);
+	opacity: 0;
+	pointer-events: none;
+	transition: opacity 120ms ease;
+}
+
+.be-image-placeholder:hover .be-placeholder-more,
+.be-image-placeholder.is-selected .be-placeholder-more {
+	opacity: 1;
+	pointer-events: auto;
+}
+
+/* Row variant: column layout, so anchor to top-right corner */
+.be-image-row-placeholder .be-placeholder-more {
+	top: 4px;
+	right: 4px;
+	transform: none;
 }
 
 .be-image-placeholder:hover {
@@ -1084,6 +1086,97 @@ body .be-block-controls > button.be-block-handle:active {
 	overflow: hidden;
 	text-overflow: ellipsis;
 	font-size: 0.9em;
+}
+
+/* ── Image row widget ─────────────────────────────────────────────────────*/
+.be-image-row-widget {
+	display: block;
+	position: relative;
+	max-width: 100%;
+	cursor: default;
+	padding: 2px 0;
+}
+
+.be-image-row {
+	display: flex;
+	align-items: flex-start;
+	flex-wrap: nowrap;
+	overflow: visible;
+}
+
+.be-image-row-item {
+	flex: 0 0 auto;
+	min-width: 0;
+	position: relative;
+	overflow: visible;
+}
+
+/* Row-level toolbar — vertical card hoisted to document.body by the blocks feature
+   and positioned below the gutter handle via inline position:fixed + top/left.
+   Show/hide via is-visible class. */
+.be-image-row-toolbar {
+	display: none;
+	flex-direction: column;
+	align-items: center;
+	background: var(--background-primary);
+	box-shadow: var(--shadow-s);
+	border: 1px solid var(--background-modifier-border);
+	border-radius: 6px;
+	padding: 2px;
+	z-index: 30;
+	pointer-events: auto;
+}
+
+.be-image-row-toolbar.is-visible {
+	display: flex;
+}
+
+/* When the row is shorter than the full toolbar, hide everything except the More button.
+   !important required to beat .be-toolbar-btn { display: flex !important } in shared.css. */
+.be-image-row-toolbar.is-collapsed > *:not(.be-row-toolbar-more) {
+	display: none !important;
+}
+
+/* Separator is horizontal inside the vertical toolbar */
+.be-image-row-toolbar .be-toolbar-sep {
+	width: 20px;
+	height: 1px;
+	background: var(--background-modifier-border);
+	margin: 2px 0;
+	flex-shrink: 0;
+}
+
+/* Placeholder inside a row — more compact than standalone version */
+.be-image-row-placeholder {
+	min-width: 80px;
+	padding: 12px 16px !important;
+	padding-inline-end: 16px !important;
+	flex-direction: column;
+	gap: 6px;
+	align-items: center;
+	justify-content: center;
+}
+
+.be-image-row-placeholder .be-image-placeholder-text {
+	font-size: 0.8em;
+	text-align: center;
+}
+
+/* Hide Obsidian's native embed only while the feature is active (body class toggled by JS).
+   Without this class, the inline-styled HTML renders as-is when the feature is off. */
+.be-image-rows-active .cm-html-embed:has([data-better-edit-image-row]) {
+	display: none !important;
+}
+
+/* Suppress edit button and chrome on the native embed (always safe — our widget is authoritative) */
+.cm-html-embed:has([data-better-edit-image-row]) > .edit-block-button {
+	display: none !important;
+}
+
+.cm-html-embed:has([data-better-edit-image-row]),
+.cm-html-embed:has([data-better-edit-image-row]):hover {
+	box-shadow: none !important;
+	outline: none !important;
 }
 
 /* ── Crop clip — in-flow block; padding-top% provides crop-window height ─*/

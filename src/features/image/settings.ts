@@ -2,6 +2,9 @@ export interface ImageSettings {
 	// General
 	enabled: boolean;
 
+	// Image rows
+	imageRows: boolean;
+
 	// Paste & Drop
 	handlePastedImages: boolean;
 	handleDroppedImages: boolean;
@@ -25,6 +28,7 @@ export interface ImageSettings {
 
 export const IMAGE_DEFAULT_SETTINGS: ImageSettings = {
 	enabled: true,
+	imageRows: true,
 	handlePastedImages: true,
 	handleDroppedImages: true,
 	defaultImageWidth: '100%',
