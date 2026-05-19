@@ -39,9 +39,6 @@ type DragState =
 	| { kind: 'dragging'; source: DragSource; slice: MoveSlice; target: DropBoundary | null };
 
 const DRAG_START_THRESHOLD_PX = 4;
-// Collapse the row toolbar to just the More button when the row height is within this many
-// pixels of the full toolbar height. Increase to collapse sooner, decrease to collapse later.
-const ROW_TOOLBAR_COLLAPSE_MARGIN_PX = 32;
 const BLOCK_GUTTER_RESERVE_PX = 64;
 const BLOCK_GUTTER_HIT_WIDTH_PX = 72;
 const BLOCK_GUTTER_INSET_PX = 4;
@@ -77,8 +74,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private activePointerId: number | null = null;
 		private visualRefreshFrame: number | null = null;
 		private selectedTableWidgetEl: HTMLElement | null = null;
-		private rowToolbarEl: HTMLElement | null = null;
-		private readonly hoistedRowToolbars = new Set<HTMLElement>();
 
 		constructor(view: EditorView) {
 			this.view = view;
@@ -156,9 +151,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.clearTooltipTimer();
 			this.clearVisualRefreshFrame();
 			this.clearNativeTableSelectionUi();
-			this.rowToolbarEl = null;
-			for (const t of this.hoistedRowToolbars) t.remove();
-			this.hoistedRowToolbars.clear();
 			this.view.dom.removeClass('be-block-gutter-enabled');
 			this.controlsEl.remove();
 			this.selectionEl.remove();
@@ -187,8 +179,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			}
 
 			if (this.controlsEl.contains(pointEl)) return;
-			if (this.rowToolbarEl !== null && this.rowToolbarEl.contains(pointEl)) return;
-
 			const contentRect = this.contentRect();
 			if (contentRect !== null && event.clientX < contentRect.left && event.clientX >= contentRect.left - BLOCK_GUTTER_HIT_WIDTH_PX) {
 				const gutterHit = this.lineHitFromY(event.clientY)
@@ -531,9 +521,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.controlsEl.style.top = `${controlTop}px`;
 			this.controlsEl.style.left = `${controlLeft}px`;
 			this.controlsEl.addClass('is-visible');
-			// Place row toolbar below the gutter handle, right-edge aligned with the handle's right edge.
-			const handleRect = this.controlsEl.getBoundingClientRect();
-			this.syncRowToolbar(handleRect.bottom + 4, handleRect.right);
 		}
 
 		private hideControls(): void {
@@ -542,96 +529,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.hoveredRect = null;
 			this.controlsEl.removeClass('is-visible');
 			this.hideTooltip();
-			this.hideRowToolbar();
-		}
-
-		private syncRowToolbar(top: number, rightEdge: number): void {
-			const rowWidget = this.hoveredBlock === null
-				? null
-				: this.findRowWidgetForBlock(this.hoveredBlock);
-
-			let toolbar: HTMLElement | null = null;
-
-			if (rowWidget !== null) {
-				const from = rowWidget.getAttribute('data-be-from') ?? '';
-
-				// If the widget still has the toolbar inside (not yet hoisted), take it.
-				const inWidget = rowWidget.querySelector<HTMLElement>('.be-image-row-toolbar');
-				if (inWidget !== null) {
-					// Remove any previously hoisted toolbar for the same position (stale after widget rebuild).
-					for (const t of this.hoistedRowToolbars) {
-						if (t.getAttribute('data-be-row-from') === from) {
-							t.remove();
-							this.hoistedRowToolbars.delete(t);
-							break;
-						}
-					}
-					inWidget.setAttribute('data-be-row-from', from);
-					// Hoist to body so position:fixed isn't broken by transform ancestors.
-					this.editorDocument().body.appendChild(inWidget);
-					this.hoistedRowToolbars.add(inWidget);
-					toolbar = inWidget;
-				} else {
-					// Already hoisted — find by position tag.
-					for (const t of this.hoistedRowToolbars) {
-						if (t.getAttribute('data-be-row-from') === from) {
-							toolbar = t;
-							break;
-						}
-					}
-				}
-
-				// Remove hoisted toolbars for other block positions (stale).
-				for (const t of [...this.hoistedRowToolbars]) {
-					if (t !== toolbar) {
-						t.remove();
-						this.hoistedRowToolbars.delete(t);
-					}
-				}
-			}
-
-			if (toolbar === null) {
-				this.hideRowToolbar();
-				return;
-			}
-
-			if (this.rowToolbarEl !== null && this.rowToolbarEl !== toolbar) {
-				this.rowToolbarEl.removeClass('is-visible');
-			}
-
-			toolbar.style.position = 'fixed';
-			toolbar.style.top = `${top}px`;
-			toolbar.style.left = 'auto';
-			toolbar.style.right = `${this.editorWindow().innerWidth - rightEdge}px`;
-			toolbar.addClass('is-visible');
-
-			// Collapse to just the More button when the row is shorter than the full toolbar.
-			// Always measure the *uncollapsed* height so we get a stable threshold —
-			// scrollHeight while collapsed only reflects the More button, causing oscillation.
-			toolbar.removeClass('is-collapsed');
-			const toolbarHeight = toolbar.scrollHeight;
-			const rowHeight = rowWidget?.getBoundingClientRect().height ?? Infinity;
-			toolbar.toggleClass('is-collapsed', rowHeight < toolbarHeight + ROW_TOOLBAR_COLLAPSE_MARGIN_PX);
-
-			this.rowToolbarEl = toolbar;
-		}
-
-		private hideRowToolbar(): void {
-			if (this.rowToolbarEl !== null) {
-				this.rowToolbarEl.removeClass('is-visible');
-				this.rowToolbarEl = null;
-			}
-		}
-
-		private findRowWidgetForBlock(block: BlockRange): HTMLElement | null {
-			const widgets = Array.from(this.view.dom.querySelectorAll('.be-image-row-widget'));
-			for (const widget of widgets) {
-				const from = widget.getAttribute('data-be-from');
-				if (from !== null && parseInt(from, 10) === block.from) {
-					return widget instanceof HTMLElement ? widget : null;
-				}
-			}
-			return null;
 		}
 
 		private positionDragVisuals(): void {

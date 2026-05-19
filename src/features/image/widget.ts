@@ -54,7 +54,61 @@ import type BetterEditPlugin from '../../main';
 // to recompute immediately — used when the enabled setting changes at runtime.
 export const imageFeatureEnabledEffect = StateEffect.define<boolean>();
 
-const ROW_DEFAULTS = { gap: 10, justify: 'flex-start' as const, wrap: 'nowrap', alignItems: 'flex-start' };
+const ROW_DEFAULTS = { gap: 8, justify: 'flex-start' as const, wrap: 'nowrap', alignItems: 'flex-start' };
+const IMAGE_DRAG_THRESHOLD_PX = 8;
+const IMAGE_DRAG_ROW_Y_TOLERANCE_PX = 12;
+const IMAGE_ROW_TOOLBAR_COLLAPSE_MARGIN_PX = 32;
+const IMAGE_ROW_TOOLBAR_RIGHT_EDGE_OFFSET_PX = -12;
+const IMAGE_ROW_TOOLBAR_TOP_OFFSET_PX = 28;
+const IMAGE_ROW_TOOLBAR_LEFT_HOVER_BAND_PX = 64;
+const IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX = 10;
+
+interface StandaloneDragSource {
+	kind: 'standalone';
+	from: number;
+	to: number;
+	block: SingleImageBlock | PlaceholderBlock;
+	sourceEl: HTMLElement;
+}
+
+interface RowItemDragSource {
+	kind: 'row-item';
+	rowFrom: number;
+	rowTo: number;
+	rowBlock: ImageRowBlock;
+	itemIndex: number;
+	block: SingleImageBlock | PlaceholderBlock;
+	sourceEl: HTMLElement;
+}
+
+type DragSource = StandaloneDragSource | RowItemDragSource;
+
+type DropTarget =
+	| {
+		kind: 'reorder';
+		rowFrom: number;
+		rowTo: number;
+		rowBlock: ImageRowBlock;
+		fromIndex: number;
+		toIndex: number;
+		rowEl: HTMLElement;
+	}
+	| {
+		kind: 'into-row';
+		rowFrom: number;
+		rowTo: number;
+		rowBlock: ImageRowBlock;
+		insertIndex: number;
+		rowEl: HTMLElement;
+	}
+	| {
+		kind: 'create-row';
+		targetFrom: number;
+		targetTo: number;
+		targetBlock: SingleImageBlock | PlaceholderBlock;
+		side: 'before' | 'after';
+		targetEl: HTMLElement;
+	};
 
 // ---------------------------------------------------------------------------
 // Widget — Placeholder
@@ -929,6 +983,791 @@ function decodeImageSrc(src: string): string {
 	}
 }
 
+function closeActiveImagePanels(): void {
+	activeDocument.querySelector('.be-replace-panel')?.remove();
+	activeDocument.querySelector('.be-alt-popover')?.remove();
+}
+
+function parseStandaloneBlockAtRange(state: EditorState, from: number, to: number): SingleImageBlock | PlaceholderBlock | null {
+	const block = parseImageBlock(state.doc.sliceString(from, to));
+	if (!block || block.kind === 'row') return null;
+	return block;
+}
+
+function parseRowBlockAtRange(state: EditorState, from: number, to: number): ImageRowBlock | null {
+	return parseImageRowBlock(state.doc.sliceString(from, to));
+}
+
+function clampInsertIndex(insertIndex: number, length: number): number {
+	return Math.max(0, Math.min(length, insertIndex));
+}
+
+function reorderRowImages(images: (SingleImageBlock | PlaceholderBlock)[], fromIndex: number, insertIndex: number): (SingleImageBlock | PlaceholderBlock)[] {
+	const next = [...images];
+	const [moved] = next.splice(fromIndex, 1);
+	if (!moved) return images;
+	const normalizedIndex = insertIndex > fromIndex ? insertIndex - 1 : insertIndex;
+	next.splice(clampInsertIndex(normalizedIndex, next.length), 0, moved);
+	return next;
+}
+
+function removeStandaloneBlockRange(state: EditorState, from: number, to: number): { from: number; to: number } {
+	const text = state.doc.toString();
+	let nextFrom = from;
+	let nextTo = to;
+	if (nextTo < text.length && text[nextTo] === '\n') nextTo += 1;
+	else if (nextFrom > 0 && text[nextFrom - 1] === '\n') nextFrom -= 1;
+	return { from: nextFrom, to: nextTo };
+}
+
+function buildStandaloneRowItems(source: SingleImageBlock | PlaceholderBlock, target: SingleImageBlock | PlaceholderBlock, side: 'before' | 'after'): (SingleImageBlock | PlaceholderBlock)[] {
+	return side === 'before' ? [source, target] : [target, source];
+}
+
+function suppressNextClick(doc: Document): void {
+	const swallow = (event: MouseEvent) => {
+		event.preventDefault();
+		event.stopPropagation();
+		doc.removeEventListener('click', swallow, true);
+	};
+	doc.addEventListener('click', swallow, true);
+}
+
+function resolveStandaloneFrame(widgetEl: HTMLElement): HTMLElement {
+	return widgetEl.querySelector<HTMLElement>('.be-image-frame, .be-image-placeholder') ?? widgetEl;
+}
+
+function computeRowInsertIndex(rowEl: HTMLElement, clientX: number): number {
+	const items = Array.from(rowEl.querySelectorAll<HTMLElement>(':scope > .be-image-row-item'));
+	for (let i = 0; i < items.length; i++) {
+		const rect = items[i]!.getBoundingClientRect();
+		if (clientX < rect.left + rect.width / 2) return i;
+	}
+	return items.length;
+}
+
+function computeRowIndicatorLeft(rowEl: HTMLElement, insertIndex: number): number {
+	const items = Array.from(rowEl.querySelectorAll<HTMLElement>(':scope > .be-image-row-item'));
+	if (items.length === 0) return rowEl.getBoundingClientRect().left;
+	if (insertIndex <= 0) return items[0]!.getBoundingClientRect().left;
+	if (insertIndex >= items.length) return items[items.length - 1]!.getBoundingClientRect().right;
+	return items[insertIndex]!.getBoundingClientRect().left;
+}
+
+function isImageDragExcludedTarget(target: Element): boolean {
+	return !!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption, .be-image-alt-badge, .be-replace-panel, .be-alt-popover, .be-row-toolbar-more, .be-image-row-toolbar');
+}
+
+interface ResolvedRowState {
+	rowWidget: HTMLElement;
+	rowEl: HTMLElement;
+	from: number;
+	to: number;
+	block: ImageRowBlock;
+	rawHtml: string;
+}
+
+function resolveRowStateFromWidget(view: EditorView, rowWidget: HTMLElement): ResolvedRowState | null {
+	const from = parseInt(rowWidget.dataset.beFrom ?? '', 10);
+	const to = parseInt(rowWidget.dataset.beTo ?? '', 10);
+	if (Number.isNaN(from) || Number.isNaN(to)) return null;
+	const rowEl = rowWidget.querySelector<HTMLElement>('.be-image-row');
+	if (rowEl === null) return null;
+	const rawHtml = view.state.doc.sliceString(from, to);
+	const block = parseImageRowBlock(rawHtml);
+	if (block === null) return null;
+	return { rowWidget, rowEl, from, to, block, rawHtml };
+}
+
+function resolveRowStateByFrom(view: EditorView, rowFrom: number): ResolvedRowState | null {
+	const rowWidget = view.dom.querySelector<HTMLElement>(`.be-image-row-widget[data-be-from="${rowFrom}"]`);
+	return rowWidget === null ? null : resolveRowStateFromWidget(view, rowWidget);
+}
+
+function dispatchRowBlockUpdate(view: EditorView, plugin: BetterEditPlugin, row: ResolvedRowState, nextBlock: ImageRowBlock): void {
+	view.dispatch({
+		changes: {
+			from: row.from,
+			to: row.to,
+			insert: imageRowHtml(
+				nextBlock.images,
+				nextBlock.gap,
+				nextBlock.justify,
+				nextBlock.wrap,
+				nextBlock.alignItems,
+				plugin.settings.image.imageCornerRadiusPx,
+			),
+		},
+	});
+}
+
+function duplicateRowState(view: EditorView, row: ResolvedRowState): void {
+	const doc = view.state.doc;
+	const insertAt = row.to < doc.length && doc.sliceString(row.to, row.to + 1) === '\n'
+		? row.to + 1
+		: row.to;
+	view.dispatch({ changes: { from: insertAt, to: insertAt, insert: row.rawHtml + '\n' } });
+}
+
+function deleteRowState(view: EditorView, row: ResolvedRowState): void {
+	view.dispatch({ changes: { from: row.from, to: row.to, insert: '' } });
+}
+
+class ImageRowToolbarController {
+	private activeRow: ResolvedRowState | null = null;
+	private readonly toolbarEl: HTMLElement;
+	private readonly addBtn: HTMLButtonElement;
+	private readonly justifyButtons = new Map<RowJustify, HTMLButtonElement>();
+	private readonly moreBtn: HTMLButtonElement;
+
+	constructor(private readonly view: EditorView, private readonly plugin: BetterEditPlugin) {
+		const doc = view.dom.ownerDocument;
+		this.toolbarEl = createDiv({ cls: 'be-image-row-toolbar' });
+		this.toolbarEl.setCssProps({ position: 'fixed' });
+		this.addBtn = createEl('button', { cls: 'be-toolbar-btn', attr: { type: 'button' } });
+		setIcon(this.addBtn, 'image');
+		setTooltip(this.addBtn, 'Add image');
+		this.toolbarEl.appendChild(this.addBtn);
+		this.toolbarEl.appendChild(createDiv({ cls: 'be-toolbar-sep' }));
+
+		for (const { value, icon, title } of [
+			{ value: 'flex-start' as RowJustify, icon: 'row-justify-left' as ImageIconName, title: 'Justify: start' },
+			{ value: 'center' as RowJustify, icon: 'row-justify-center' as ImageIconName, title: 'Justify: center' },
+			{ value: 'space-between' as RowJustify, icon: 'row-justify-space-between' as ImageIconName, title: 'Justify: space between' },
+		]) {
+			const btn = createToolbarButton(plugin, icon, title);
+			this.justifyButtons.set(value, btn);
+			this.toolbarEl.appendChild(btn);
+		}
+
+		this.toolbarEl.appendChild(createDiv({ cls: 'be-toolbar-sep' }));
+		this.moreBtn = createToolbarButton(plugin, 'more', 'More');
+		this.moreBtn.addClass('be-row-toolbar-more');
+		this.toolbarEl.appendChild(this.moreBtn);
+		doc.body.appendChild(this.toolbarEl);
+
+		plugin.registerDomEvent(this.toolbarEl, 'mousedown', (event: MouseEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+		});
+		plugin.registerDomEvent(this.addBtn, 'click', (event: MouseEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			const row = this.resolveActiveRow();
+			if (row === null) return;
+			dispatchRowBlockUpdate(view, plugin, row, { ...row.block, images: [...row.block.images, { kind: 'placeholder' }] });
+			this.refreshActiveRow();
+		});
+		for (const [value, btn] of this.justifyButtons) {
+			plugin.registerDomEvent(btn, 'click', (event: MouseEvent) => {
+				event.preventDefault();
+				event.stopPropagation();
+				const row = this.resolveActiveRow();
+				if (row === null) return;
+				dispatchRowBlockUpdate(view, plugin, row, { ...row.block, justify: value });
+				this.refreshActiveRow();
+			});
+		}
+		plugin.registerDomEvent(this.moreBtn, 'click', (event: MouseEvent) => {
+			event.preventDefault();
+			event.stopPropagation();
+			this.showMoreMenu(event);
+		});
+
+		plugin.registerDomEvent(doc, 'pointermove', (event: PointerEvent) => this.onPointerMove(event), { capture: true });
+		plugin.registerDomEvent(view.scrollDOM, 'scroll', () => this.positionActiveToolbar(), { passive: true });
+	}
+
+	update(): void {
+		this.refreshActiveRow();
+	}
+
+	destroy(): void {
+		this.toolbarEl.remove();
+	}
+
+	private onPointerMove(event: PointerEvent): void {
+		if (!this.plugin.settings.image.enabled || !this.plugin.settings.image.imageRows) {
+			this.hide();
+			return;
+		}
+		if (this.view.dom.ownerDocument.body.hasClass('be-image-dragging')) {
+			this.hide();
+			return;
+		}
+
+		const target = event.target;
+		if (!(target instanceof Element)) {
+			this.hide();
+			return;
+		}
+
+		if (this.isWithinActiveToolbarZone(event.clientX, event.clientY, target)) {
+			this.positionActiveToolbar();
+			return;
+		}
+
+		const hoveredRow = this.findHoveredRow(event.clientX, event.clientY);
+		if (hoveredRow === null) {
+			this.hide();
+			return;
+		}
+		this.activeRow = hoveredRow;
+		this.positionActiveToolbar();
+	}
+
+	private findHoveredRow(clientX: number, clientY: number): ResolvedRowState | null {
+		const rowWidgets = Array.from(this.view.dom.querySelectorAll<HTMLElement>('.be-image-row-widget[data-be-from]'));
+		for (const rowWidget of rowWidgets) {
+			const row = resolveRowStateFromWidget(this.view, rowWidget);
+			if (row === null) continue;
+			const rowRect = row.rowEl.getBoundingClientRect();
+			const left = rowRect.left - IMAGE_ROW_TOOLBAR_LEFT_HOVER_BAND_PX;
+			const right = rowRect.right + IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX;
+			const top = rowRect.top - IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX;
+			const bottom = rowRect.bottom + IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX;
+			if (clientX < left || clientX > right || clientY < top || clientY > bottom) continue;
+			return row;
+		}
+		return null;
+	}
+
+	private isWithinActiveToolbarZone(clientX: number, clientY: number, target: Element): boolean {
+		if (this.activeRow === null) return false;
+		if (this.activeRow.rowWidget.contains(target) || this.toolbarEl.contains(target)) return true;
+
+		const rowRect = this.activeRow.rowEl.getBoundingClientRect();
+		const toolbarRect = this.toolbarEl.getBoundingClientRect();
+		const left = Math.min(rowRect.left - IMAGE_ROW_TOOLBAR_LEFT_HOVER_BAND_PX, toolbarRect.left) - IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX;
+		const right = Math.max(rowRect.right, toolbarRect.right) + IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX;
+		const top = Math.min(rowRect.top, toolbarRect.top) - IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX;
+		const bottom = Math.max(rowRect.bottom, toolbarRect.bottom) + IMAGE_ROW_TOOLBAR_HOVER_PADDING_PX;
+		return clientX >= left && clientX <= right && clientY >= top && clientY <= bottom;
+	}
+
+	private positionActiveToolbar(): void {
+		if (this.activeRow === null) return;
+		this.syncButtonState(this.activeRow.block);
+		this.toolbarEl.removeClass('is-collapsed');
+		const toolbarHeight = this.toolbarEl.scrollHeight;
+		const rowRect = this.activeRow.rowEl.getBoundingClientRect();
+		this.toolbarEl.toggleClass('is-collapsed', rowRect.height < toolbarHeight + IMAGE_ROW_TOOLBAR_COLLAPSE_MARGIN_PX);
+		const toolbarWidth = this.toolbarEl.getBoundingClientRect().width;
+		const contentRect = this.view.contentDOM.closest('.cm-contentContainer')?.getBoundingClientRect() ?? this.view.dom.getBoundingClientRect();
+		const left = contentRect.left + IMAGE_ROW_TOOLBAR_RIGHT_EDGE_OFFSET_PX - toolbarWidth;
+		this.toolbarEl.setCssProps({
+			position: 'fixed',
+			top: `${rowRect.top + IMAGE_ROW_TOOLBAR_TOP_OFFSET_PX}px`,
+			left: `${left}px`,
+			right: '',
+		});
+		this.toolbarEl.addClass('is-visible');
+	}
+
+	private syncButtonState(block: ImageRowBlock): void {
+		for (const [value, button] of this.justifyButtons) {
+			button.toggleClass('is-active', block.justify === value);
+		}
+	}
+
+	private resolveActiveRow(): ResolvedRowState | null {
+		const row = this.activeRow;
+		if (row === null) return null;
+		return resolveRowStateByFrom(this.view, row.from);
+	}
+
+	private refreshActiveRow(): void {
+		if (this.activeRow === null) return;
+		const refreshed = resolveRowStateByFrom(this.view, this.activeRow.from);
+		if (refreshed === null) {
+			this.hide();
+			return;
+		}
+		this.activeRow = refreshed;
+		if (this.toolbarEl.hasClass('is-visible')) this.positionActiveToolbar();
+	}
+
+	private hide(): void {
+		this.toolbarEl.removeClass('is-visible');
+		this.toolbarEl.removeClass('is-collapsed');
+		this.activeRow = null;
+	}
+
+	private showMoreMenu(event: MouseEvent): void {
+		const row = this.resolveActiveRow();
+		if (row === null) return;
+		const menu = new Menu();
+
+		menu.addItem(item => {
+			item.setTitle('Justify content');
+			item.setSection('layout');
+			item.setIcon('align-justify');
+			const sub = (item as any).setSubmenu() as Menu;
+			for (const [title, value] of [
+				['Flex start', 'flex-start'],
+				['Flex end', 'flex-end'],
+				['Center', 'center'],
+				['Space between', 'space-between'],
+				['Space around', 'space-around'],
+				['Space evenly', 'space-evenly'],
+			] as const) {
+				sub.addItem((si: MenuItem) => {
+					si.setTitle(title);
+					si.setChecked(row.block.justify === value);
+					si.onClick(() => {
+						const current = this.resolveActiveRow();
+						if (current === null) return;
+						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, justify: value });
+						this.refreshActiveRow();
+					});
+				});
+			}
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Align items');
+			item.setSection('layout');
+			item.setIcon('align-vertical-distribute-center');
+			const sub = (item as any).setSubmenu() as Menu;
+			for (const [title, value] of [
+				['Start', 'flex-start'],
+				['Center', 'center'],
+				['End', 'flex-end'],
+				['Stretch', 'stretch'],
+				['Baseline', 'baseline'],
+			] as const) {
+				sub.addItem((si: MenuItem) => {
+					si.setTitle(title);
+					si.setChecked(row.block.alignItems === value);
+					si.onClick(() => {
+						const current = this.resolveActiveRow();
+						if (current === null) return;
+						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, alignItems: value });
+						this.refreshActiveRow();
+					});
+				});
+			}
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Wrap');
+			item.setSection('layout');
+			item.setIcon('wrap-text');
+			const sub = (item as any).setSubmenu() as Menu;
+			for (const [title, value] of [
+				['No wrap', 'nowrap'],
+				['Wrap', 'wrap'],
+				['Wrap reverse', 'wrap-reverse'],
+			] as const) {
+				sub.addItem((si: MenuItem) => {
+					si.setTitle(title);
+					si.setChecked(row.block.wrap === value);
+					si.onClick(() => {
+						const current = this.resolveActiveRow();
+						if (current === null) return;
+						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, wrap: value });
+						this.refreshActiveRow();
+					});
+				});
+			}
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Gap');
+			item.setSection('layout');
+			item.setIcon('ruler');
+			const sub = (item as any).setSubmenu() as Menu;
+			for (const px of [0, 8, 16, 24, 32, 40, 48, 56, 64]) {
+				sub.addItem((si: MenuItem) => {
+					si.setTitle(`${px}px`);
+					si.setChecked(row.block.gap === px);
+					si.onClick(() => {
+						const current = this.resolveActiveRow();
+						if (current === null) return;
+						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, gap: px });
+						this.refreshActiveRow();
+					});
+				});
+			}
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Reset to defaults');
+			item.setSection('layout');
+			item.setIcon('rotate-ccw');
+			item.onClick(() => {
+				const current = this.resolveActiveRow();
+				if (current === null) return;
+				dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, ...ROW_DEFAULTS });
+				this.refreshActiveRow();
+			});
+		});
+
+		menu.addItem(item => {
+			item.setTitle('Add image');
+			item.setSection('actions');
+			item.setIcon('image');
+			item.onClick(() => {
+				const current = this.resolveActiveRow();
+				if (current === null) return;
+				dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, images: [...current.block.images, { kind: 'placeholder' }] });
+				this.refreshActiveRow();
+			});
+		});
+		menu.addItem(item => {
+			item.setTitle('Copy HTML');
+			item.setSection('actions');
+			item.setIcon('copy');
+			item.onClick(() => navigator.clipboard.writeText(row.rawHtml));
+		});
+		menu.addItem(item => {
+			item.setTitle('Duplicate row');
+			item.setSection('actions');
+			item.setIcon('copy-plus');
+			item.onClick(() => {
+				const current = this.resolveActiveRow();
+				if (current === null) return;
+				duplicateRowState(this.view, current);
+			});
+		});
+		menu.addItem(item => {
+			item.setTitle('Delete row');
+			item.setSection('actions');
+			item.setIcon('trash');
+			item.onClick(() => {
+				const current = this.resolveActiveRow();
+				if (current === null) return;
+				deleteRowState(this.view, current);
+				this.hide();
+			});
+		});
+
+		menu.showAtMouseEvent(event);
+	}
+}
+
+class ImageDragManager {
+	private source: DragSource | null = null;
+	private dragStarted = false;
+	private startX = 0;
+	private startY = 0;
+	private lastClientX = 0;
+	private lastClientY = 0;
+	private ghostEl: HTMLElement | null = null;
+	private rowIndicatorEl: HTMLElement | null = null;
+	private createRowIndicatorEl: HTMLElement | null = null;
+	private currentTarget: DropTarget | null = null;
+	private readonly doc: Document;
+	private readonly scrollerEl: HTMLElement | null;
+	private readonly onMouseMoveBound = (event: MouseEvent) => this.onMouseMove(event);
+	private readonly onMouseUpBound = (event: MouseEvent) => this.onMouseUp(event);
+	private readonly onKeyDownBound = (event: KeyboardEvent) => this.onKeyDown(event);
+	private readonly onScrollBound = () => this.onScroll();
+
+	constructor(private readonly view: EditorView, private readonly plugin: BetterEditPlugin) {
+		this.doc = view.dom.ownerDocument;
+		this.scrollerEl = view.scrollDOM.closest('.cm-scroller');
+	}
+
+	tryStartDrag(event: MouseEvent): DragSource | null {
+		const target = event.target;
+		if (!(target instanceof Element)) return null;
+		if (isImageDragExcludedTarget(target)) return null;
+
+		const source = this.resolveDragSource(target);
+		if (!source) return null;
+
+		this.cancel();
+		this.source = source;
+		this.startX = event.clientX;
+		this.startY = event.clientY;
+		this.lastClientX = event.clientX;
+		this.lastClientY = event.clientY;
+		this.doc.addEventListener('mousemove', this.onMouseMoveBound, true);
+		this.doc.addEventListener('mouseup', this.onMouseUpBound, true);
+		this.doc.addEventListener('keydown', this.onKeyDownBound, true);
+		this.scrollerEl?.addEventListener('scroll', this.onScrollBound, { passive: true });
+		event.preventDefault();
+		return source;
+	}
+
+	destroy(): void {
+		this.cancel();
+	}
+
+	private resolveDragSource(target: Element): DragSource | null {
+		const rowItemEl = target.closest<HTMLElement>('.be-image-row-item');
+		const rowWidgetEl = rowItemEl?.closest<HTMLElement>('.be-image-row-widget[data-be-from][data-be-to]');
+		if (rowItemEl && rowWidgetEl) {
+			const rowFrom = parseInt(rowWidgetEl.dataset.beFrom ?? '', 10);
+			const rowTo = parseInt(rowWidgetEl.dataset.beTo ?? '', 10);
+			if (Number.isNaN(rowFrom) || Number.isNaN(rowTo)) return null;
+			const rowBlock = parseRowBlockAtRange(this.view.state, rowFrom, rowTo);
+			if (!rowBlock) return null;
+			const rowEl = rowWidgetEl.querySelector<HTMLElement>('.be-image-row');
+			if (!rowEl) return null;
+			const itemIndex = Array.from(rowEl.children).indexOf(rowItemEl);
+			const block = rowBlock.images[itemIndex];
+			if (itemIndex === -1 || !block) return null;
+			return { kind: 'row-item', rowFrom, rowTo, rowBlock, itemIndex, block, sourceEl: rowItemEl };
+		}
+
+		const widgetEl = target.closest<HTMLElement>('.be-image-widget[data-be-from][data-be-to]');
+		if (!widgetEl || widgetEl.dataset.beRow !== undefined) return null;
+		const from = parseInt(widgetEl.dataset.beFrom ?? '', 10);
+		const to = parseInt(widgetEl.dataset.beTo ?? '', 10);
+		if (Number.isNaN(from) || Number.isNaN(to)) return null;
+		const block = parseStandaloneBlockAtRange(this.view.state, from, to);
+		if (!block) return null;
+		return { kind: 'standalone', from, to, block, sourceEl: widgetEl };
+	}
+
+	private onMouseMove(event: MouseEvent): void {
+		if (!this.source) return;
+		this.lastClientX = event.clientX;
+		this.lastClientY = event.clientY;
+
+		if (!this.dragStarted) {
+			const deltaX = event.clientX - this.startX;
+			const deltaY = event.clientY - this.startY;
+			if (Math.hypot(deltaX, deltaY) < IMAGE_DRAG_THRESHOLD_PX) return;
+			this.startDragging();
+		}
+
+		event.preventDefault();
+		this.positionGhost();
+		this.updateDropTarget();
+	}
+
+	private onMouseUp(event: MouseEvent): void {
+		if (!this.source) return;
+		if (!this.dragStarted) {
+			this.clearListeners();
+			this.source = null;
+			return;
+		}
+
+		event.preventDefault();
+		this.executeDrop();
+		suppressNextClick(this.doc);
+		this.cancel();
+	}
+
+	private onKeyDown(event: KeyboardEvent): void {
+		if (event.key !== 'Escape') return;
+		if (!this.source) return;
+		event.preventDefault();
+		this.cancel();
+	}
+
+	private onScroll(): void {
+		if (!this.dragStarted) return;
+		this.updateDropTarget();
+	}
+
+	private startDragging(): void {
+		if (!this.source || this.dragStarted) return;
+		this.dragStarted = true;
+		closeActiveImagePanels();
+		this.doc.body.addClass('be-image-dragging');
+		this.source.sourceEl.addClass('is-drag-source');
+		this.positionGhost();
+		this.updateDropTarget();
+	}
+
+	private ensureGhost(): HTMLElement {
+		if (this.ghostEl) return this.ghostEl;
+		const ghost = createDiv({ cls: 'be-image-drag-ghost' });
+		const img = createEl('img');
+		const sourceImg = this.source?.sourceEl.querySelector<HTMLImageElement>('img');
+		if (sourceImg) img.src = sourceImg.currentSrc || sourceImg.src;
+		ghost.appendChild(img);
+		this.doc.body.appendChild(ghost);
+		this.ghostEl = ghost;
+		return ghost;
+	}
+
+	private positionGhost(): void {
+		if (!this.dragStarted) return;
+		const ghost = this.ensureGhost();
+		ghost.style.left = `${this.lastClientX + 18}px`;
+		ghost.style.top = `${this.lastClientY + 18}px`;
+	}
+
+	private ensureIndicators(): void {
+		if (!this.rowIndicatorEl) {
+			this.rowIndicatorEl = createDiv({ cls: 'be-image-row-drop-indicator' });
+			this.doc.body.appendChild(this.rowIndicatorEl);
+		}
+		if (!this.createRowIndicatorEl) {
+			this.createRowIndicatorEl = createDiv({ cls: 'be-image-create-row-indicator' });
+			this.doc.body.appendChild(this.createRowIndicatorEl);
+		}
+	}
+
+	private updateDropTarget(): void {
+		this.currentTarget = this.computeDropTarget(this.lastClientX, this.lastClientY);
+		this.renderDropIndicator();
+	}
+
+	private computeDropTarget(clientX: number, clientY: number): DropTarget | null {
+		const source = this.source;
+		if (!source) return null;
+
+		const rowWidgets = Array.from(this.view.dom.querySelectorAll<HTMLElement>('.be-image-row-widget[data-be-from][data-be-to]'));
+		for (const rowWidgetEl of rowWidgets) {
+			const rowEl = rowWidgetEl.querySelector<HTMLElement>('.be-image-row');
+			if (!rowEl) continue;
+			const rowRect = rowEl.getBoundingClientRect();
+			if (clientY < rowRect.top - IMAGE_DRAG_ROW_Y_TOLERANCE_PX || clientY > rowRect.bottom + IMAGE_DRAG_ROW_Y_TOLERANCE_PX) continue;
+
+			const rowFrom = parseInt(rowWidgetEl.dataset.beFrom ?? '', 10);
+			const rowTo = parseInt(rowWidgetEl.dataset.beTo ?? '', 10);
+			if (Number.isNaN(rowFrom) || Number.isNaN(rowTo)) continue;
+			const rowBlock = parseRowBlockAtRange(this.view.state, rowFrom, rowTo);
+			if (!rowBlock) continue;
+
+			const insertIndex = clampInsertIndex(computeRowInsertIndex(rowEl, clientX), rowBlock.images.length);
+			if (source.kind === 'row-item' && source.rowFrom === rowFrom && source.rowTo === rowTo) {
+				if (insertIndex === source.itemIndex || insertIndex === source.itemIndex + 1) return null;
+				return { kind: 'reorder', rowFrom, rowTo, rowBlock, fromIndex: source.itemIndex, toIndex: insertIndex, rowEl };
+			}
+			return { kind: 'into-row', rowFrom, rowTo, rowBlock, insertIndex, rowEl };
+		}
+
+		const widgets = Array.from(this.view.dom.querySelectorAll<HTMLElement>('.be-image-widget[data-be-from][data-be-to]'));
+		for (const widgetEl of widgets) {
+			if (widgetEl.dataset.beRow !== undefined) continue;
+			if (source.kind === 'standalone' && source.from === parseInt(widgetEl.dataset.beFrom ?? '', 10)) continue;
+			const frameEl = resolveStandaloneFrame(widgetEl);
+			const rect = frameEl.getBoundingClientRect();
+			if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) continue;
+
+			const targetFrom = parseInt(widgetEl.dataset.beFrom ?? '', 10);
+			const targetTo = parseInt(widgetEl.dataset.beTo ?? '', 10);
+			if (Number.isNaN(targetFrom) || Number.isNaN(targetTo)) continue;
+			const targetBlock = parseStandaloneBlockAtRange(this.view.state, targetFrom, targetTo);
+			if (!targetBlock) continue;
+			const side: 'before' | 'after' = clientX < rect.left + rect.width / 2 ? 'before' : 'after';
+			return { kind: 'create-row', targetFrom, targetTo, targetBlock, side, targetEl: frameEl };
+		}
+
+		return null;
+	}
+
+	private renderDropIndicator(): void {
+		this.ensureIndicators();
+		const rowIndicatorEl = this.rowIndicatorEl!;
+		const createRowIndicatorEl = this.createRowIndicatorEl!;
+		rowIndicatorEl.removeClass('is-visible');
+		createRowIndicatorEl.removeClass('is-visible', 'is-before', 'is-after');
+
+		if (!this.currentTarget) return;
+		if (this.currentTarget.kind === 'reorder' || this.currentTarget.kind === 'into-row') {
+			const rect = this.currentTarget.rowEl.getBoundingClientRect();
+			const insertIndex = this.currentTarget.kind === 'reorder' ? this.currentTarget.toIndex : this.currentTarget.insertIndex;
+			rowIndicatorEl.style.left = `${computeRowIndicatorLeft(this.currentTarget.rowEl, insertIndex) - 1}px`;
+			rowIndicatorEl.style.top = `${rect.top}px`;
+			rowIndicatorEl.style.height = `${rect.height}px`;
+			rowIndicatorEl.addClass('is-visible');
+			return;
+		}
+
+		const rect = this.currentTarget.targetEl.getBoundingClientRect();
+		createRowIndicatorEl.style.left = `${rect.left}px`;
+		createRowIndicatorEl.style.top = `${rect.top}px`;
+		createRowIndicatorEl.style.width = `${rect.width}px`;
+		createRowIndicatorEl.style.height = `${rect.height}px`;
+		createRowIndicatorEl.addClass('is-visible', this.currentTarget.side === 'before' ? 'is-before' : 'is-after');
+	}
+
+	private executeDrop(): void {
+		const source = this.source;
+		const target = this.currentTarget;
+		if (!source || !target) return;
+
+		if (target.kind === 'reorder') {
+			const rowBlock = parseRowBlockAtRange(this.view.state, target.rowFrom, target.rowTo);
+			if (!rowBlock) return;
+			const images = reorderRowImages(rowBlock.images, target.fromIndex, target.toIndex);
+			this.view.dispatch({
+				changes: {
+					from: target.rowFrom,
+					to: target.rowTo,
+					insert: imageRowHtml(images, rowBlock.gap, rowBlock.justify, rowBlock.wrap, rowBlock.alignItems, this.plugin.settings.image.imageCornerRadiusPx),
+				},
+				effects: deselectImageBlock.of(null),
+			});
+			return;
+		}
+
+		if (source.kind !== 'standalone') return;
+		const sourceBlock = parseStandaloneBlockAtRange(this.view.state, source.from, source.to);
+		if (!sourceBlock) return;
+
+		if (target.kind === 'into-row') {
+			const rowBlock = parseRowBlockAtRange(this.view.state, target.rowFrom, target.rowTo);
+			if (!rowBlock) return;
+			const nextImages = [...rowBlock.images];
+			nextImages.splice(clampInsertIndex(target.insertIndex, nextImages.length), 0, sourceBlock);
+			const sourceRemoval = removeStandaloneBlockRange(this.view.state, source.from, source.to);
+			this.view.dispatch({
+				changes: [
+					{
+						from: target.rowFrom,
+						to: target.rowTo,
+						insert: imageRowHtml(nextImages, rowBlock.gap, rowBlock.justify, rowBlock.wrap, rowBlock.alignItems, this.plugin.settings.image.imageCornerRadiusPx),
+					},
+					{ from: sourceRemoval.from, to: sourceRemoval.to, insert: '' },
+				],
+				effects: deselectImageBlock.of(null),
+			});
+			return;
+		}
+
+		const targetBlock = parseStandaloneBlockAtRange(this.view.state, target.targetFrom, target.targetTo);
+		if (!targetBlock) return;
+		const sourceRemoval = removeStandaloneBlockRange(this.view.state, source.from, source.to);
+		const rowHtml = imageRowHtml(
+			buildStandaloneRowItems(sourceBlock, targetBlock, target.side),
+			ROW_DEFAULTS.gap,
+			ROW_DEFAULTS.justify,
+			ROW_DEFAULTS.wrap,
+			ROW_DEFAULTS.alignItems,
+			this.plugin.settings.image.imageCornerRadiusPx,
+		);
+		this.view.dispatch({
+			changes: [
+				{ from: target.targetFrom, to: target.targetTo, insert: rowHtml },
+				{ from: sourceRemoval.from, to: sourceRemoval.to, insert: '' },
+			],
+			effects: deselectImageBlock.of(null),
+		});
+	}
+
+	cancel(): void {
+		this.clearListeners();
+		this.ghostEl?.remove();
+		this.ghostEl = null;
+		this.rowIndicatorEl?.remove();
+		this.rowIndicatorEl = null;
+		this.createRowIndicatorEl?.remove();
+		this.createRowIndicatorEl = null;
+		this.doc.body.removeClass('be-image-dragging');
+		this.source?.sourceEl.removeClass('is-drag-source');
+		this.source = null;
+		this.currentTarget = null;
+		this.dragStarted = false;
+	}
+
+	private clearListeners(): void {
+		this.doc.removeEventListener('mousemove', this.onMouseMoveBound, true);
+		this.doc.removeEventListener('mouseup', this.onMouseUpBound, true);
+		this.doc.removeEventListener('keydown', this.onKeyDownBound, true);
+		this.scrollerEl?.removeEventListener('scroll', this.onScrollBound);
+	}
+}
+
 // ---------------------------------------------------------------------------
 // Widget — Image row
 // ---------------------------------------------------------------------------
@@ -961,8 +1800,6 @@ class ImageRowWidget extends WidgetType {
 		wrapper.setAttribute('data-be-to',   String(this.to));
 		wrapper.setAttribute('data-be-row',  '');
 
-		wrapper.appendChild(this.buildRowToolbar(view));
-
 		const rowEl = createDiv({ cls: 'be-image-row' });
 		rowEl.style.gap = `${this.block.gap}px`;
 		rowEl.style.justifyContent = this.block.justify;
@@ -975,177 +1812,6 @@ class ImageRowWidget extends WidgetType {
 
 		wrapper.appendChild(rowEl);
 		return wrapper;
-	}
-
-	// ── Row-level toolbar ─────────────────────────────────────────────────────
-
-	private buildRowToolbar(view: EditorView): HTMLElement {
-		const bar = createDiv({ cls: 'be-image-row-toolbar' });
-
-		// Add image — Lucide 'image' icon, colour-safe in all themes
-		const addBtn = createEl('button', { cls: 'be-toolbar-btn', attr: { type: 'button' } });
-		setIcon(addBtn, 'image');
-		setTooltip(addBtn, 'Add image');
-		this.plugin.registerDomEvent(addBtn, 'click', (e: MouseEvent) => {
-			e.preventDefault(); e.stopPropagation();
-			this.updateRow(view, { ...this.block, images: [...this.block.images, { kind: 'placeholder' }] });
-		});
-		bar.appendChild(addBtn);
-
-		bar.appendChild(createDiv({ cls: 'be-toolbar-sep' }));
-
-		// Justify inline toggles — flex-start, center, space-between (flex-end is removed from here)
-		const justifyOptions: Array<{ value: RowJustify; icon: ImageIconName; title: string }> = [
-			{ value: 'flex-start',    icon: 'row-justify-left',          title: 'Justify: start'         },
-			{ value: 'center',        icon: 'row-justify-center',        title: 'Justify: center'        },
-			{ value: 'space-between', icon: 'row-justify-space-between', title: 'Justify: space between' },
-		];
-		for (const { value, icon, title } of justifyOptions) {
-			const btn = createToolbarButton(this.plugin, icon, title);
-			if (this.block.justify === value) btn.addClass('is-active');
-			this.plugin.registerDomEvent(btn, 'click', (e: MouseEvent) => {
-				e.preventDefault(); e.stopPropagation();
-				this.updateRow(view, { ...this.block, justify: value });
-			});
-			bar.appendChild(btn);
-		}
-
-		bar.appendChild(createDiv({ cls: 'be-toolbar-sep' }));
-
-		// More — wrap, align-items, space-around/evenly, copy, duplicate, delete
-		const moreBtn = createToolbarButton(this.plugin, 'more', 'More');
-		moreBtn.addClass('be-row-toolbar-more');
-		this.plugin.registerDomEvent(moreBtn, 'click', (e: MouseEvent) => {
-			e.preventDefault(); e.stopPropagation();
-			this.showMoreMenu(e, view);
-		});
-		bar.appendChild(moreBtn);
-
-		return bar;
-	}
-
-	private showMoreMenu(e: MouseEvent, view: EditorView): void {
-		const menu = new Menu();
-
-		// Justify content submenu — all 6 options including the 4 toolbar presets
-		menu.addItem(item => {
-			item.setTitle('Justify content');
-			item.setSection('layout');
-			item.setIcon('align-justify');
-			const sub = (item as any).setSubmenu() as Menu;
-			for (const [title, value] of [
-				['Flex start',    'flex-start'   ],
-				['Flex end',      'flex-end'     ],
-				['Center',        'center'       ],
-				['Space between', 'space-between'],
-				['Space around',  'space-around' ],
-				['Space evenly',  'space-evenly' ],
-			] as const) {
-				sub.addItem((si: MenuItem) => {
-					si.setTitle(title);
-					si.setChecked(this.block.justify === value);
-					si.onClick(() => this.updateRow(view, { ...this.block, justify: value }));
-				});
-			}
-		});
-
-		// Align items submenu
-		menu.addItem(item => {
-			item.setTitle('Align items');
-			item.setSection('layout');
-			item.setIcon('align-vertical-distribute-center');
-			const sub = (item as any).setSubmenu() as Menu;
-			for (const [title, value] of [
-				['Start',    'flex-start'],
-				['Center',   'center'   ],
-				['End',      'flex-end' ],
-				['Stretch',  'stretch'  ],
-				['Baseline', 'baseline' ],
-			] as const) {
-				sub.addItem((si: MenuItem) => {
-					si.setTitle(title);
-					si.setChecked(this.block.alignItems === value);
-					si.onClick(() => this.updateRow(view, { ...this.block, alignItems: value }));
-				});
-			}
-		});
-
-		// Wrap submenu
-		menu.addItem(item => {
-			item.setTitle('Wrap');
-			item.setSection('layout');
-			item.setIcon('wrap-text');
-			const sub = (item as any).setSubmenu() as Menu;
-			for (const [title, value] of [
-				['No wrap',      'nowrap'      ],
-				['Wrap',         'wrap'        ],
-				['Wrap reverse', 'wrap-reverse'],
-			] as const) {
-				sub.addItem((si: MenuItem) => {
-					si.setTitle(title);
-					si.setChecked(this.block.wrap === value);
-					si.onClick(() => this.updateRow(view, { ...this.block, wrap: value }));
-				});
-			}
-		});
-
-		// Gap submenu — preset pixel values
-		menu.addItem(item => {
-			item.setTitle('Gap');
-			item.setSection('layout');
-			item.setIcon('ruler');
-			const sub = (item as any).setSubmenu() as Menu;
-			for (const px of [0, 8, 16, 24, 32, 40, 48, 56, 64]) {
-				sub.addItem((si: MenuItem) => {
-					si.setTitle(`${px}px`);
-					si.setChecked(this.block.gap === px);
-					si.onClick(() => this.updateRow(view, { ...this.block, gap: px }));
-				});
-			}
-		});
-
-		menu.addItem(item => {
-			item.setTitle('Reset to defaults');
-			item.setSection('layout');
-			item.setIcon('rotate-ccw');
-			item.onClick(() => this.updateRow(view, { ...this.block, ...ROW_DEFAULTS }));
-		});
-
-		// Actions
-		menu.addItem(item => {
-			item.setTitle('Add image');
-			item.setSection('actions');
-			item.setIcon('image');
-			item.onClick(() => this.updateRow(view, { ...this.block, images: [...this.block.images, { kind: 'placeholder' }] }));
-		});
-		menu.addItem(item => {
-			item.setTitle('Copy HTML');
-			item.setSection('actions');
-			item.setIcon('copy');
-			item.onClick(() => navigator.clipboard.writeText(this.rawHtml));
-		});
-		menu.addItem(item => {
-			item.setTitle('Duplicate row');
-			item.setSection('actions');
-			item.setIcon('copy-plus');
-			item.onClick(() => this.duplicateRow(view));
-		});
-		menu.addItem(item => {
-			item.setTitle('Delete row');
-			item.setSection('actions');
-			item.setIcon('trash');
-			item.onClick(() => view.dispatch({ changes: { from: this.from, to: this.to, insert: '' } }));
-		});
-
-		menu.showAtMouseEvent(e);
-	}
-
-	private duplicateRow(view: EditorView): void {
-		const doc = view.state.doc;
-		const insertAt = this.to < doc.length && doc.sliceString(this.to, this.to + 1) === '\n'
-			? this.to + 1
-			: this.to;
-		view.dispatch({ changes: { from: insertAt, to: insertAt, insert: this.rawHtml + '\n' } });
 	}
 
 	// ── Per-item rendering ────────────────────────────────────────────────────
@@ -1746,7 +2412,13 @@ export function createImageDecorationField(plugin: BetterEditPlugin): Extension 
 export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension {
 	return ViewPlugin.fromClass(
 			class {
+				private readonly dragManager: ImageDragManager;
+				private readonly rowToolbarController: ImageRowToolbarController;
+
 				constructor(view: EditorView) {
+					this.dragManager = new ImageDragManager(view, plugin);
+					this.rowToolbarController = new ImageRowToolbarController(view, plugin);
+
 					plugin.registerDomEvent(view.dom, 'drop', () => {
 						if (!plugin.settings.image.enabled) return;
 						if (!plugin.settings.image.handleDroppedImages) return;
@@ -1755,37 +2427,60 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 
 					plugin.registerDomEvent(view.dom, 'mousedown', (event: MouseEvent) => {
 						const target = event.target;
-					if (!(target instanceof Element)) return;
-					if (target.closest('.be-resize-handle, .be-image-toolbar, .be-image-caption, .be-image-alt-badge, .be-image-placeholder')) return;
+						if (!(target instanceof Element)) return;
 
-					const hitWidget = target.closest<HTMLElement>('[data-be-from]');
-					if (hitWidget) {
-						const from = parseInt(hitWidget.dataset.beFrom ?? '', 10);
-						const to   = parseInt(hitWidget.dataset.beTo   ?? '', 10);
-						if (isNaN(from) || isNaN(to)) return;
-
-						if (hitWidget.dataset.beRow !== undefined) {
-							// Row widget — prevent cursor placement inside source HTML but
-							// do not use the single-image selection model.
-							if (!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption, .be-image-placeholder, .be-image-row-toolbar')) {
-								event.preventDefault();
-							}
+						const dragSource = this.dragManager.tryStartDrag(event);
+						if (dragSource?.kind === 'standalone') {
+							view.dispatch({
+								selection: { anchor: dragSource.from },
+								effects: selectImageBlock.of({ from: dragSource.from, to: dragSource.to }),
+							});
+							view.focus();
+							return;
+						}
+						if (dragSource?.kind === 'row-item') {
 							return;
 						}
 
-						if (!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption, .be-image-placeholder')) {
-							event.preventDefault();
+						if (target.closest('.be-resize-handle, .be-image-toolbar, .be-image-caption, .be-image-alt-badge, .be-image-placeholder')) return;
+
+						const hitWidget = target.closest<HTMLElement>('[data-be-from]');
+						if (hitWidget) {
+							const from = parseInt(hitWidget.dataset.beFrom ?? '', 10);
+							const to   = parseInt(hitWidget.dataset.beTo   ?? '', 10);
+							if (isNaN(from) || isNaN(to)) return;
+
+							if (hitWidget.dataset.beRow !== undefined) {
+								// Row widget — prevent cursor placement inside source HTML but
+								// do not use the single-image selection model.
+								if (!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption, .be-image-placeholder, .be-image-row-toolbar')) {
+									event.preventDefault();
+								}
+								return;
+							}
+
+							if (!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption, .be-image-placeholder')) {
+								event.preventDefault();
+							}
+							view.dispatch({
+								selection: { anchor: from },
+								effects: selectImageBlock.of({ from, to }),
+							});
+							view.focus();
+						} else if (!target.closest('.be-image-widget, .be-image-row-widget')) {
+							view.dispatch({ effects: deselectImageBlock.of(null) });
 						}
-						view.dispatch({
-							selection: { anchor: from },
-							effects: selectImageBlock.of({ from, to }),
-						});
-						view.focus();
-					} else if (!target.closest('.be-image-widget, .be-image-row-widget')) {
-						view.dispatch({ effects: deselectImageBlock.of(null) });
-					}
-				}, { capture: true });
-			}
+					}, { capture: true });
+				}
+
+				update(): void {
+					this.rowToolbarController.update();
+				}
+
+				destroy(): void {
+					this.rowToolbarController.destroy();
+					this.dragManager.destroy();
+				}
 			},
 		);
 	}

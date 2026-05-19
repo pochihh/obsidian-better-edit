@@ -166,7 +166,8 @@ export function parseImageRowBlock(html: string): ImageRowBlock | null {
 	const outerStyle = outerMatch?.[1] ?? '';
 
 	const gapStr = extractStyleProp(outerStyle, 'gap');
-	const gap = gapStr ? (parseInt(gapStr, 10) || 10) : 10;
+	const parsedGap = gapStr ? parseInt(gapStr, 10) : NaN;
+	const gap = Number.isNaN(parsedGap) ? 8 : parsedGap;
 	const justify = (extractStyleProp(outerStyle, 'justify-content') as RowJustify | null) ?? 'flex-start';
 	const wrap = extractStyleProp(outerStyle, 'flex-wrap') ?? 'nowrap';
 	const alignItems = extractStyleProp(outerStyle, 'align-items') ?? 'flex-start';

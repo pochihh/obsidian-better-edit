@@ -19,7 +19,8 @@
 | Duplicate block | ✅ Done |
 | Delete block | ✅ Done |
 | Export cropped image | ⬜ Later (complexity: format handling) |
-| Multi-image flex row | ⬜ Later iteration |
+| Multi-image flex row | 🚧 In progress |
+| Row drag and drop polish | 🚧 In progress |
 
 ---
 
@@ -185,6 +186,75 @@ Triggered from toolbar or More menu. A floating panel anchored below the image, 
 - User pastes any relative path or URL. Applied on confirm (Enter or button).
 
 *(Unsplash / GIPHY tabs: not included.)*
+
+---
+
+## Image rows
+
+Rows are stored as one HTML block with `data-better-edit-image-row` on the outer
+wrapper and individual Better Edit image / placeholder blocks nested inside it.
+
+### Current row interactions
+
+Supported drag-and-drop cases:
+
+1. Standalone → standalone
+   - Drag one standalone image onto another standalone image.
+   - Better Edit rewrites both blocks into one row block.
+
+2. Standalone → row
+   - Drag a standalone image into an existing row.
+   - Better Edit inserts it at the hovered slot.
+
+3. Row item → same row reorder
+   - Drag an item left/right within its own row.
+   - Better Edit rewrites the row HTML with the new order.
+
+### Current limits
+
+Not supported yet:
+
+- row item → different row
+- row item → arbitrary standalone destination
+- row → row merges
+
+### Placeholder behavior
+
+For row drag/drop logic, placeholders are treated the same as normal image items.
+
+That means placeholders:
+
+- can be reordered within a row
+- can participate in standalone → row insertion
+- can participate in standalone → standalone row creation
+
+### Drag UI rules
+
+- Pointer events drive the drag lifecycle; Better Edit does not use the browser's
+  native HTML5 drag API.
+- During drag, normal image hover toolbars and resize affordances are suppressed.
+- A lightweight drag ghost follows the pointer.
+- Row targets show a vertical insertion line.
+- Standalone → standalone row creation shows a left/right half overlay on the
+  hovered target image.
+
+### Source rewrite rule
+
+Drop targets are decided from widget DOM, but the final document change always
+re-parses the current source block(s) from the live editor document before
+dispatching changes.
+
+### Row toolbar architecture
+
+The visible row toolbar is not owned by each row widget. Better Edit keeps one
+persistent floating row-toolbar shell per editor view and points it at the
+currently active row.
+
+That avoids toolbar flicker during row re-renders:
+
+- row widgets own row content only
+- the controller owns one floating toolbar shell
+- button state and actions are refreshed from the live row block before use
 
 ---
 
