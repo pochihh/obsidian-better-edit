@@ -10,8 +10,8 @@
 	padding: 0 !important;
 	border-radius: 4px;
 	color: var(--text-muted);
-	min-width: 26px;
-	height: 26px;
+	min-width: 24px;
+	height: 24px;
 	transition: background 120ms ease, color 120ms ease;
 }
 
@@ -32,10 +32,12 @@
 	pointer-events: none;
 }
 
+/* Icon size: single knob for all toolbar icons. SVG viewBox padding (set in Illustrator)
+   is the only visual inset — no additional shrinkage is applied here. */
 .be-toolbar-icon {
 	display: block;
-	width: 16px;
-	height: 16px;
+	width: 20px !important;
+	height: 20px !important;
 }
 
 .be-toolbar-sep {
@@ -47,30 +49,6 @@
 	flex-shrink: 0;
 }
 
-.be-toolbar-tooltip {
-	position: fixed;
-	left: 0;
-	top: 0;
-	transform: translate(-50%, calc(-100% - 8px));
-	padding: 6px 10px;
-	border-radius: 6px;
-	background: var(--background-tooltip, rgba(22, 22, 22, 0.98));
-	border: 1px solid var(--background-modifier-border);
-	box-shadow: var(--shadow-s);
-	color: var(--text-on-accent, rgba(255, 255, 255, 0.94));
-	font-size: 12px;
-	font-weight: 500;
-	line-height: 1;
-	white-space: nowrap;
-	opacity: 0;
-	pointer-events: none;
-	transition: opacity 120ms ease;
-	z-index: 1000;
-}
-
-.be-toolbar-tooltip.is-visible {
-	opacity: 1;
-}
 
 /* ── Shared replace/import panel primitives ──────────────────────────────*/
 .be-replace-panel {

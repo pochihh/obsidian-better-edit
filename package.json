@@ -5,6 +5,7 @@
 	"main": "main.js",
 	"type": "module",
 	"scripts": {
+		"icons:sync": "node scripts/sync-icons.mjs",
 		"styles:build": "node scripts/build-styles.mjs",
 		"dev": "node scripts/build-styles.mjs && node esbuild.config.mjs",
 		"build": "node scripts/build-styles.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",

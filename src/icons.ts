@@ -19,7 +19,15 @@ export type ImageIconName =
 	| 'align-center'
 	| 'align-right'
 	| 'align-float-left'
-	| 'align-float-right';
+	| 'align-float-right'
+	| 'add-image'
+	| 'pop-out'
+	| 'row-justify-left'
+	| 'row-justify-center'
+	| 'row-justify-right'
+	| 'row-justify-space-between'
+	| 'row-wrap'
+	| 'row-align-items';
 
 const SLASH_COMMAND_ICON_DEFINITIONS: Record<string, SvgIconDefinition> = {
 	'heading-1': {
@@ -114,10 +122,26 @@ export function renderImagePlaceholderIcon(parent: HTMLElement): void {
 	renderSvg(parent, SLASH_COMMAND_ICON_DEFINITIONS.image!);
 }
 
-type ImageIconDef = {
+// Fill-based icon: a single SVG path rendered with fill="currentColor"
+type FillIconDef = {
 	viewBox: string;
 	path: string;
 };
+
+// Stroke-based icon: one or more primitives rendered with stroke="currentColor", fill="none"
+type StrokePrimitive =
+	| { tag: 'line'; x1: number; y1: number; x2: number; y2: number; sw?: number }
+	| { tag: 'rect'; x: number; y: number; w: number; h: number; rx?: number; sw?: number }
+	| { tag: 'path'; d: string; sw?: number };
+
+type StrokeIconDef = {
+	viewBox: string;
+	stroke: StrokePrimitive[];
+	sw?: number;       // default stroke-width for all primitives
+	linecap?: string;  // default stroke-linecap
+};
+
+type ImageIconDef = FillIconDef | StrokeIconDef;
 
 const IMAGE_TOOLBAR_ICONS: Record<ImageIconName, ImageIconDef> = {
 	caption: {
@@ -172,6 +196,63 @@ const IMAGE_TOOLBAR_ICONS: Record<ImageIconName, ImageIconDef> = {
 		viewBox: '0 0 16 16',
 		path: 'M9.5 2H15v6H9.5zM1 3h7v1.25H1zM1 5.25h6v1.25H1zM1 7.5h5v1.25H1zM1 10h14v1.25H1zM3 12.5h12v1.25H3z',
 	},
+	// Photo frame with a + badge — used to add an image to a row
+	'add-image': {
+		viewBox: '0 0 20 20',
+		path: 'M4.5 2.375A2.125 2.125 0 0 0 2.375 4.5v11A2.125 2.125 0 0 0 4.5 17.625h9.128a.625.625 0 1 0 0-1.25H4.5a.875.875 0 0 1-.875-.875V4.5c0-.483.392-.875.875-.875h11c.483 0 .875.392.875.875v8.253a.625.625 0 1 0 1.25 0V4.5A2.125 2.125 0 0 0 15.5 2.375zM7.5 7.31a1.5 1.5 0 1 1-3 0 1.5 1.5 0 0 1 3 0M3.625 14.5l3.995-3.996a.625.625 0 0 1 .884 0l1.98 1.98 2.137-2.137a.625.625 0 0 1 .883 0l1.371 1.37V4.5a.875.875 0 0 0-.875-.875h-11a.875.875 0 0 0-.875.875zm13-1.125a.625.625 0 0 1 .625.625v1.375H18.5a.625.625 0 1 1 0 1.25H17.25V18a.625.625 0 1 1-1.25 0v-1.375H14.625a.625.625 0 1 1 0-1.25H16V14a.625.625 0 0 1 .625-.625',
+	},
+	// Arrow pointing down to a baseline — pop image out of row to standalone below
+	'pop-out': {
+		viewBox: '0 0 20 20',
+		path: 'M10 3.375a.625.625 0 0 1 .625.625v9.491l2.808-2.808a.625.625 0 0 1 .884.884l-3.875 3.875a.625.625 0 0 1-.884 0L5.683 11.567a.625.625 0 0 1 .884-.884L9.375 13.491V4A.625.625 0 0 1 10 3.375M3.375 17a.625.625 0 0 1 .625-.625h12a.625.625 0 1 1 0 1.25H4a.625.625 0 0 1-.625-.625',
+	},
+	// Reference: docs/ref/icons/start.svg — guide rails + box flush left
+	'row-justify-left': {
+		viewBox: '0 0 20 20',
+		sw: 1.2, linecap: 'round',
+		stroke: [
+			{ tag: 'line', x1: 4.23, y1: 4.8,  x2: 15.77, y2: 4.8  },
+			{ tag: 'line', x1: 4.23, y1: 15.2, x2: 15.77, y2: 15.2 },
+			{ tag: 'rect', x: 4.23, y: 6.75, w: 6.5, h: 6.5, rx: 1.31 },
+		],
+	},
+	// Reference: docs/ref/icons/center.svg — guide rails + box centered
+	'row-justify-center': {
+		viewBox: '0 0 20 20',
+		sw: 1.2, linecap: 'round',
+		stroke: [
+			{ tag: 'line', x1: 4.23, y1: 4.8,  x2: 15.77, y2: 4.8  },
+			{ tag: 'line', x1: 4.23, y1: 15.2, x2: 15.77, y2: 15.2 },
+			{ tag: 'rect', x: 6.75, y: 6.75, w: 6.5, h: 6.5, rx: 1.31 },
+		],
+	},
+	// Three columns right-weighted — row justify flex-end (no reference SVG yet)
+	'row-justify-right': {
+		viewBox: '0 0 20 20',
+		path: 'M2.375 5.5c0-.483.392-.875.875-.875H4.75a.875.875 0 0 1 .875.875v5a.875.875 0 0 1-.875.875H3.25a.875.875 0 0 1-.875-.875zm1.25.125v4.75h.875V5.625zm4.75-1c0-.483.393-.875.875-.875h3.5c.483 0 .875.392.875.875v9a.875.875 0 0 1-.875.875h-3.5a.875.875 0 0 1-.875-.875zm1.25.125v8.75h2.25V5.625zm5-1c0-.483.392-.875.875-.875h3.5c.483 0 .875.392.875.875v9a.875.875 0 0 1-.875.875h-3.5a.875.875 0 0 1-.875-.875zm1.25.125v8.75h2.25V5.625z',
+	},
+	// Reference: docs/ref/icons/space_between.svg — rails + centered box + edge markers
+	'row-justify-space-between': {
+		viewBox: '0 0 20 20',
+		sw: 1.2, linecap: 'round',
+		stroke: [
+			{ tag: 'line', x1: 4.23,  y1: 4.8,   x2: 15.77, y2: 4.8   },
+			{ tag: 'line', x1: 4.23,  y1: 15.2,  x2: 15.77, y2: 15.2  },
+			{ tag: 'rect', x: 6.75, y: 6.85, w: 6.5, h: 6.5, rx: 1.31 },
+			{ tag: 'line', x1: 4.95,  y1: 7.63,  x2: 4.95,  y2: 12.56, sw: 0.8 },
+			{ tag: 'line', x1: 15.05, y1: 7.63,  x2: 15.05, y2: 12.56, sw: 0.8 },
+		],
+	},
+	// Wrap arrow — a line with a return arrow below, indicating flex-wrap
+	'row-wrap': {
+		viewBox: '0 0 20 20',
+		path: 'M3.375 5.5a.625.625 0 0 1 .625-.625h12a.625.625 0 1 1 0 1.25H4a.625.625 0 0 1-.625-.625m13.509 3.317a.625.625 0 0 1 0 .884l-2.125 2.125a.625.625 0 0 1-.884-.884l1.058-1.067H8.5A1.875 1.875 0 0 0 6.625 11.75v.625H8a.625.625 0 1 1 0 1.25H6a.625.625 0 0 1-.625-.625v-1.25A3.125 3.125 0 0 1 8.5 8.625h6.433l-1.058-1.058a.625.625 0 0 1 .884-.884zM3.375 16a.625.625 0 0 1 .625-.625h5.5a.625.625 0 1 1 0 1.25H4a.625.625 0 0 1-.625-.625',
+	},
+	// Cross-axis alignment — two bars of different heights centered on a horizontal axis
+	'row-align-items': {
+		viewBox: '0 0 20 20',
+		path: 'M3.375 10a.625.625 0 0 1 .625-.625h12a.625.625 0 1 1 0 1.25H4a.625.625 0 0 1-.625-.625M5.5 4.375A.625.625 0 0 1 6.125 5v10a.625.625 0 1 1-1.25 0V5A.625.625 0 0 1 5.5 4.375m3.25 2A.625.625 0 0 1 9.375 7v6a.625.625 0 1 1-1.25 0V7A.625.625 0 0 1 8.75 6.375m3.25-2A.625.625 0 0 1 12.625 5v10a.625.625 0 1 1-1.25 0V5a.625.625 0 0 1 .625-.625m3 2a.625.625 0 0 1 .625.625v5a.625.625 0 1 1-1.25 0V7a.625.625 0 0 1 .625-.625',
+	},
 };
 
 export function buildImageToolbarIcon(doc: Document, name: ImageIconName): SVGElement {
@@ -179,15 +260,46 @@ export function buildImageToolbarIcon(doc: Document, name: ImageIconName): SVGEl
 	const def = IMAGE_TOOLBAR_ICONS[name];
 	const svg = doc.createElementNS(ns, 'svg');
 	svg.setAttribute('aria-hidden', 'true');
-	svg.setAttribute('width', '16');
-	svg.setAttribute('height', '16');
+	svg.setAttribute('width', '20');
+	svg.setAttribute('height', '20');
 	svg.setAttribute('viewBox', def.viewBox);
-	svg.setAttribute('fill', 'currentColor');
 	svg.addClass('be-toolbar-icon');
 
-	const path = doc.createElementNS(ns, 'path');
-	path.setAttribute('d', def.path);
-	svg.appendChild(path);
+	if ('path' in def) {
+		// Fill-based: single path with currentColor fill
+		svg.setAttribute('fill', 'currentColor');
+		const path = doc.createElementNS(ns, 'path');
+		path.setAttribute('d', def.path);
+		svg.appendChild(path);
+	} else {
+		// Stroke-based: multiple primitives with currentColor stroke
+		svg.setAttribute('fill', 'none');
+		svg.setAttribute('stroke', 'currentColor');
+		if (def.linecap) svg.setAttribute('stroke-linecap', def.linecap);
+		svg.setAttribute('stroke-miterlimit', '10');
+		for (const p of def.stroke) {
+			const sw = String(p.sw ?? def.sw ?? 1);
+			if (p.tag === 'line') {
+				const el = doc.createElementNS(ns, 'line');
+				el.setAttribute('x1', String(p.x1)); el.setAttribute('y1', String(p.y1));
+				el.setAttribute('x2', String(p.x2)); el.setAttribute('y2', String(p.y2));
+				el.setAttribute('stroke-width', sw);
+				svg.appendChild(el);
+			} else if (p.tag === 'rect') {
+				const el = doc.createElementNS(ns, 'rect');
+				el.setAttribute('x', String(p.x)); el.setAttribute('y', String(p.y));
+				el.setAttribute('width', String(p.w)); el.setAttribute('height', String(p.h));
+				if (p.rx !== undefined) { el.setAttribute('rx', String(p.rx)); el.setAttribute('ry', String(p.rx)); }
+				el.setAttribute('stroke-width', sw);
+				svg.appendChild(el);
+			} else {
+				const el = doc.createElementNS(ns, 'path');
+				el.setAttribute('d', p.d);
+				el.setAttribute('stroke-width', sw);
+				svg.appendChild(el);
+			}
+		}
+	}
 
 	return svg;
 }
