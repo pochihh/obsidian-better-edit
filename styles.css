@@ -1193,6 +1193,21 @@ body .be-block-controls > button.be-block-handle:active {
 	box-shadow: inset -2px 0 0 var(--interactive-accent);
 }
 
+.be-image-pop-out-indicator {
+	position: fixed;
+	pointer-events: none;
+	z-index: 9997;
+	height: 2px;
+	border-radius: 999px;
+	background: var(--interactive-accent);
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--background-primary) 40%, transparent);
+	opacity: 0;
+}
+
+.be-image-pop-out-indicator.is-visible {
+	opacity: 1;
+}
+
 /* Row-level toolbar — vertical card hoisted to document.body by the blocks feature
    and positioned below the gutter handle via inline position:fixed + top/left.
    Show/hide via is-visible class. */

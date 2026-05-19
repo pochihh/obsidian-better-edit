@@ -210,12 +210,23 @@ Supported drag-and-drop cases:
    - Drag an item left/right within its own row.
    - Better Edit rewrites the row HTML with the new order.
 
+4. Row item → standalone
+   - Drag a row item onto a standalone image.
+   - Better Edit rewrites the standalone target into a new row and removes the
+     item from the source row.
+
+5. Row item → different row
+   - Drag a row item into another row.
+   - Better Edit inserts it at the hovered slot and removes it from the source row.
+
+6. Row item → outside row
+   - Drop a row item with no row/standalone target.
+   - Better Edit pops it out into a standalone block directly after the source row.
+
 ### Current limits
 
 Not supported yet:
 
-- row item → different row
-- row item → arbitrary standalone destination
 - row → row merges
 
 ### Placeholder behavior

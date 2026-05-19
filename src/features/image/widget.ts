@@ -998,6 +998,35 @@ function parseRowBlockAtRange(state: EditorState, from: number, to: number): Ima
 	return parseImageRowBlock(state.doc.sliceString(from, to));
 }
 
+function standaloneHtmlForBlock(
+	block: SingleImageBlock | PlaceholderBlock,
+	plugin: BetterEditPlugin,
+): string {
+	if (block.kind === 'placeholder') return placeholderHtml();
+	const { defaultImageAlignment, imageCornerRadiusPx } = plugin.settings.image;
+	return singleImageHtml(
+		block.src,
+		block.width,
+		defaultImageAlignment,
+		block.caption,
+		block.crop,
+		block.alt,
+		imageCornerRadiusPx,
+		block.captionHidden,
+	);
+}
+
+function rowHtmlForBlock(block: ImageRowBlock, plugin: BetterEditPlugin): string {
+	return imageRowHtml(
+		block.images,
+		block.gap,
+		block.justify,
+		block.wrap,
+		block.alignItems,
+		plugin.settings.image.imageCornerRadiusPx,
+	);
+}
+
 function clampInsertIndex(insertIndex: number, length: number): number {
 	return Math.max(0, Math.min(length, insertIndex));
 }
@@ -1012,6 +1041,15 @@ function reorderRowImages(images: (SingleImageBlock | PlaceholderBlock)[], fromI
 }
 
 function removeStandaloneBlockRange(state: EditorState, from: number, to: number): { from: number; to: number } {
+	const text = state.doc.toString();
+	let nextFrom = from;
+	let nextTo = to;
+	if (nextTo < text.length && text[nextTo] === '\n') nextTo += 1;
+	else if (nextFrom > 0 && text[nextFrom - 1] === '\n') nextFrom -= 1;
+	return { from: nextFrom, to: nextTo };
+}
+
+function removeRowBlockRange(state: EditorState, from: number, to: number): { from: number; to: number } {
 	const text = state.doc.toString();
 	let nextFrom = from;
 	let nextTo = to;
@@ -1456,6 +1494,7 @@ class ImageDragManager {
 	private ghostEl: HTMLElement | null = null;
 	private rowIndicatorEl: HTMLElement | null = null;
 	private createRowIndicatorEl: HTMLElement | null = null;
+	private popOutIndicatorEl: HTMLElement | null = null;
 	private currentTarget: DropTarget | null = null;
 	private readonly doc: Document;
 	private readonly scrollerEl: HTMLElement | null;
@@ -1603,6 +1642,10 @@ class ImageDragManager {
 			this.createRowIndicatorEl = createDiv({ cls: 'be-image-create-row-indicator' });
 			this.doc.body.appendChild(this.createRowIndicatorEl);
 		}
+		if (!this.popOutIndicatorEl) {
+			this.popOutIndicatorEl = createDiv({ cls: 'be-image-pop-out-indicator' });
+			this.doc.body.appendChild(this.popOutIndicatorEl);
+		}
 	}
 
 	private updateDropTarget(): void {
@@ -1659,10 +1702,24 @@ class ImageDragManager {
 		this.ensureIndicators();
 		const rowIndicatorEl = this.rowIndicatorEl!;
 		const createRowIndicatorEl = this.createRowIndicatorEl!;
+		const popOutIndicatorEl = this.popOutIndicatorEl!;
 		rowIndicatorEl.removeClass('is-visible');
 		createRowIndicatorEl.removeClass('is-visible', 'is-before', 'is-after');
+		popOutIndicatorEl.removeClass('is-visible');
 
-		if (!this.currentTarget) return;
+		if (!this.currentTarget) {
+			if (this.source?.kind === 'row-item') {
+				const rowState = resolveRowStateByFrom(this.view, this.source.rowFrom);
+				const rowRect = rowState?.rowEl.getBoundingClientRect();
+				if (rowRect) {
+					popOutIndicatorEl.style.left = `${rowRect.left}px`;
+					popOutIndicatorEl.style.top = `${rowRect.bottom + 8}px`;
+					popOutIndicatorEl.style.width = `${rowRect.width}px`;
+					popOutIndicatorEl.addClass('is-visible');
+				}
+			}
+			return;
+		}
 		if (this.currentTarget.kind === 'reorder' || this.currentTarget.kind === 'into-row') {
 			const rect = this.currentTarget.rowEl.getBoundingClientRect();
 			const insertIndex = this.currentTarget.kind === 'reorder' ? this.currentTarget.toIndex : this.currentTarget.insertIndex;
@@ -1684,9 +1741,9 @@ class ImageDragManager {
 	private executeDrop(): void {
 		const source = this.source;
 		const target = this.currentTarget;
-		if (!source || !target) return;
+		if (!source) return;
 
-		if (target.kind === 'reorder') {
+		if (target?.kind === 'reorder') {
 			const rowBlock = parseRowBlockAtRange(this.view.state, target.rowFrom, target.rowTo);
 			if (!rowBlock) return;
 			const images = reorderRowImages(rowBlock.images, target.fromIndex, target.toIndex);
@@ -1694,30 +1751,51 @@ class ImageDragManager {
 				changes: {
 					from: target.rowFrom,
 					to: target.rowTo,
-					insert: imageRowHtml(images, rowBlock.gap, rowBlock.justify, rowBlock.wrap, rowBlock.alignItems, this.plugin.settings.image.imageCornerRadiusPx),
+					insert: rowHtmlForBlock({ ...rowBlock, images }, this.plugin),
 				},
 				effects: deselectImageBlock.of(null),
 			});
 			return;
 		}
 
-		if (source.kind !== 'standalone') return;
-		const sourceBlock = parseStandaloneBlockAtRange(this.view.state, source.from, source.to);
-		if (!sourceBlock) return;
+		if (source.kind === 'standalone') {
+			const sourceBlock = parseStandaloneBlockAtRange(this.view.state, source.from, source.to);
+			if (!sourceBlock || !target) return;
 
-		if (target.kind === 'into-row') {
-			const rowBlock = parseRowBlockAtRange(this.view.state, target.rowFrom, target.rowTo);
-			if (!rowBlock) return;
-			const nextImages = [...rowBlock.images];
-			nextImages.splice(clampInsertIndex(target.insertIndex, nextImages.length), 0, sourceBlock);
+			if (target.kind === 'into-row') {
+				const rowBlock = parseRowBlockAtRange(this.view.state, target.rowFrom, target.rowTo);
+				if (!rowBlock) return;
+				const nextImages = [...rowBlock.images];
+				nextImages.splice(clampInsertIndex(target.insertIndex, nextImages.length), 0, sourceBlock);
+				const sourceRemoval = removeStandaloneBlockRange(this.view.state, source.from, source.to);
+				this.view.dispatch({
+					changes: [
+						{
+							from: target.rowFrom,
+							to: target.rowTo,
+							insert: rowHtmlForBlock({ ...rowBlock, images: nextImages }, this.plugin),
+						},
+						{ from: sourceRemoval.from, to: sourceRemoval.to, insert: '' },
+					],
+					effects: deselectImageBlock.of(null),
+				});
+				return;
+			}
+
+			const targetBlock = parseStandaloneBlockAtRange(this.view.state, target.targetFrom, target.targetTo);
+			if (!targetBlock) return;
 			const sourceRemoval = removeStandaloneBlockRange(this.view.state, source.from, source.to);
+			const rowHtml = imageRowHtml(
+				buildStandaloneRowItems(sourceBlock, targetBlock, target.side),
+				ROW_DEFAULTS.gap,
+				ROW_DEFAULTS.justify,
+				ROW_DEFAULTS.wrap,
+				ROW_DEFAULTS.alignItems,
+				this.plugin.settings.image.imageCornerRadiusPx,
+			);
 			this.view.dispatch({
 				changes: [
-					{
-						from: target.rowFrom,
-						to: target.rowTo,
-						insert: imageRowHtml(nextImages, rowBlock.gap, rowBlock.justify, rowBlock.wrap, rowBlock.alignItems, this.plugin.settings.image.imageCornerRadiusPx),
-					},
+					{ from: target.targetFrom, to: target.targetTo, insert: rowHtml },
 					{ from: sourceRemoval.from, to: sourceRemoval.to, insert: '' },
 				],
 				effects: deselectImageBlock.of(null),
@@ -1725,11 +1803,73 @@ class ImageDragManager {
 			return;
 		}
 
+		const sourceRowBlock = parseRowBlockAtRange(this.view.state, source.rowFrom, source.rowTo);
+		if (!sourceRowBlock) return;
+		const movedBlock = sourceRowBlock.images[source.itemIndex];
+		if (!movedBlock) return;
+		const sourceImages = [...sourceRowBlock.images];
+		sourceImages.splice(source.itemIndex, 1);
+
+		if (!target) {
+			const poppedHtml = standaloneHtmlForBlock(movedBlock, this.plugin);
+			if (sourceImages.length === 0) {
+				this.view.dispatch({
+					changes: {
+						from: source.rowFrom,
+						to: source.rowTo,
+						insert: poppedHtml,
+					},
+					effects: deselectImageBlock.of(null),
+				});
+				return;
+			}
+			this.view.dispatch({
+				changes: {
+					from: source.rowFrom,
+					to: source.rowTo,
+					insert: `${rowHtmlForBlock({ ...sourceRowBlock, images: sourceImages }, this.plugin)}\n\n${poppedHtml}`,
+				},
+				effects: deselectImageBlock.of(null),
+			});
+			return;
+		}
+
+		if (target.kind === 'into-row') {
+			const rowBlock = parseRowBlockAtRange(this.view.state, target.rowFrom, target.rowTo);
+			if (!rowBlock) return;
+			const nextImages = [...rowBlock.images];
+			nextImages.splice(clampInsertIndex(target.insertIndex, nextImages.length), 0, movedBlock);
+			this.view.dispatch({
+				changes: sourceImages.length === 0
+					? [
+						{
+							from: target.rowFrom,
+							to: target.rowTo,
+							insert: rowHtmlForBlock({ ...rowBlock, images: nextImages }, this.plugin),
+						},
+						{ ...removeRowBlockRange(this.view.state, source.rowFrom, source.rowTo), insert: '' },
+					]
+					: [
+						{
+							from: target.rowFrom,
+							to: target.rowTo,
+							insert: rowHtmlForBlock({ ...rowBlock, images: nextImages }, this.plugin),
+						},
+						{
+							from: source.rowFrom,
+							to: source.rowTo,
+							insert: rowHtmlForBlock({ ...sourceRowBlock, images: sourceImages }, this.plugin),
+						},
+					],
+				effects: deselectImageBlock.of(null),
+			});
+			return;
+		}
+
 		const targetBlock = parseStandaloneBlockAtRange(this.view.state, target.targetFrom, target.targetTo);
 		if (!targetBlock) return;
-		const sourceRemoval = removeStandaloneBlockRange(this.view.state, source.from, source.to);
 		const rowHtml = imageRowHtml(
-			buildStandaloneRowItems(sourceBlock, targetBlock, target.side),
+			buildStandaloneRowItems(movedBlock, targetBlock, target.side),
 			ROW_DEFAULTS.gap,
 			ROW_DEFAULTS.justify,
 			ROW_DEFAULTS.wrap,
@@ -1737,10 +1877,19 @@ class ImageDragManager {
 			this.plugin.settings.image.imageCornerRadiusPx,
 		);
 		this.view.dispatch({
-			changes: [
-				{ from: target.targetFrom, to: target.targetTo, insert: rowHtml },
-				{ from: sourceRemoval.from, to: sourceRemoval.to, insert: '' },
-			],
+			changes: sourceImages.length === 0
+				? [
+					{ from: target.targetFrom, to: target.targetTo, insert: rowHtml },
+					{ ...removeRowBlockRange(this.view.state, source.rowFrom, source.rowTo), insert: '' },
+				]
+				: [
+					{ from: target.targetFrom, to: target.targetTo, insert: rowHtml },
+					{
+						from: source.rowFrom,
+						to: source.rowTo,
+						insert: rowHtmlForBlock({ ...sourceRowBlock, images: sourceImages }, this.plugin),
+					},
+				],
 			effects: deselectImageBlock.of(null),
 		});
 	}
@@ -1753,6 +1902,8 @@ class ImageDragManager {
 		this.rowIndicatorEl = null;
 		this.createRowIndicatorEl?.remove();
 		this.createRowIndicatorEl = null;
+		this.popOutIndicatorEl?.remove();
+		this.popOutIndicatorEl = null;
 		this.doc.body.removeClass('be-image-dragging');
 		this.source?.sourceEl.removeClass('is-drag-source');
 		this.source = null;
@@ -1908,13 +2059,13 @@ class ImageRowWidget extends WidgetType {
 	private popOutPlaceholderAt(view: EditorView, index: number): void {
 		const images = [...this.block.images];
 		images.splice(index, 1);
-		const poppedHtml = '\n' + placeholderHtml();
+		const poppedHtml = placeholderHtml();
 		if (images.length === 0) {
-			view.dispatch({ changes: { from: this.from, to: this.to, insert: poppedHtml.trimStart() } });
+			view.dispatch({ changes: { from: this.from, to: this.to, insert: poppedHtml } });
 		} else {
 			const { imageCornerRadiusPx } = this.plugin.settings.image;
 			const newRowHtml = imageRowHtml(images, this.block.gap, this.block.justify, this.block.wrap, this.block.alignItems, imageCornerRadiusPx);
-			view.dispatch({ changes: { from: this.from, to: this.to, insert: newRowHtml + poppedHtml } });
+			view.dispatch({ changes: { from: this.from, to: this.to, insert: `${newRowHtml}\n\n${poppedHtml}` } });
 		}
 	}
 
@@ -2266,7 +2417,7 @@ class ImageRowWidget extends WidgetType {
 		const { defaultImageAlignment, imageCornerRadiusPx } = this.plugin.settings.image;
 		let poppedHtml = '';
 		if (img?.kind === 'single') {
-			poppedHtml = '\n' + singleImageHtml(
+			poppedHtml = singleImageHtml(
 				img.src, img.width, defaultImageAlignment,
 				img.caption, img.crop, img.alt, imageCornerRadiusPx, img.captionHidden,
 			);
@@ -2279,7 +2430,7 @@ class ImageRowWidget extends WidgetType {
 		} else {
 			const newRowHtml = imageRowHtml(images, this.block.gap, this.block.justify, this.block.wrap, this.block.alignItems, imageCornerRadiusPx);
 			view.dispatch({
-				changes: { from: this.from, to: this.to, insert: newRowHtml + poppedHtml },
+				changes: { from: this.from, to: this.to, insert: `${newRowHtml}\n\n${poppedHtml}` },
 			});
 		}
 	}
