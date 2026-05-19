@@ -6,12 +6,11 @@ introducing proprietary storage formats or changing how notes render without the
 plugin.
 
 ## Features
-
-- Block drag and drop with left-gutter controls
-- Slash commands for fast block insertion
-- Selection toolbar for inline formatting and linking
-- Image arrangement with resize, alignment, crop, caption, replace, and alt text
-- Symbol and emoji picker with context-menu, shortcut, and command-palette entry
+- **Image**: arrangement with resize, alignment, crop, caption, replace, alt text, and multi-image flex box supprot
+- **Block**: drag and drop with left-gutter controls
+- **Slash commands**: customizable commands for fast block insertion
+- **Text Styling**: selection toolbar for inline formatting and linking
+- **Symbol and emoji**: a symbol and emoji picker with customizable trigger, including context-menu, shortcut, and command-palette entry
 
 ## Installation
 
