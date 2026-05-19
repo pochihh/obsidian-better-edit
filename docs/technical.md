@@ -29,6 +29,10 @@ src/
       index.ts
       settings.ts
       styles.css
+    symbol-picker/
+      index.ts
+      settings.ts
+      styles.css
     text-styling/
       index.ts
       settings.ts

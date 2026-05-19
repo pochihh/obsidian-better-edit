@@ -4,11 +4,12 @@
 
 | Area | Status |
 |---|---|
-| Block taxonomy | Draft |
-| Boundary detection rules | Draft |
-| Drag handle UI | Draft |
-| Drop target logic | Draft |
-| Move transaction logic | Draft |
+| Block taxonomy | First pass |
+| Boundary detection rules | First pass |
+| Drag handle UI | First pass |
+| Drop target logic | First pass |
+| Move transaction logic | First pass |
+| Table handling | First pass |
 | Slash command integration | Not started |
 
 ---
@@ -49,6 +50,10 @@ Exception:
 ### Theme-native UI
 
 All block affordances must use Obsidian theme variables and native interaction patterns. Avoid hardcoded colors, shadows, or opaque custom surfaces unless they reference theme tokens such as `--text-faint`, `--background-modifier-hover`, `--background-modifier-border`, `--interactive-accent`, and `--shadow-s`.
+
+The editor should also reserve a minimum left gutter width while block controls
+are enabled so the handle/add UI does not collapse into the note content when
+the pane becomes narrow.
 
 ### Code-safe behavior
 
@@ -135,6 +140,8 @@ Rules:
 
 - Move all paragraph lines together.
 - Do not expose handles for individual soft-wrapped visual lines.
+- Even when a paragraph wraps visually, the gutter controls should align to the
+  first rendered line, not the vertical center of the wrapped block.
 - If a paragraph contains inline Markdown, move it unchanged.
 
 ### Headings
@@ -142,6 +149,9 @@ Rules:
 Move only the heading line.
 
 Setext headings are atomic: `text` followed by `---` or `===` moves as one heading block. Do not expose a drop boundary between the heading text and underline.
+
+When a heading wraps visually, the gutter controls should still anchor to the
+first rendered line.
 
 ### Lists
 

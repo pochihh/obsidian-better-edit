@@ -8,6 +8,7 @@
 | Markdown toggle actions | First pass |
 | Toolbar positioning | First pass |
 | Code/math suppression | First pass |
+| Link picker | First pass |
 | HTML styling (`<u>`, color) | Later |
 
 ---
@@ -90,14 +91,19 @@ Inline equation is also single-line only.
 
 The link action is split by syntax, not by destination type.
 
-- `[[Page]]` mode:
+- `Page` mode:
+  - uses wiki-link syntax such as `[[Page]]` and `[[Page|text]]`
   - internal wiki links only
   - searches notes in the vault
   - if no note matches, pressing Enter inserts an unresolved wiki link such as
     `[[New Note]]`
-- `[text](...)` mode:
+- `Link` mode:
+  - uses standard markdown link syntax such as `[text](https://example.com)`
   - generic markdown link syntax
   - supports URLs and typed paths
+
+The page picker uses a lightweight inline suggestion panel rather than
+Obsidian's internal `[[...]]` suggester component.
 
 ### Delimiter-run normalization
 
