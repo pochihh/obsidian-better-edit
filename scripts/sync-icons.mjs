@@ -28,17 +28,17 @@ Current icon names to cover:
 	duplicate.svg
 	delete.svg
 	more.svg
-	align-left.svg
-	align-center.svg
-	align-right.svg
+	x align-left.svg
+	x align-center.svg
+	x align-right.svg
 	align-float-left.svg
 	align-float-right.svg
 	add-image.svg
 	pop-out.svg
-	row-justify-left.svg
-	row-justify-center.svg
-	row-justify-right.svg
-	row-justify-space-between.svg
+	x row-justify-left.svg
+	x row-justify-center.svg
+	x row-justify-right.svg
+	x row-justify-space-between.svg
 	row-wrap.svg
 	row-align-items.svg
  */

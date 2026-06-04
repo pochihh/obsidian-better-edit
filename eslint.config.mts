@@ -21,6 +21,14 @@ export default tseslint.config(
 			},
 		},
 	},
+	{
+		files: ['scripts/**/*.mjs', '*.mjs'],
+		languageOptions: {
+			globals: {
+				...globals.node,
+			},
+		},
+	},
 	...obsidianmd.configs.recommended,
 	globalIgnores([
 		"node_modules",
