@@ -1748,6 +1748,10 @@ body .be-block-controls > button.be-block-handle:active {
 	padding: 6px 6px 0;
 }
 
+.be-symbol-history-container.is-hidden {
+	display: none;
+}
+
 .be-symbol-section-label {
 	font-size: 10px;
 	font-weight: 600;

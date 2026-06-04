@@ -52,7 +52,7 @@ export function initSymbolPickerFeature(plugin: BetterEditPlugin): void {
 	}));
 
 	// Keyboard shortcut (plugin-managed, separate from Obsidian command hotkeys)
-	plugin.registerDomEvent(document, 'keydown', (event: KeyboardEvent) => {
+	plugin.registerDomEvent(plugin.app.workspace.containerEl.ownerDocument, 'keydown', (event: KeyboardEvent) => {
 		if (!plugin.settings.symbolPicker.enabled) return;
 		if (!plugin.settings.symbolPicker.shortcutEnabled) return;
 		if (!matchesShortcut(event, plugin.settings.symbolPicker.shortcut)) return;

@@ -1,3 +1,5 @@
+import { Platform } from 'obsidian';
+
 export interface ShortcutDef {
 	modKey: boolean;   // Ctrl on Win/Linux, Cmd on Mac
 	shiftKey: boolean;
@@ -24,7 +26,7 @@ export const SYMBOL_PICKER_DEFAULT_SETTINGS: SymbolPickerSettings = {
 };
 
 export function matchesShortcut(event: KeyboardEvent, shortcut: ShortcutDef): boolean {
-	const isMac = navigator.platform.toUpperCase().includes('MAC');
+	const isMac = Platform.isMacOS;
 	const modPressed = isMac ? event.metaKey : event.ctrlKey;
 	const otherMod = isMac ? event.ctrlKey : event.metaKey;
 	if (otherMod) return false;
@@ -37,7 +39,7 @@ export function matchesShortcut(event: KeyboardEvent, shortcut: ShortcutDef): bo
 }
 
 export function formatShortcut(shortcut: ShortcutDef): string {
-	const isMac = navigator.platform.toUpperCase().includes('MAC');
+	const isMac = Platform.isMacOS;
 	const parts: string[] = [];
 	if (shortcut.modKey) parts.push(isMac ? '⌘' : 'Ctrl');
 	if (shortcut.altKey) parts.push(isMac ? '⌥' : 'Alt');

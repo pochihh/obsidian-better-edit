@@ -67,7 +67,7 @@ export class SymbolPickerPanel {
 		const tabBarEl = panel.createDiv({ cls: 'be-symbol-tab-bar' });
 		const mathTabEl = tabBarEl.createEl('button', {
 			cls: 'be-symbol-tab',
-			text: 'Math & Arrows',
+			text: 'Math & arrows',
 			attr: { type: 'button' },
 		});
 		const emojiTabEl = tabBarEl.createEl('button', {
@@ -90,7 +90,7 @@ export class SymbolPickerPanel {
 			historyContainerEl.empty();
 			const history = this.config.getHistory();
 			const showHistory = history.length > 0 && this.searchValue.length === 0;
-			historyContainerEl.style.display = showHistory ? '' : 'none';
+			historyContainerEl.toggleClass('is-hidden', !showHistory);
 			if (!showHistory) return;
 			historyContainerEl.createDiv({ cls: 'be-symbol-section-label', text: 'Recent' });
 			const hGrid = historyContainerEl.createDiv({ cls: 'be-symbol-grid be-symbol-history-grid' });
@@ -173,12 +173,10 @@ export class SymbolPickerPanel {
 		const margin = 8;
 		const win = this.windowEl;
 
-		this.panelEl.style.visibility = 'hidden';
-		this.panelEl.style.top = '0px';
-		this.panelEl.style.left = '0px';
+		this.panelEl.setCssProps({ visibility: 'hidden', top: '0px', left: '0px' });
 		// Ancestor transform/filter can make position:fixed relative to that ancestor; subtract the offset to correct.
 		const zeroRect = this.panelEl.getBoundingClientRect();
-		this.panelEl.style.visibility = '';
+		this.panelEl.setCssProps({ visibility: '' });
 
 		let targetTop = coords.bottom + margin;
 		if (targetTop + zeroRect.height > win.innerHeight - margin) {
@@ -192,8 +190,10 @@ export class SymbolPickerPanel {
 		}
 		targetLeft = Math.max(margin, targetLeft);
 
-		this.panelEl.style.top = `${Math.round(targetTop - zeroRect.top)}px`;
-		this.panelEl.style.left = `${Math.round(targetLeft - zeroRect.left)}px`;
+		this.panelEl.setCssProps({
+			top: `${Math.round(targetTop - zeroRect.top)}px`,
+			left: `${Math.round(targetLeft - zeroRect.left)}px`,
+		});
 		return true;
 	}
 

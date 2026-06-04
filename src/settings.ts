@@ -1,4 +1,4 @@
-import { App, getIconIds, Modal, Plugin, PluginSettingTab, Setting, setIcon } from 'obsidian';
+import { App, getIconIds, Modal, Platform, Plugin, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import { ImageSettings, IMAGE_DEFAULT_SETTINGS } from './features/image/settings';
 import { BlocksSettings, BLOCKS_DEFAULT_SETTINGS } from './features/blocks/settings';
 import {
@@ -426,7 +426,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			(body) => {
 				new Setting(body)
 					.setName('Right-click menu')
-					.setDesc('Add "Insert symbol or emoji" to the editor context menu.')
+					.setDesc('Add "insert symbol or emoji" to the editor context menu.')
 					.addToggle(toggle => toggle
 						.setValue(s().contextMenuEnabled)
 						.onChange(async (v) => { s().contextMenuEnabled = v; await save(); }));
@@ -475,7 +475,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 					const modifierKeys = new Set(['Control', 'Meta', 'Shift', 'Alt', 'OS']);
 					if (modifierKeys.has(event.key)) return;
 					if (event.key === 'Escape') { stopRecording(); shortcutBadge.setText(formatShortcut(s().shortcut)); return; }
-					const isMac = navigator.platform.toUpperCase().includes('MAC');
+					const isMac = Platform.isMacOS;
 					const def: ShortcutDef = {
 						modKey: isMac ? event.metaKey : event.ctrlKey,
 						shiftKey: event.shiftKey,
@@ -490,7 +490,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 
 				new Setting(body)
 					.setName('Obsidian command')
-					.setDesc('Register "Insert symbol or emoji" in the command palette (assignable via Obsidian Hotkeys settings).')
+					.setDesc('Register "insert symbol or emoji" in the command palette (assignable via Obsidian hotkeys settings).')
 					.addToggle(toggle => toggle
 						.setValue(s().commandEnabled)
 						.onChange(async (v) => { s().commandEnabled = v; await save(); }));
