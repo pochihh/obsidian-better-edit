@@ -194,6 +194,15 @@ Triggered from toolbar or More menu. A floating panel anchored below the image, 
 Rows are stored as one HTML block with `data-better-edit-image-row` on the outer
 wrapper and individual Better Edit image / placeholder blocks nested inside it.
 
+Rows are normalized to represent multi-item layouts only:
+
+- `0` items left: the row disappears
+- `1` item left: the remaining item becomes a standalone image or placeholder block
+- `2+` items left: the row remains a row
+
+New rows default to `flex-wrap: wrap` so oversized rows stay reachable in the
+editor. Users can switch a row back to `nowrap` from the row toolbar menu.
+
 ### Current row interactions
 
 Supported drag-and-drop cases:

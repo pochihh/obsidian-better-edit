@@ -104,7 +104,7 @@ export function singleImageHtml(
 	const altAttr = alt ? ` alt="${escapeHtmlAttr(alt)}"` : '';
 	const radiusStyle = cornerRadius > 0 ? ` border-radius: ${cornerRadius}px;` : '';
 	const captionHtml = caption !== undefined
-		? `  <p style="${captionHidden ? 'display: none; ' : ''}font-size: 0.85em; color: #888; margin: 4px 0 0;">${caption}</p>\n`
+		? `  <p style="${captionHidden ? 'display: none; ' : ''}font-size: 0.85em; color: #888; margin: 4px 0 0;">${escapeHtmlText(caption)}</p>\n`
 		: '';
 
 	if (crop) {
@@ -169,7 +169,7 @@ export function parseImageRowBlock(html: string): ImageRowBlock | null {
 	const parsedGap = gapStr ? parseInt(gapStr, 10) : NaN;
 	const gap = Number.isNaN(parsedGap) ? 8 : parsedGap;
 	const justify = (extractStyleProp(outerStyle, 'justify-content') as RowJustify | null) ?? 'flex-start';
-	const wrap = extractStyleProp(outerStyle, 'flex-wrap') ?? 'nowrap';
+	const wrap = extractStyleProp(outerStyle, 'flex-wrap') ?? 'wrap';
 	const alignItems = extractStyleProp(outerStyle, 'align-items') ?? 'flex-start';
 
 	const images: (SingleImageBlock | PlaceholderBlock)[] = [];
@@ -311,6 +311,10 @@ export function parseImageBlock(html: string): ImageBlock | null {
 
 function escapeHtmlAttr(s: string): string {
 	return s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function escapeHtmlText(s: string): string {
+	return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }
 
 function unescapeHtmlAttr(s: string): string {

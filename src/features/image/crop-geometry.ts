@@ -79,7 +79,7 @@ export function resizeCropRect(
  */
 export function applyRatioCrop(
 	w: number,
-	h: number,
+	_h: number,
 	ratio: number,
 	boundsW: number,
 	boundsH: number,

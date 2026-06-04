@@ -11,7 +11,7 @@
 
 import { EditorView, keymap } from '@codemirror/view';
 import { EditorSelection, EditorState, Extension, Prec } from '@codemirror/state';
-import { App, editorLivePreviewField } from 'obsidian';
+import { App, editorLivePreviewField, MarkdownView } from 'obsidian';
 import { registerPasteDropHandlers } from './paste-handler';
 import { createImageDecorationField, createImageWidgetExtension, imageFeatureEnabledEffect } from './widget';
 import { parseImageBlock, parseImageRowBlock, findBlockEnd } from './html-schema';
@@ -25,7 +25,9 @@ export function initImageFeature(plugin: BetterEditPlugin): void {
 /** Dispatches an effect to all open editors so image decorations recompute immediately. */
 export function refreshImageDecorations(app: App): void {
 	app.workspace.iterateAllLeaves(leaf => {
-		const cm: EditorView | undefined = (leaf.view as any)?.editor?.cm;
+		if (!(leaf.view instanceof MarkdownView)) return;
+		const editor = leaf.view.editor as unknown as { cm?: unknown };
+		const cm = editor.cm;
 		if (cm instanceof EditorView) {
 			cm.dispatch({ effects: imageFeatureEnabledEffect.of(true) });
 		}

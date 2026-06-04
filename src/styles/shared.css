@@ -103,6 +103,10 @@ body .be-replace-panel .be-replace-tab.is-active {
 	padding: 12px;
 }
 
+.be-replace-pane.is-hidden {
+	display: none;
+}
+
 .be-replace-upload-desc {
 	font-size: 12px;
 	color: var(--text-muted);

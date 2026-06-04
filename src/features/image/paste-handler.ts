@@ -117,7 +117,7 @@ async function handleImageInsert(
 function handleExistingImageInsert(
 	plugin: BetterEditPlugin,
 	editor: Editor,
-	view: MarkdownView,
+	_view: MarkdownView,
 	imageFile: TFile,
 ): void {
 	const html = buildManagedImageHtml(plugin, imageFile);

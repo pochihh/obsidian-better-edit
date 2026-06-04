@@ -59,7 +59,7 @@ export class CropModal extends Modal {
 
 	onOpen(): void {
 		this.modalEl.addClass('be-crop-modal');
-		this.contentEl.style.padding = '0';
+		this.contentEl.setCssProps({ padding: '0' });
 		this.contentEl.addClass('be-crop-modal-content');
 		this.buildUI();
 	}
@@ -97,27 +97,29 @@ export class CropModal extends Modal {
 		});
 
 		// SVG mask overlay
+		const doc = this.contentEl.ownerDocument;
 		const svgNs = 'http://www.w3.org/2000/svg';
-		const svg = document.createElementNS(svgNs, 'svg') as SVGSVGElement;
+		const svg = doc.createElementNS(svgNs, 'svg');
 		svg.setAttribute('class', 'be-crop-svg-overlay');
 		svg.setAttribute('width', '100%');
 		svg.setAttribute('height', '100%');
 
-		const defs = document.createElementNS(svgNs, 'defs');
-		const mask = document.createElementNS(svgNs, 'mask');
+		const defs = doc.createElementNS(svgNs, 'defs');
+		const mask = doc.createElementNS(svgNs, 'mask');
 		mask.setAttribute('id', 'be-crop-mask');
-		const maskBg = document.createElementNS(svgNs, 'rect');
+		const maskBg = doc.createElementNS(svgNs, 'rect');
 		maskBg.setAttribute('width', '100%');
 		maskBg.setAttribute('height', '100%');
 		maskBg.setAttribute('fill', 'white');
-		this.svgHoleRect = document.createElementNS(svgNs, 'rect') as SVGRectElement;
-		this.svgHoleRect.setAttribute('fill', 'black');
+		const holeRect = doc.createElementNS(svgNs, 'rect');
+		holeRect.setAttribute('fill', 'black');
+		this.svgHoleRect = holeRect;
 		mask.appendChild(maskBg);
-		mask.appendChild(this.svgHoleRect);
+		mask.appendChild(holeRect);
 		defs.appendChild(mask);
 		svg.appendChild(defs);
 
-		const overlayRect = document.createElementNS(svgNs, 'rect');
+		const overlayRect = doc.createElementNS(svgNs, 'rect');
 		overlayRect.setAttribute('fill', 'black');
 		overlayRect.setAttribute('fill-opacity', '0.5');
 		overlayRect.setAttribute('width', '100%');
@@ -249,11 +251,11 @@ export class CropModal extends Modal {
 			this.updateCropUI();
 		};
 		const onUp = () => {
-			document.removeEventListener('mousemove', onMove);
-			document.removeEventListener('mouseup', onUp);
+			this.contentEl.ownerDocument.removeEventListener('mousemove', onMove);
+			this.contentEl.ownerDocument.removeEventListener('mouseup', onUp);
 		};
-		document.addEventListener('mousemove', onMove);
-		document.addEventListener('mouseup', onUp);
+		this.contentEl.ownerDocument.addEventListener('mousemove', onMove);
+		this.contentEl.ownerDocument.addEventListener('mouseup', onUp);
 	}
 
 	private onMoveMouseDown(e: MouseEvent): void {
@@ -268,11 +270,11 @@ export class CropModal extends Modal {
 			this.updateCropUI();
 		};
 		const onUp = () => {
-			document.removeEventListener('mousemove', onMove);
-			document.removeEventListener('mouseup', onUp);
+			this.contentEl.ownerDocument.removeEventListener('mousemove', onMove);
+			this.contentEl.ownerDocument.removeEventListener('mouseup', onUp);
 		};
-		document.addEventListener('mousemove', onMove);
-		document.addEventListener('mouseup', onUp);
+		this.contentEl.ownerDocument.addEventListener('mousemove', onMove);
+		this.contentEl.ownerDocument.addEventListener('mouseup', onUp);
 	}
 
 	private showRatioMenu(e: MouseEvent): void {
@@ -285,9 +287,11 @@ export class CropModal extends Modal {
 					this.activeRatio = option;
 					if (this.ratioLabelEl) this.ratioLabelEl.textContent = option.label;
 					if (this.cropSelectionEl) {
-						option.shape === 'circle'
-							? this.cropSelectionEl.addClass('be-crop-circle')
-							: this.cropSelectionEl.removeClass('be-crop-circle');
+						if (option.shape === 'circle') {
+							this.cropSelectionEl.addClass('be-crop-circle');
+						} else {
+							this.cropSelectionEl.removeClass('be-crop-circle');
+						}
 					}
 					if (option.ratio !== null) this.applyRatioToCurrentCrop(option.ratio);
 					this.updateCropUI();

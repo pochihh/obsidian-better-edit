@@ -54,7 +54,7 @@ import type BetterEditPlugin from '../../main';
 // to recompute immediately — used when the enabled setting changes at runtime.
 export const imageFeatureEnabledEffect = StateEffect.define<boolean>();
 
-const ROW_DEFAULTS = { gap: 8, justify: 'flex-start' as const, wrap: 'nowrap', alignItems: 'flex-start' };
+const ROW_DEFAULTS = { gap: 8, justify: 'flex-start' as const, wrap: 'wrap', alignItems: 'flex-start' };
 const IMAGE_DRAG_THRESHOLD_PX = 8;
 const IMAGE_DRAG_ROW_Y_TOLERANCE_PX = 12;
 const IMAGE_ROW_TOOLBAR_COLLAPSE_MARGIN_PX = 32;
@@ -371,9 +371,13 @@ class ImageWidget extends WidgetType {
 		this.plugin.registerDomEvent(caption, 'click',     (e: MouseEvent) => e.stopPropagation());
 
 		this.plugin.registerDomEvent(caption, 'keydown', (e: KeyboardEvent) => {
+			e.stopPropagation();
 			if (e.key === 'Enter')  { e.preventDefault(); save(); caption.blur(); }
 			if (e.key === 'Escape') { captionClosed = true; caption.textContent = this.block.caption ?? ''; caption.blur(); }
 		});
+		this.plugin.registerDomEvent(caption, 'keyup', (e: KeyboardEvent) => e.stopPropagation());
+		this.plugin.registerDomEvent(caption, 'beforeinput', (e: InputEvent) => e.stopPropagation());
+		this.plugin.registerDomEvent(caption, 'input', (e: InputEvent) => e.stopPropagation());
 
 		this.plugin.registerDomEvent(caption, 'blur', save);
 
@@ -727,7 +731,7 @@ class ImageWidget extends WidgetType {
 			type: 'text',
 			value: this.block.alt ?? '',
 			placeholder: 'Add alt text…',
-		} }) as HTMLInputElement;
+		} });
 
 		popover.append(header, desc, input);
 
@@ -756,7 +760,7 @@ class ImageWidget extends WidgetType {
 		const closeOnOutside = (ev: MouseEvent) => {
 			if (!popover.contains(ev.target as Node)) closePopover(true);
 		};
-		setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+		activeWindow.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
 
 		scroller?.addEventListener('scroll', positionPopover, { passive: true });
 
@@ -872,21 +876,21 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 	uploadArea.append(uploadBtn, fileInput);
 	uploadPane.appendChild(uploadArea);
 
-	const linkPane  = createDiv({ cls: 'be-replace-pane', attr: { style: 'display:none' } });
+	const linkPane  = createDiv({ cls: 'be-replace-pane is-hidden' });
 	const linkInput = createEl('input', { cls: 'be-replace-link-input', attr: {
 		type: 'text', value: opts.linkInitialValue, placeholder: 'Paste image URL or vault path…',
-	} }) as HTMLInputElement;
+	} });
 	linkPane.appendChild(linkInput);
 
 	panel.append(tabBar, uploadPane, linkPane);
 
 	uploadTab.addEventListener('click', () => {
 		uploadTab.addClass('is-active'); linkTab.removeClass('is-active');
-		uploadPane.style.display = ''; linkPane.style.display = 'none';
+		uploadPane.removeClass('is-hidden'); linkPane.addClass('is-hidden');
 	});
 	linkTab.addEventListener('click', () => {
 		linkTab.addClass('is-active'); uploadTab.removeClass('is-active');
-		linkPane.style.display = ''; uploadPane.style.display = 'none';
+		linkPane.removeClass('is-hidden'); uploadPane.addClass('is-hidden');
 		requestAnimationFrame(() => { linkInput.focus(); if (opts.linkInitialValue) linkInput.select(); });
 	});
 
@@ -932,7 +936,7 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 	const closeOnOutside = (ev: MouseEvent) => {
 		if (!panel.contains(ev.target as Node)) closePanel();
 	};
-	setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+	activeWindow.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
 
 	if (opts.onDelete) {
 		const onKeyDown = (ev: KeyboardEvent) => {
@@ -1027,6 +1031,16 @@ function rowHtmlForBlock(block: ImageRowBlock, plugin: BetterEditPlugin): string
 	);
 }
 
+function serializeRemainingRowItems(
+	images: (SingleImageBlock | PlaceholderBlock)[],
+	rowBlock: ImageRowBlock,
+	plugin: BetterEditPlugin,
+): string {
+	if (images.length === 0) return '';
+	if (images.length === 1) return standaloneHtmlForBlock(images[0]!, plugin);
+	return rowHtmlForBlock({ ...rowBlock, images }, plugin);
+}
+
 function clampInsertIndex(insertIndex: number, length: number): number {
 	return Math.max(0, Math.min(length, insertIndex));
 }
@@ -1094,6 +1108,14 @@ function computeRowIndicatorLeft(rowEl: HTMLElement, insertIndex: number): numbe
 
 function isImageDragExcludedTarget(target: Element): boolean {
 	return !!target.closest('.be-resize-handle, .be-toolbar-btn, .be-image-caption, .be-image-alt-badge, .be-replace-panel, .be-alt-popover, .be-row-toolbar-more, .be-image-row-toolbar');
+}
+
+interface MenuItemWithSubmenu extends MenuItem {
+	setSubmenu(): Menu;
+}
+
+function createSubmenu(item: MenuItem): Menu {
+	return (item as MenuItemWithSubmenu).setSubmenu();
 }
 
 interface ResolvedRowState {
@@ -1340,7 +1362,7 @@ class ImageRowToolbarController {
 			item.setTitle('Justify content');
 			item.setSection('layout');
 			item.setIcon('align-justify');
-			const sub = (item as any).setSubmenu() as Menu;
+			const sub = createSubmenu(item);
 			for (const [title, value] of [
 				['Flex start', 'flex-start'],
 				['Flex end', 'flex-end'],
@@ -1366,7 +1388,7 @@ class ImageRowToolbarController {
 			item.setTitle('Align items');
 			item.setSection('layout');
 			item.setIcon('align-vertical-distribute-center');
-			const sub = (item as any).setSubmenu() as Menu;
+			const sub = createSubmenu(item);
 			for (const [title, value] of [
 				['Start', 'flex-start'],
 				['Center', 'center'],
@@ -1391,7 +1413,7 @@ class ImageRowToolbarController {
 			item.setTitle('Wrap');
 			item.setSection('layout');
 			item.setIcon('wrap-text');
-			const sub = (item as any).setSubmenu() as Menu;
+			const sub = createSubmenu(item);
 			for (const [title, value] of [
 				['No wrap', 'nowrap'],
 				['Wrap', 'wrap'],
@@ -1414,7 +1436,7 @@ class ImageRowToolbarController {
 			item.setTitle('Gap');
 			item.setSection('layout');
 			item.setIcon('ruler');
-			const sub = (item as any).setSubmenu() as Menu;
+			const sub = createSubmenu(item);
 			for (const px of [0, 8, 16, 24, 32, 40, 48, 56, 64]) {
 				sub.addItem((si: MenuItem) => {
 					si.setTitle(`${px}px`);
@@ -1827,7 +1849,7 @@ class ImageDragManager {
 				changes: {
 					from: source.rowFrom,
 					to: source.rowTo,
-					insert: `${rowHtmlForBlock({ ...sourceRowBlock, images: sourceImages }, this.plugin)}\n\n${poppedHtml}`,
+					insert: `${serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin)}\n\n${poppedHtml}`,
 				},
 				effects: deselectImageBlock.of(null),
 			});
@@ -1858,7 +1880,7 @@ class ImageDragManager {
 						{
 							from: source.rowFrom,
 							to: source.rowTo,
-							insert: rowHtmlForBlock({ ...sourceRowBlock, images: sourceImages }, this.plugin),
+							insert: serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin),
 						},
 					],
 				effects: deselectImageBlock.of(null),
@@ -1887,7 +1909,7 @@ class ImageDragManager {
 					{
 						from: source.rowFrom,
 						to: source.rowTo,
-						insert: rowHtmlForBlock({ ...sourceRowBlock, images: sourceImages }, this.plugin),
+						insert: serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin),
 					},
 				],
 			effects: deselectImageBlock.of(null),
@@ -2063,14 +2085,13 @@ class ImageRowWidget extends WidgetType {
 		if (images.length === 0) {
 			view.dispatch({ changes: { from: this.from, to: this.to, insert: poppedHtml } });
 		} else {
-			const { imageCornerRadiusPx } = this.plugin.settings.image;
-			const newRowHtml = imageRowHtml(images, this.block.gap, this.block.justify, this.block.wrap, this.block.alignItems, imageCornerRadiusPx);
-			view.dispatch({ changes: { from: this.from, to: this.to, insert: `${newRowHtml}\n\n${poppedHtml}` } });
+			const remainingHtml = serializeRemainingRowItems(images, this.block, this.plugin);
+			view.dispatch({ changes: { from: this.from, to: this.to, insert: `${remainingHtml}\n\n${poppedHtml}` } });
 		}
 	}
 
 	private replacePlaceholderAt(view: EditorView, index: number, src: string): void {
-		const { defaultImageWidth, imageCornerRadiusPx } = this.plugin.settings.image;
+		const { defaultImageWidth } = this.plugin.settings.image;
 		const images = [...this.block.images];
 		images[index] = { kind: 'single', src, width: defaultImageWidth, alignment: 'center' };
 		this.updateRow(view, { ...this.block, images });
@@ -2146,14 +2167,18 @@ class ImageRowWidget extends WidgetType {
 		this.plugin.registerDomEvent(caption, 'mousedown', (e: MouseEvent) => e.stopPropagation());
 		this.plugin.registerDomEvent(caption, 'click',     (e: MouseEvent) => e.stopPropagation());
 		this.plugin.registerDomEvent(caption, 'keydown', (e: KeyboardEvent) => {
+			e.stopPropagation();
 			if (e.key === 'Enter')  { e.preventDefault(); save(); caption.blur(); }
 			if (e.key === 'Escape') { captionClosed = true; caption.textContent = imgBlock.caption ?? ''; caption.blur(); }
 		});
+		this.plugin.registerDomEvent(caption, 'keyup', (e: KeyboardEvent) => e.stopPropagation());
+		this.plugin.registerDomEvent(caption, 'beforeinput', (e: InputEvent) => e.stopPropagation());
+		this.plugin.registerDomEvent(caption, 'input', (e: InputEvent) => e.stopPropagation());
 		this.plugin.registerDomEvent(caption, 'blur', save);
 		return caption;
 	}
 
-	private buildResizeHandle(view: EditorView, frameEl: HTMLElement, imgEl: HTMLImageElement, imgBlock: SingleImageBlock, index: number): HTMLElement {
+	private buildResizeHandle(view: EditorView, frameEl: HTMLElement, _imgEl: HTMLImageElement, imgBlock: SingleImageBlock, index: number): HTMLElement {
 		const handle = createDiv({ cls: 'be-resize-handle' });
 		handle.appendChild(createDiv({ cls: 'be-resize-grip' }));
 
@@ -2354,7 +2379,7 @@ class ImageRowWidget extends WidgetType {
 		const desc = createDiv({ cls: 'be-alt-popover-desc', text: 'Describe this image for people who cannot see it.' });
 		const input = createEl('input', { cls: 'be-alt-popover-input', attr: {
 			type: 'text', value: imgBlock.alt ?? '', placeholder: 'Add alt text…',
-		} }) as HTMLInputElement;
+		} });
 		popover.append(header, desc, input);
 
 		let altClosed = false;
@@ -2379,7 +2404,7 @@ class ImageRowWidget extends WidgetType {
 		const closeOnOutside = (ev: MouseEvent) => {
 			if (!popover.contains(ev.target as Node)) closePopover(true);
 		};
-		setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+		activeWindow.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
 		scroller?.addEventListener('scroll', positionPopover, { passive: true });
 
 		activeDocument.body.appendChild(popover);
@@ -2428,9 +2453,8 @@ class ImageRowWidget extends WidgetType {
 				changes: { from: this.from, to: this.to, insert: poppedHtml.trimStart() },
 			});
 		} else {
-			const newRowHtml = imageRowHtml(images, this.block.gap, this.block.justify, this.block.wrap, this.block.alignItems, imageCornerRadiusPx);
 			view.dispatch({
-				changes: { from: this.from, to: this.to, insert: `${newRowHtml}\n\n${poppedHtml}` },
+				changes: { from: this.from, to: this.to, insert: `${serializeRemainingRowItems(images, this.block, this.plugin)}\n\n${poppedHtml}` },
 			});
 		}
 	}
@@ -2447,7 +2471,13 @@ class ImageRowWidget extends WidgetType {
 			else if (from > 0 && text[from - 1] === '\n') from--;
 			view.dispatch({ changes: { from, to, insert: '' } });
 		} else {
-			this.updateRow(view, { ...this.block, images });
+			view.dispatch({
+				changes: {
+					from: this.from,
+					to: this.to,
+					insert: serializeRemainingRowItems(images, this.block, this.plugin),
+				},
+			});
 		}
 	}
 
