@@ -6,10 +6,10 @@ introducing proprietary storage formats or changing how notes render without the
 plugin.
 
 ## Features
-- **Image**: arrangement with resize, alignment, crop, caption, replace, alt text, and multi-image flex box supprot
+- **Image**: arrangement with resize, alignment, crop, caption, replace, alt text, and multi-image rows
 - **Block**: drag and drop with left-gutter controls
 - **Slash commands**: customizable commands for fast block insertion
-- **Text Styling**: selection toolbar for inline formatting and linking
+- **Text styling**: selection toolbar for inline formatting and linking
 - **Symbol and emoji**: a symbol and emoji picker with customizable trigger, including context-menu, shortcut, and command-palette entry
 
 ## Installation
