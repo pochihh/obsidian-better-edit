@@ -40,6 +40,7 @@ import {
 	findBlockEnd,
 } from './html-schema';
 import { CropModal } from './crop-modal';
+import { orderImageDragChanges } from './drag-changes';
 import { notePotentialNativeImageDrop, saveImageToVault } from './paste-handler';
 import {
 	imageSelectionField,
@@ -1044,9 +1045,10 @@ function serializeRemainingRowItems(
 	images: (SingleImageBlock | PlaceholderBlock)[],
 	rowBlock: ImageRowBlock,
 	plugin: BetterEditPlugin,
+	preserveRow = false,
 ): string {
 	if (images.length === 0) return '';
-	if (images.length === 1) return standaloneHtmlForBlock(images[0]!, plugin);
+	if (images.length === 1 && !preserveRow) return standaloneHtmlForBlock(images[0]!, plugin);
 	return rowHtmlForBlock({ ...rowBlock, images }, plugin);
 }
 
@@ -1800,14 +1802,14 @@ class ImageDragManager {
 				nextImages.splice(clampInsertIndex(target.insertIndex, nextImages.length), 0, sourceBlock);
 				const sourceRemoval = removeStandaloneBlockRange(this.view.state, source.from, source.to);
 				this.view.dispatch({
-					changes: [
+					changes: orderImageDragChanges([
 						{
 							from: target.rowFrom,
 							to: target.rowTo,
 							insert: rowHtmlForBlock({ ...rowBlock, images: nextImages }, this.plugin),
 						},
 						{ from: sourceRemoval.from, to: sourceRemoval.to, insert: '' },
-					],
+					]),
 					effects: deselectImageBlock.of(null),
 				});
 				return;
@@ -1825,10 +1827,10 @@ class ImageDragManager {
 				this.plugin.settings.image.imageCornerRadiusPx,
 			);
 			this.view.dispatch({
-				changes: [
+				changes: orderImageDragChanges([
 					{ from: target.targetFrom, to: target.targetTo, insert: rowHtml },
 					{ from: sourceRemoval.from, to: sourceRemoval.to, insert: '' },
-				],
+				]),
 				effects: deselectImageBlock.of(null),
 			});
 			return;
@@ -1858,7 +1860,7 @@ class ImageDragManager {
 				changes: {
 					from: source.rowFrom,
 					to: source.rowTo,
-					insert: `${serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin)}\n\n${poppedHtml}`,
+					insert: `${serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin, true)}\n\n${poppedHtml}`,
 				},
 				effects: deselectImageBlock.of(null),
 			});
@@ -1871,7 +1873,7 @@ class ImageDragManager {
 			const nextImages = [...rowBlock.images];
 			nextImages.splice(clampInsertIndex(target.insertIndex, nextImages.length), 0, movedBlock);
 			this.view.dispatch({
-				changes: sourceImages.length === 0
+				changes: orderImageDragChanges(sourceImages.length === 0
 					? [
 						{
 							from: target.rowFrom,
@@ -1889,9 +1891,9 @@ class ImageDragManager {
 						{
 							from: source.rowFrom,
 							to: source.rowTo,
-							insert: serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin),
+							insert: serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin, true),
 						},
-					],
+					]),
 				effects: deselectImageBlock.of(null),
 			});
 			return;
@@ -1908,7 +1910,7 @@ class ImageDragManager {
 			this.plugin.settings.image.imageCornerRadiusPx,
 		);
 		this.view.dispatch({
-			changes: sourceImages.length === 0
+			changes: orderImageDragChanges(sourceImages.length === 0
 				? [
 					{ from: target.targetFrom, to: target.targetTo, insert: rowHtml },
 					{ ...removeRowBlockRange(this.view.state, source.rowFrom, source.rowTo), insert: '' },
@@ -1918,9 +1920,9 @@ class ImageDragManager {
 					{
 						from: source.rowFrom,
 						to: source.rowTo,
-						insert: serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin),
+						insert: serializeRemainingRowItems(sourceImages, sourceRowBlock, this.plugin, true),
 					},
-				],
+				]),
 			effects: deselectImageBlock.of(null),
 		});
 	}
