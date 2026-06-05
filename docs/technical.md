@@ -85,7 +85,7 @@ Use the docs this way:
 
 - `README.md`: short public project entrypoint
 - `docs/feature_list/`: user-facing feature explanations
-- `docs/demo/`: static user-facing demo page used for release screenshots
+- `docs/feature_list/assets/`: actual Obsidian screenshots used by the feature list
 - `docs/technical_notes/project-architecture.md`: design principles and cross-feature architecture
 - `docs/technical_notes/`: detailed implementation notes and edge cases
 - `docs/technical.md`: implementation structure and build conventions

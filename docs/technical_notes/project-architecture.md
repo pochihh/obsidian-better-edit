@@ -95,7 +95,7 @@ src/
 
 - `README.md`: short public entrypoint.
 - `docs/feature_list/`: user-facing feature explanations.
-- `docs/demo/`: static release demo page and screenshot instructions.
+- `docs/feature_list/assets/`: actual Obsidian screenshots used by the feature list.
 - `docs/technical.md`: project-level implementation structure and build conventions.
 - `docs/technical_notes/`: detailed technical behavior, edge cases, and historical design rationale.
 - `docs/guidelines.md`: development rules and Obsidian API guidance.

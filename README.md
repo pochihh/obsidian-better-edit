@@ -86,7 +86,7 @@ into the official Obsidian directory.
 ## Documentation
 
 - User-facing feature list: [`docs/feature_list/`](./docs/feature_list/)
-- Demo page and release screenshots: [`docs/demo/`](./docs/demo/)
+- Feature screenshots: [`docs/feature_list/assets/`](./docs/feature_list/assets/)
 - Technical architecture and build notes: [`docs/technical.md`](./docs/technical.md)
 - Design principles and implementation rationale: [`docs/technical_notes/project-architecture.md`](./docs/technical_notes/project-architecture.md)
 - Feature implementation notes: [`docs/technical_notes/`](./docs/technical_notes/)
