@@ -39,15 +39,7 @@ official Obsidian Community Plugins directory.
 
 ## Regression pass
 
-Use the generated sandbox vault and automated harness:
-
-```bash
-npm run e2e:reset
-npm run e2e:sync
-npm run e2e:smoke:direct
-```
-
-Then confirm the release-risk areas:
+Before tagging, complete the local regression pass and confirm the release-risk areas:
 
 - blocks drag and drop plus block operation menu
 - slash command trigger and menu behavior

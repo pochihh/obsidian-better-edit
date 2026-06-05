@@ -29,7 +29,7 @@ docs/ref/
 # Local plugin runtime data
 data.json
 
-# E2E artifacts
+# Local test artifacts
 test-results/
 D:/
 
@@ -38,3 +38,6 @@ test-vault/
 
 # Local Codex / Claude settings
 .claude/settings.local.json
+
+# Local Hermes/private files
+.hermes/

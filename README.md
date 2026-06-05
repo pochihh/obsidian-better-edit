@@ -81,7 +81,7 @@ into the official Obsidian directory.
 - The plugin is optimized for Live Preview, not Reading View.
 - Some interactions depend on current Obsidian editor internals and should be
   regression-tested against new Obsidian releases.
-- Automated coverage includes fast transform/model tests plus a Windows Obsidian smoke harness; feature-level E2E coverage is still expanding.
+- Regression testing is performed locally before release.
 
 ## Documentation
 
@@ -91,7 +91,6 @@ into the official Obsidian directory.
 - Design principles and implementation rationale: [`docs/technical_notes/project-architecture.md`](./docs/technical_notes/project-architecture.md)
 - Feature implementation notes: [`docs/technical_notes/`](./docs/technical_notes/)
 - Release checklist: [`docs/release-checklist.md`](./docs/release-checklist.md)
-- Testing workflow: [`docs/testing.md`](./docs/testing.md)
 - Development rules and Obsidian guidance: [`docs/guidelines.md`](./docs/guidelines.md)
 
 ## Development

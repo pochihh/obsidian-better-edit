@@ -89,7 +89,7 @@ src/
 | Build | `npm run build` |
 | Lint | `npm run lint` |
 | Release gate | `npm run check` |
-| Testing | Fast unit tests for parsing/transforms plus Windows Obsidian sandbox E2E smoke |
+| Testing | Local regression pass before release |
 
 ## Documentation ownership
 
@@ -98,5 +98,4 @@ src/
 - `docs/demo/`: static release demo page and screenshot instructions.
 - `docs/technical.md`: project-level implementation structure and build conventions.
 - `docs/technical_notes/`: detailed technical behavior, edge cases, and historical design rationale.
-- `docs/testing.md`: automated test workflow and local sandbox notes.
 - `docs/guidelines.md`: development rules and Obsidian API guidance.

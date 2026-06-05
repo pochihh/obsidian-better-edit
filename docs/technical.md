@@ -89,7 +89,6 @@ Use the docs this way:
 - `docs/technical_notes/project-architecture.md`: design principles and cross-feature architecture
 - `docs/technical_notes/`: detailed implementation notes and edge cases
 - `docs/technical.md`: implementation structure and build conventions
-- `docs/testing.md`: automated test workflow and local sandbox notes
 - `docs/guidelines.md`: development rules and lint/API guidance
 
 Historical long-form feature implementation docs were moved from `docs/features/`
