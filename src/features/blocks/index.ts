@@ -1,8 +1,13 @@
 import { Extension, StateEffect } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { App, editorLivePreviewField } from 'obsidian';
+import { App, Menu, editorLivePreviewField } from 'obsidian';
 import type BetterEditPlugin from '../../main';
 import { BlockRange, getBlockAtPos, getBlocksInRange } from './block-model';
+import { BlockTurnIntoTarget, canTurnIntoSource, duplicateBlockText, turnBlockTextInto } from './block-transform';
+
+type MenuItemWithSubmenu = {
+	setSubmenu?: () => Menu;
+};
 
 interface DropBoundary {
 	pos: number;
@@ -263,7 +268,9 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			if (this.dragState.kind === 'pressed') {
 				event.preventDefault();
 				event.stopPropagation();
-				this.cancelDrag();
+				const source = this.dragState.source;
+				this.resetDragUi();
+				this.showBlockOperationMenu(source, event.clientX, event.clientY);
 				return;
 			}
 			if (this.dragState.kind !== 'dragging') return;
@@ -445,6 +452,108 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				scrollIntoView: true,
 			});
 			this.view.focus();
+		}
+
+		private showBlockOperationMenu(source: DragSource, x: number, y: number): void {
+			const menu = new Menu();
+
+			menu.addItem(item => {
+				item.setTitle('Delete');
+				item.setIcon('trash');
+				item.onClick(() => this.deleteSource(source));
+			});
+			menu.addItem(item => {
+				item.setTitle('Create copy');
+				item.setIcon('copy');
+				item.onClick(() => this.copySource(source));
+			});
+
+			const sourceText = this.textForSource(source);
+			const canTurnInto = canTurnIntoSource(sourceText);
+			let submenuAttached = false;
+			menu.addItem(item => {
+				item.setTitle('Turn into');
+				item.setIcon('replace');
+				if (!canTurnInto) {
+					item.setDisabled(true);
+					return;
+				}
+				const submenu = (item as MenuItemWithSubmenu).setSubmenu?.();
+				if (submenu !== undefined) {
+					submenuAttached = true;
+					this.addTurnIntoItems(submenu, source);
+					return;
+				}
+				item.setDisabled(true);
+			});
+			if (canTurnInto && !submenuAttached) {
+				menu.addSeparator();
+				menu.addItem(item => item.setTitle('Turn into').setIsLabel(true));
+				this.addTurnIntoItems(menu, source);
+			}
+
+			menu.showAtPosition({ x, y });
+		}
+
+		private addTurnIntoItems(menu: Menu, source: DragSource): void {
+			this.addTurnIntoItem(menu, source, 'Paragraph', 'paragraph');
+			this.addTurnIntoItem(menu, source, 'Heading 1', 'heading-1');
+			this.addTurnIntoItem(menu, source, 'Heading 2', 'heading-2');
+			this.addTurnIntoItem(menu, source, 'Heading 3', 'heading-3');
+			this.addTurnIntoItem(menu, source, 'Bullet list', 'bullet-list');
+			this.addTurnIntoItem(menu, source, 'Numbered list', 'numbered-list');
+			this.addTurnIntoItem(menu, source, 'Checkbox', 'checkbox');
+			this.addTurnIntoItem(menu, source, 'Code block', 'code-block');
+		}
+
+		private addTurnIntoItem(menu: Menu, source: DragSource, title: string, target: BlockTurnIntoTarget): void {
+			menu.addItem(item => {
+				item.setTitle(title);
+				item.onClick(() => this.turnSourceInto(source, target));
+			});
+		}
+
+		private deleteSource(source: DragSource): void {
+			const { from, to } = this.moveSliceForSource(source);
+			this.clearSelectedSource();
+			this.clearPersistedSelection();
+			this.view.dispatch({
+				changes: { from, to, insert: '' },
+				selection: { anchor: from },
+				scrollIntoView: true,
+			});
+			this.view.focus();
+		}
+
+		private copySource(source: DragSource): void {
+			const text = this.textForSource(source);
+			const replacement = duplicateBlockText(text);
+			this.view.dispatch({
+				changes: { from: source.from, to: source.to, insert: replacement },
+				selection: { anchor: source.from + replacement.length },
+				scrollIntoView: true,
+			});
+			this.view.focus();
+			this.persistSelectionForRange(source.from, source.from + replacement.length);
+		}
+
+		private turnSourceInto(source: DragSource, target: BlockTurnIntoTarget): void {
+			const text = this.textForSource(source);
+			if (!canTurnIntoSource(text)) return;
+			const replacement = turnBlockTextInto(text, target);
+			this.clearSelectedSource();
+			this.clearPersistedSelection();
+			this.view.dispatch({
+				changes: { from: source.from, to: source.to, insert: replacement },
+				selection: { anchor: source.from + replacement.length },
+				scrollIntoView: true,
+			});
+			this.view.focus();
+			this.persistSelectionForRange(source.from, source.from + replacement.length);
+		}
+
+		private textForSource(source: DragSource): string {
+			return this.view.state.doc.sliceString(source.from, source.to);
 		}
 
 		private resetDragUi(): void {

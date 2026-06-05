@@ -7,6 +7,7 @@ export type BlockKind =
 	| 'list-item'
 	| 'blockquote'
 	| 'fenced-code'
+	| 'math'
 	| 'table'
 	| 'html'
 	| 'native-image'
@@ -32,6 +33,7 @@ const HEADING_RE = /^\s{0,3}#{1,6}\s+/;
 const HR_RE = /^\s{0,3}(?:-{3,}|\*{3,}|_{3,})\s*$/;
 const SETEXT_HEADING_RE = /^\s{0,3}(?:=+|-+)\s*$/;
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
+const MATH_FENCE_RE = /^\s{0,3}\$\$\s*$/;
 const TABLE_DELIMITER_RE = /^\s*\|?\s*:?-{3,}:?\s*(?:\|\s*:?-{3,}:?\s*)+\|?\s*$/;
 const HTML_OPEN_RE = /^\s*<(div|section|article|figure|table|ul|ol|blockquote|pre)\b/i;
 const NATIVE_IMAGE_RE = /^\s*!\[\[[^\]]+\]\]\s*$/;
@@ -44,6 +46,7 @@ export function getBlockAtPos(state: EditorState, pos: number, options: BlockDet
 
 	return (
 		getFencedCodeBlock(state, line.number) ??
+		getMathBlock(state, line.number) ??
 		getTableBlock(state, line.number) ??
 		(options.enableHtmlBlockDrag ? getHtmlBlock(state, line.number) : null) ??
 		getSetextHeadingBlock(state, line.number) ??
@@ -214,6 +217,29 @@ function getFencedCodeBlock(state: EditorState, lineNumber: number): BlockRange 
 
 		if (lineNumber >= openLine && lineNumber <= n) {
 			return rangeFromLines(state, openLine, n, 'fenced-code');
+		}
+		if (n >= lineNumber) {
+			return null;
+		}
+		openLine = null;
+	}
+
+	return null;
+}
+
+function getMathBlock(state: EditorState, lineNumber: number): BlockRange | null {
+	let openLine: number | null = null;
+
+	for (let n = 1; n <= state.doc.lines; n++) {
+		if (!MATH_FENCE_RE.test(state.doc.line(n).text)) continue;
+
+		if (openLine === null) {
+			openLine = n;
+			continue;
+		}
+
+		if (lineNumber >= openLine && lineNumber <= n) {
+			return rangeFromLines(state, openLine, n, 'math');
 		}
 		if (n >= lineNumber) {
 			return null;
