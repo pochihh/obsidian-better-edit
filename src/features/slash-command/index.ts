@@ -78,7 +78,7 @@ export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension
 				return null;
 			}
 			if (cachedTooltip === null || cachedTooltipFrom !== value.from) {
-				cachedTooltip = createSlashTooltip(value.from, field, setSelectionEffect, closeMenuEffect);
+				cachedTooltip = createSlashTooltip(value.from, plugin, field, setSelectionEffect, closeMenuEffect);
 				cachedTooltipFrom = value.from;
 				slashMenuScrollMemory = 0;
 			}
@@ -120,7 +120,7 @@ export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension
 	const acceptSelection = (view: EditorView): boolean => {
 		const state = view.state.field(slashMenuField, false);
 		if (state === undefined || state === null) return false;
-		return selectSlashCommand(view, state, state.selectedIndex, closeMenuEffect);
+		return selectSlashCommand(view, plugin, state, state.selectedIndex, closeMenuEffect);
 	};
 
 	return [
@@ -308,6 +308,7 @@ function isPrimaryEditorView(view: EditorView): boolean {
 
 function createSlashTooltip(
 	from: number,
+	plugin: BetterEditPlugin,
 	field: StateField<SlashMenuState | null>,
 	setSelectionEffect: StateEffectType<number>,
 	closeMenuEffect: StateEffectType<void>,
@@ -318,7 +319,7 @@ function createSlashTooltip(
 		strictSide: false,
 		clip: false,
 		create(view) {
-			return new SlashCommandTooltipView(view, field, setSelectionEffect, closeMenuEffect);
+			return new SlashCommandTooltipView(view, plugin, field, setSelectionEffect, closeMenuEffect);
 		},
 	};
 }
@@ -339,6 +340,7 @@ class SlashCommandTooltipView implements TooltipView {
 
 	constructor(
 		private readonly view: EditorView,
+		private readonly plugin: BetterEditPlugin,
 		private readonly field: StateField<SlashMenuState | null>,
 		private readonly setSelectionEffect: StateEffectType<number>,
 		private readonly closeMenuEffect: StateEffectType<void>,
@@ -548,7 +550,7 @@ class SlashCommandTooltipView implements TooltipView {
 		const state = this.view.state.field(this.field, false);
 		if (state === undefined || state === null) return;
 
-		selectSlashCommand(this.view, state, index);
+		selectSlashCommand(this.view, this.plugin, state, index);
 	}
 
 	private onListMouseMove(event: MouseEvent): void {
@@ -590,6 +592,7 @@ function renderCommandIcon(parent: HTMLElement, command: SlashCommandDefinition)
 }
 
 function commandShortcut(command: SlashCommandDefinition): string {
+	if (command.actionType === 'execute-command') return 'command';
 	switch (command.id) {
 		case 'heading-1':
 			return '#';
@@ -620,12 +623,16 @@ function commandShortcut(command: SlashCommandDefinition): string {
 
 function selectSlashCommand(
 	view: EditorView,
+	plugin: BetterEditPlugin,
 	state: SlashMenuState,
 	index: number,
 	closeEffect?: StateEffectType<void>,
 ): boolean {
 	const command = state.items[index];
 	if (command === undefined) return false;
+	if (command.actionType === 'execute-command') {
+		return executeSlashObsidianCommand(view, plugin, state, command, closeEffect);
+	}
 
 	const { text, cursorOffset } = resolveTemplate(command.template);
 	view.dispatch({
@@ -636,6 +643,44 @@ function selectSlashCommand(
 	});
 	view.focus();
 	return true;
+}
+
+function executeSlashObsidianCommand(
+	view: EditorView,
+	plugin: BetterEditPlugin,
+	state: SlashMenuState,
+	command: SlashCommandDefinition,
+	closeEffect?: StateEffectType<void>,
+): boolean {
+	const commandId = command.commandId.trim();
+	if (commandId.length === 0) return false;
+	const manager = getObsidianCommandManager(plugin.app);
+	if (manager === null || manager.commands[commandId] === undefined) return false;
+
+	view.dispatch({
+		changes: { from: state.from, to: state.to, insert: '' },
+		selection: { anchor: state.from },
+		effects: closeEffect === undefined ? undefined : closeEffect.of(),
+		scrollIntoView: true,
+	});
+	view.focus();
+	requestAnimationFrame(() => {
+		manager.executeCommandById(commandId);
+	});
+	return true;
+}
+
+interface ObsidianCommandManager {
+	commands: Record<string, { id: string; name: string }>;
+	executeCommandById(commandId: string): boolean;
+}
+
+function getObsidianCommandManager(app: BetterEditPlugin['app']): ObsidianCommandManager | null {
+	const maybeManager = (app as { commands?: unknown }).commands;
+	if (typeof maybeManager !== 'object' || maybeManager === null) return null;
+	const manager = maybeManager as Partial<ObsidianCommandManager>;
+	if (typeof manager.executeCommandById !== 'function' || typeof manager.commands !== 'object' || manager.commands === null) return null;
+	return manager as ObsidianCommandManager;
 }
 
 function resolveTemplate(template: string): { text: string; cursorOffset: number } {

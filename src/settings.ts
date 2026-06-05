@@ -1,4 +1,4 @@
-import { App, getIconIds, Modal, Platform, Plugin, PluginSettingTab, Setting, setIcon } from 'obsidian';
+import { App, Command, getIconIds, Modal, Platform, Plugin, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import { ImageSettings, IMAGE_DEFAULT_SETTINGS } from './features/image/settings';
 import { BlocksSettings, BLOCKS_DEFAULT_SETTINGS } from './features/blocks/settings';
 import {
@@ -521,11 +521,7 @@ class SlashCommandEditModal extends Modal {
 		const iconInput = this.createIconSelect('Icon', this.command.icon, this.command.builtIn);
 		const descriptionInput = this.createTextArea('Description', this.command.description, this.command.builtIn);
 		const aliasesInput = this.createTextInput('Aliases', this.command.aliases.join(', '), false);
-		const templateInput = this.createTextArea('Template', this.command.template, this.command.builtIn);
-		contentEl.createDiv({
-			cls: 'be-command-modal-help',
-			text: 'Use {{cursor}} where the cursor should land after insertion.',
-		});
+		const actionControls = this.createActionTabs(this.command.builtIn);
 
 		const actionsEl = contentEl.createDiv({ cls: 'be-command-modal-actions' });
 		const cancelButton = actionsEl.createEl('button', { text: 'Cancel', attr: { type: 'button' } });
@@ -537,7 +533,9 @@ class SlashCommandEditModal extends Modal {
 				this.command.name = nameInput.value.trim() || 'Custom command';
 				this.command.icon = iconInput.dataset.iconValue ?? this.command.icon;
 				this.command.description = descriptionInput.value.trim() || 'Custom command.';
-				this.command.template = templateInput.value;
+				this.command.actionType = actionControls.getActionType();
+				this.command.template = actionControls.templateInput.value;
+				this.command.commandId = actionControls.commandInput.dataset.commandId ?? '';
 			}
 			this.command.aliases = aliasesInput.value
 				.split(',')
@@ -569,6 +567,100 @@ class SlashCommandEditModal extends Modal {
 		return inputEl;
 	}
 
+	private createActionTabs(disabled: boolean): {
+		getActionType: () => SlashCommandDefinition['actionType'];
+		templateInput: HTMLTextAreaElement;
+		commandInput: HTMLInputElement;
+	} {
+		let actionType: SlashCommandDefinition['actionType'] = this.command.actionType === 'execute-command' ? 'execute-command' : 'insert-template';
+		const sectionEl = this.contentEl.createDiv({ cls: 'be-command-modal-action-section' });
+		sectionEl.toggleClass('is-disabled', disabled);
+		sectionEl.createEl('label', { text: 'Action' });
+		const tabsEl = sectionEl.createDiv({ cls: 'be-command-action-tabs' });
+		const templateTab = tabsEl.createEl('button', { text: 'Insert template', attr: { type: 'button' } });
+		const commandTab = tabsEl.createEl('button', { text: 'Execute command', attr: { type: 'button' } });
+		const templateBody = sectionEl.createDiv({ cls: 'be-command-action-pane' });
+		const commandBody = sectionEl.createDiv({ cls: 'be-command-action-pane' });
+
+		const templateInput = templateBody.createEl('textarea');
+		templateInput.value = this.command.template;
+		templateInput.disabled = disabled;
+		templateBody.createDiv({
+			cls: 'be-command-modal-help',
+			text: 'Use {{cursor}} where the cursor should land after insertion.',
+		});
+
+		const commandInput = this.createObsidianCommandInput(commandBody, this.command.commandId, disabled);
+		commandBody.createDiv({
+			cls: 'be-command-modal-help',
+			text: 'Execute runs the selected Obsidian command only. Better Edit does not insert a template or apply cursor-token behavior.',
+		});
+
+		const syncTabs = (): void => {
+			templateTab.toggleClass('is-active', actionType === 'insert-template');
+			commandTab.toggleClass('is-active', actionType === 'execute-command');
+			templateBody.toggleClass('is-active', actionType === 'insert-template');
+			commandBody.toggleClass('is-active', actionType === 'execute-command');
+		};
+		this.plugin.registerDomEvent(templateTab, 'click', () => {
+			if (disabled) return;
+			actionType = 'insert-template';
+			syncTabs();
+		});
+		this.plugin.registerDomEvent(commandTab, 'click', () => {
+			if (disabled) return;
+			actionType = 'execute-command';
+			syncTabs();
+		});
+		syncTabs();
+
+		return {
+			getActionType: () => actionType,
+			templateInput,
+			commandInput,
+		};
+	}
+
+	private createObsidianCommandInput(parentEl: HTMLElement, commandId: string, disabled: boolean): HTMLInputElement {
+		const commands = getAvailableObsidianCommands(this.app);
+		const selected = commands.find(command => command.id === commandId);
+		const inputEl = parentEl.createEl('input', { attr: { type: 'search', placeholder: 'Search Obsidian commands' } });
+		inputEl.disabled = disabled;
+		inputEl.value = selected ? `${selected.name} (${selected.id})` : commandId;
+		inputEl.dataset.commandId = commandId;
+		const listEl = parentEl.createDiv({ cls: 'be-command-picker-list' });
+
+		const render = (): void => {
+			listEl.empty();
+			if (disabled) return;
+			const query = inputEl.value.trim().toLowerCase();
+			const matches = commands
+				.filter(command => query.length === 0 || command.name.toLowerCase().includes(query) || command.id.toLowerCase().includes(query))
+				.slice(0, 40);
+			if (matches.length === 0) {
+				listEl.createDiv({ cls: 'be-command-picker-empty', text: 'No matching commands' });
+				return;
+			}
+			for (const command of matches) {
+				const itemEl = listEl.createEl('button', { cls: 'be-command-picker-item', attr: { type: 'button' } });
+				itemEl.toggleClass('is-selected', command.id === inputEl.dataset.commandId);
+				itemEl.createDiv({ cls: 'be-command-picker-name', text: command.name });
+				itemEl.createDiv({ cls: 'be-command-picker-id', text: command.id });
+				this.plugin.registerDomEvent(itemEl, 'click', () => {
+					inputEl.dataset.commandId = command.id;
+					inputEl.value = `${command.name} (${command.id})`;
+					render();
+				});
+			}
+		};
+		this.plugin.registerDomEvent(inputEl, 'input', () => {
+			inputEl.dataset.commandId = '';
+			render();
+		});
+		render();
+		return inputEl;
+	}
+
 	private createIconSelect(label: string, value: string, disabled: boolean): HTMLButtonElement {
 		const rowEl = this.contentEl.createDiv({ cls: 'be-command-modal-field' });
 		rowEl.toggleClass('is-disabled', disabled);
@@ -594,6 +686,21 @@ class SlashCommandEditModal extends Modal {
 		});
 		return buttonEl;
 	}
+}
+
+interface AvailableObsidianCommand {
+	id: string;
+	name: string;
+}
+
+function getAvailableObsidianCommands(app: App): AvailableObsidianCommand[] {
+	const maybeManager = (app as { commands?: { commands?: Record<string, Command> } }).commands;
+	const commandMap = maybeManager?.commands;
+	if (commandMap === undefined) return [];
+	return Object.values(commandMap)
+		.filter(command => typeof command.id === 'string' && typeof command.name === 'string')
+		.map(command => ({ id: command.id, name: command.name }))
+		.sort((a, b) => a.name.localeCompare(b.name));
 }
 
 class SlashIconPickerModal extends Modal {

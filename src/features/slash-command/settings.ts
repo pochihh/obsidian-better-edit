@@ -11,8 +11,12 @@ export interface SlashCommandDefinition {
 	icon: string;
 	description: string;
 	aliases: string[];
+	actionType: SlashCommandActionType;
 	template: string;
+	commandId: string;
 }
+
+export type SlashCommandActionType = 'insert-template' | 'execute-command';
 
 export const SLASH_CURSOR_TOKEN = '{{cursor}}';
 
@@ -25,7 +29,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'heading-1',
 		description: 'Large section heading.',
 		aliases: ['h1', 'title'],
+		actionType: 'insert-template',
 		template: `# ${SLASH_CURSOR_TOKEN}`,
+		commandId: '',
 	},
 	{
 		id: 'heading-2',
@@ -35,7 +41,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'heading-2',
 		description: 'Medium section heading.',
 		aliases: ['h2', 'section'],
+		actionType: 'insert-template',
 		template: `## ${SLASH_CURSOR_TOKEN}`,
+		commandId: '',
 	},
 	{
 		id: 'heading-3',
@@ -45,7 +53,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'heading-3',
 		description: 'Small section heading.',
 		aliases: ['h3', 'subsection'],
+		actionType: 'insert-template',
 		template: `### ${SLASH_CURSOR_TOKEN}`,
+		commandId: '',
 	},
 	{
 		id: 'bullet-list',
@@ -55,7 +65,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'list',
 		description: 'Start an unordered list item.',
 		aliases: ['ul', 'bullet'],
+		actionType: 'insert-template',
 		template: `- ${SLASH_CURSOR_TOKEN}`,
+		commandId: '',
 	},
 	{
 		id: 'numbered-list',
@@ -65,7 +77,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'list-ordered',
 		description: 'Start an ordered list item.',
 		aliases: ['ol', 'number'],
+		actionType: 'insert-template',
 		template: `1. ${SLASH_CURSOR_TOKEN}`,
+		commandId: '',
 	},
 	{
 		id: 'checkbox',
@@ -75,7 +89,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'check-square',
 		description: 'Start a task list item.',
 		aliases: ['todo', 'task'],
+		actionType: 'insert-template',
 		template: `- [ ] ${SLASH_CURSOR_TOKEN}`,
+		commandId: '',
 	},
 	{
 		id: 'quote',
@@ -85,7 +101,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'quote',
 		description: 'Insert a block quote.',
 		aliases: ['blockquote'],
+		actionType: 'insert-template',
 		template: `> ${SLASH_CURSOR_TOKEN}`,
+		commandId: '',
 	},
 	{
 		id: 'code-block',
@@ -95,7 +113,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'code',
 		description: 'Insert a fenced code block.',
 		aliases: ['code', 'fence'],
+		actionType: 'insert-template',
 		template: `\`\`\`\n${SLASH_CURSOR_TOKEN}\n\`\`\``,
+		commandId: '',
 	},
 	{
 		id: 'math-block',
@@ -105,7 +125,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'sigma-square',
 		description: 'Insert a block math formula.',
 		aliases: ['math', 'latex', 'formula', 'equation'],
+		actionType: 'insert-template',
 		template: `$$\n${SLASH_CURSOR_TOKEN}\n$$`,
+		commandId: '',
 	},
 	{
 		id: 'image',
@@ -115,7 +137,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'image',
 		description: 'Insert an image placeholder block.',
 		aliases: ['img', 'media', 'picture'],
+		actionType: 'insert-template',
 		template: `<div data-better-edit-image="placeholder" style="border: 2px dashed #ccc; border-radius: 4px; padding: 32px 16px; text-align: center; color: #999; font-size: 0.9em; min-height: 80px;">\n  Paste or drop an image here\n</div>\n`,
+		commandId: '',
 	},
 	{
 		id: 'divider',
@@ -125,7 +149,9 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		icon: 'minus',
 		description: 'Insert a horizontal divider.',
 		aliases: ['hr', 'line'],
+		actionType: 'insert-template',
 		template: '---\n',
+		commandId: '',
 	},
 ];
 
@@ -154,7 +180,9 @@ export function createCustomSlashCommand(): SlashCommandDefinition {
 		icon: 'sparkles',
 		description: 'Custom command.',
 		aliases: [],
+		actionType: 'insert-template',
 		template: SLASH_CURSOR_TOKEN,
+		commandId: '',
 	};
 }
 
@@ -195,7 +223,9 @@ function normalizeCustomCommand(raw: SlashCommandDefinition): SlashCommandDefini
 		icon: typeof raw.icon === 'string' && raw.icon.trim().length > 0 ? raw.icon : 'sparkles',
 		description: typeof raw.description === 'string' && raw.description.trim().length > 0 ? raw.description : 'Custom command.',
 		aliases: Array.isArray(raw.aliases) ? raw.aliases.filter(alias => alias.trim().length > 0) : [],
-		template: raw.template,
+		actionType: raw.actionType === 'execute-command' ? 'execute-command' : 'insert-template',
+		template: typeof raw.template === 'string' ? raw.template : SLASH_CURSOR_TOKEN,
+		commandId: typeof raw.commandId === 'string' ? raw.commandId : '',
 	};
 }
 
@@ -204,6 +234,6 @@ function isValidCommand(command: SlashCommandDefinition): boolean {
 		typeof command.id === 'string' &&
 		typeof command.name === 'string' &&
 		typeof command.enabled === 'boolean' &&
-		typeof command.template === 'string'
+		(typeof command.template === 'string' || typeof command.commandId === 'string')
 	);
 }

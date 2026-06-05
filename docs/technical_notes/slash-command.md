@@ -4,9 +4,9 @@
 
 | Area | Status |
 |---|---|
-| Command data model | First pass |
+| Command data model | Supports template and execute-command actions |
 | Built-in command seed list | First pass |
-| Custom command settings | First pass |
+| Custom command settings | Action tabs for Insert template / Execute command |
 | Slash menu UI | First pass |
 | Empty-line hint | First pass |
 | Explicit trigger model | First pass |
@@ -17,8 +17,8 @@
 
 ## Goal
 
-Provide a `/` menu for inserting reusable Markdown/HTML templates without adding
-custom syntax to notes.
+Provide a `/` menu for inserting reusable Markdown/HTML templates or executing
+registered Obsidian commands without adding custom syntax to notes.
 
 The important design constraint is that built-in and user-created commands use the
 same command structure. Built-ins are just seeded commands with protected identity.
@@ -36,7 +36,9 @@ interface SlashCommandDefinition {
   icon: string;
   description: string;
   aliases: string[];
+  actionType: 'insert-template' | 'execute-command';
   template: string;
+  commandId: string;
 }
 ```
 
@@ -49,10 +51,22 @@ Rules:
 - `builtIn: true` commands cannot be deleted.
 - Built-in aliases can be customized.
 - Built-in icon and description are fixed.
-- Custom commands can edit name, icon, description, aliases, and template.
+- Custom commands can edit name, icon, description, aliases, and action.
 
 Templates may include `{{cursor}}` to control cursor placement after insertion.
 If omitted, the cursor lands at the end of the inserted template.
+
+Action rules:
+
+- `insert-template` replaces the slash query line with `template` and applies
+  `{{cursor}}` cursor placement.
+- `execute-command` removes the slash query line and calls the selected
+  registered Obsidian command by `commandId`.
+- `execute-command` does not insert `template`, does not apply `{{cursor}}`, and
+  does not run any additional Better Edit transformation after dispatching the
+  Obsidian command.
+- The command picker should list commands registered with Obsidian, including
+  core commands and commands registered by enabled community plugins.
 
 ---
 
@@ -73,7 +87,9 @@ If omitted, the cursor lands at the end of the inserted template.
 - Suppress the menu and empty-line hint inside fenced code blocks, math blocks,
   and table editing contexts.
 
-The slash query line is fully replaced by the selected command template.
+The slash query line is fully replaced by the selected template for
+`insert-template` commands. For `execute-command` commands, the query line is
+cleared before the selected Obsidian command is executed.
 
 ---
 
@@ -115,7 +131,13 @@ Users can:
 - Add custom commands.
 - Delete custom commands.
 - Edit built-in aliases.
-- Edit custom name, icon, description, aliases, and template.
+- Edit custom name, icon, description, aliases, and action.
+
+Custom command action editing uses two tabs:
+
+- **Insert template**: existing template textarea and `{{cursor}}` behavior.
+- **Execute command**: searchable input for available registered Obsidian
+  commands. Saving stores the selected command ID.
 
 The enabled list order is the menu order.
 
