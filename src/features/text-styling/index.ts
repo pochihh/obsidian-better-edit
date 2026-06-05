@@ -1,14 +1,16 @@
 import { EditorSelection, Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { setIcon, TFile } from 'obsidian';
+import { TFile } from 'obsidian';
 import type BetterEditPlugin from '../../main';
+import { renderTextStylingIcon } from '../../icons';
+import type { TextStylingIconName } from '../../icons';
 
 type FormatActionId = 'bold' | 'italic' | 'strikethrough' | 'code' | 'highlight' | 'equation';
 
 type FormatAction = {
 	id: FormatActionId;
 	label: string;
-	icon: string;
+	icon: TextStylingIconName;
 	delimiter: string;
 	unitSize: number;
 	family: 'stars' | 'pairs' | 'code';
@@ -79,7 +81,7 @@ const FORMAT_ACTIONS: FormatAction[] = [
 	{
 		id: 'code',
 		label: 'Inline code',
-		icon: 'code-2',
+		icon: 'code',
 		delimiter: '`',
 		unitSize: 1,
 		family: 'code',
@@ -89,7 +91,7 @@ const FORMAT_ACTIONS: FormatAction[] = [
 	{
 		id: 'equation',
 		label: 'Inline equation',
-		icon: 'sigma',
+		icon: 'equation',
 		delimiter: '$',
 		unitSize: 1,
 		family: 'code',
@@ -99,7 +101,7 @@ const FORMAT_ACTIONS: FormatAction[] = [
 	{
 		id: 'highlight',
 		label: 'Highlight',
-		icon: 'highlighter',
+		icon: 'highlight',
 		delimiter: '=',
 		unitSize: 2,
 		family: 'pairs',
@@ -231,7 +233,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 			private createToolbarButton(
 				plugin: BetterEditPlugin,
 				label: string,
-				icon: string,
+				icon: TextStylingIconName,
 				onClick?: () => void,
 			): HTMLButtonElement {
 				const button = createEl('button', {
@@ -241,8 +243,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 						'aria-label': label,
 					},
 				});
-				setIcon(button, icon);
-				button.querySelector('svg')?.addClass('be-toolbar-icon');
+				renderTextStylingIcon(button, icon);
 				button.setAttribute('title', label);
 				if (onClick) {
 					plugin.registerDomEvent(button, 'click', event => {

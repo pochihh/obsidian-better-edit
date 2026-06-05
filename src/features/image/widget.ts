@@ -526,13 +526,14 @@ class ImageWidget extends WidgetType {
 		const menu = new Menu();
 
 		// Group 1 — Alignment
-		for (const { title, value } of [
-			{ title: 'Align left',   value: 'left'   as ImageAlignment },
-			{ title: 'Align center', value: 'center' as ImageAlignment },
-			{ title: 'Align right',  value: 'right'  as ImageAlignment },
+		for (const { title, value, icon } of [
+			{ title: 'Align left',   value: 'left'   as ImageAlignment, icon: 'align-left' },
+			{ title: 'Align center', value: 'center' as ImageAlignment, icon: 'align-center' },
+			{ title: 'Align right',  value: 'right'  as ImageAlignment, icon: 'align-right' },
 		]) {
 			menu.addItem(item => {
 				item.setTitle(title);
+				item.setIcon(icon);
 				if (this.block.alignment === value) item.setChecked(true);
 				item.onClick(() => this.updateBlock(view, { alignment: value }));
 			});
@@ -544,17 +545,20 @@ class ImageWidget extends WidgetType {
 		menu.addItem(item => {
 			const visible = this.block.caption !== undefined && !this.block.captionHidden;
 			item.setTitle('Caption');
+			item.setIcon('captions');
 			item.setChecked(visible);
 			item.onClick(() => this.toggleCaption(view));
 		});
 
 		menu.addItem(item => {
 			item.setTitle('Crop');
+			item.setIcon('crop');
 			item.onClick(() => this.openCropModal(view));
 		});
 
 		menu.addItem(item => {
 			item.setTitle('Replace');
+			item.setIcon('image');
 			item.onClick(() => this.openReplacePanel(view, frameEl));
 		});
 
@@ -563,6 +567,7 @@ class ImageWidget extends WidgetType {
 		// Group 3 — Alt text
 		menu.addItem(item => {
 			item.setTitle('Alt text');
+			item.setIcon('badge-info');
 			item.setChecked(!!this.block.alt);
 			item.onClick(() => this.openAltTextPopover(view, frameEl));
 		});
@@ -572,23 +577,27 @@ class ImageWidget extends WidgetType {
 		// Group 4 — Copy, Duplicate, Add to row, Delete
 		menu.addItem(item => {
 			item.setTitle('Copy');
+			item.setIcon('copy');
 			item.onClick(() => this.copyBlock());
 		});
 
 		menu.addItem(item => {
 			item.setTitle('Duplicate');
+			item.setIcon('copy-plus');
 			item.onClick(() => this.duplicateBlock(view));
 		});
 
 		if (this.plugin.settings.image.imageRows) {
 			menu.addItem(item => {
 				item.setTitle('Add to row');
+				item.setIcon('layout-grid');
 				item.onClick(() => this.convertToRow(view));
 			});
 		}
 
 		menu.addItem(item => {
 			item.setTitle('Delete');
+			item.setIcon('trash');
 			item.onClick(() => this.deleteBlock(view));
 		});
 
@@ -2274,18 +2283,21 @@ class ImageRowWidget extends WidgetType {
 
 		menu.addItem(item => {
 			item.setTitle('Crop');
+			item.setIcon('crop');
 			item.onClick(() => this.openCropModal(view, imgBlock, index));
 		});
 
 		menu.addItem(item => {
 			const visible = imgBlock.caption !== undefined && !imgBlock.captionHidden;
 			item.setTitle('Caption');
+			item.setIcon('captions');
 			item.setChecked(visible);
 			item.onClick(() => this.toggleCaption(view, imgBlock, index));
 		});
 
 		menu.addItem(item => {
 			item.setTitle('Replace');
+			item.setIcon('image');
 			item.onClick(() => this.openReplaceForImage(view, frameEl, imgBlock, index));
 		});
 
@@ -2293,6 +2305,7 @@ class ImageRowWidget extends WidgetType {
 
 		menu.addItem(item => {
 			item.setTitle('Alt text');
+			item.setIcon('badge-info');
 			item.setChecked(!!imgBlock.alt);
 			item.onClick(() => this.openAltTextPopover(view, frameEl, imgBlock, index));
 		});
@@ -2301,11 +2314,13 @@ class ImageRowWidget extends WidgetType {
 
 		menu.addItem(item => {
 			item.setTitle('Pop image');
+			item.setIcon('arrow-up-right');
 			item.onClick(() => this.popOutImageAt(view, index));
 		});
 
 		menu.addItem(item => {
 			item.setTitle('Delete');
+			item.setIcon('trash');
 			item.onClick(() => this.deleteImageAt(view, index));
 		});
 

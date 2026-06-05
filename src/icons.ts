@@ -109,13 +109,19 @@ function renderSvg(parent: HTMLElement, icon: SvgIconDefinition): void {
 }
 
 export function renderSlashCommandIcon(parent: HTMLElement, command: SlashCommandDefinition): void {
+	// Prefer Obsidian/Lucide icons when a built-in command has a native equivalent.
+	// Some Obsidian-only command icons (for example heading-glyph) are not available
+	// through setIcon() in plugin UI, so keep the custom SVGs as a graceful fallback.
+	setIcon(parent, command.icon);
+	if (parent.hasChildNodes()) return;
+
 	const icon = command.builtIn ? SLASH_COMMAND_ICON_DEFINITIONS[command.id] : undefined;
 	if (icon !== undefined) {
 		renderSvg(parent, icon);
 		return;
 	}
 
-	setIcon(parent, command.icon);
+	setIcon(parent, 'sparkles');
 }
 
 export function renderImagePlaceholderIcon(parent: HTMLElement): void {
@@ -139,9 +145,128 @@ type StrokeIconDef = {
 	stroke: StrokePrimitive[];
 	sw?: number;       // default stroke-width for all primitives
 	linecap?: string;  // default stroke-linecap
+	linejoin?: string; // default stroke-linejoin
 };
 
 type ImageIconDef = FillIconDef | StrokeIconDef;
+
+export type TextStylingIconName = 'bold' | 'italic' | 'strikethrough' | 'highlight' | 'code' | 'equation' | 'link';
+
+// Text toolbar icons use the same 24×24 Lucide-style geometry as Obsidian's built-ins,
+// but are rendered in a padded 30×30 viewBox so the glyphs sit smaller inside Better
+// Edit's compact 24px buttons. This preserves the designed source geometry instead of
+// shrinking every shared toolbar icon with CSS.
+const TEXT_STYLING_ICONS: Record<TextStylingIconName, StrokeIconDef> = {
+	bold: {
+		viewBox: '-3 -3 30 30',
+		sw: 2,
+		linecap: 'round',
+		linejoin: 'round',
+		stroke: [
+			{ tag: 'path', d: 'M6 12h9a4 4 0 0 1 0 8H7a1 1 0 0 1-1-1V5a1 1 0 0 1 1-1h7a4 4 0 0 1 0 8' },
+		],
+	},
+	italic: {
+		viewBox: '-3 -3 30 30',
+		sw: 2,
+		linecap: 'round',
+		linejoin: 'round',
+		stroke: [
+			{ tag: 'line', x1: 19, y1: 4, x2: 10, y2: 4 },
+			{ tag: 'line', x1: 14, y1: 20, x2: 5, y2: 20 },
+			{ tag: 'line', x1: 15, y1: 4, x2: 9, y2: 20 },
+		],
+	},
+	strikethrough: {
+		viewBox: '-3 -3 30 30',
+		sw: 2,
+		linecap: 'round',
+		linejoin: 'round',
+		stroke: [
+			{ tag: 'path', d: 'M16 4H9a3 3 0 0 0-2.83 4' },
+			{ tag: 'path', d: 'M14 12a4 4 0 0 1 0 8H6' },
+			{ tag: 'line', x1: 4, y1: 12, x2: 20, y2: 12 },
+		],
+	},
+	highlight: {
+		viewBox: '-3 -3 30 30',
+		sw: 2,
+		linecap: 'round',
+		linejoin: 'round',
+		stroke: [
+			{ tag: 'path', d: 'm9 11-6 6v3h9l3-3' },
+			{ tag: 'path', d: 'm22 12-4.6 4.6a2 2 0 0 1-2.8 0l-5.2-5.2a2 2 0 0 1 0-2.8L14 4' },
+		],
+	},
+	code: {
+		viewBox: '-3 -3 30 30',
+		sw: 2,
+		linecap: 'round',
+		linejoin: 'round',
+		stroke: [
+			{ tag: 'path', d: 'm18 16 4-4-4-4' },
+			{ tag: 'path', d: 'm6 8-4 4 4 4' },
+			{ tag: 'path', d: 'm14.5 4-5 16' },
+		],
+	},
+	equation: {
+		viewBox: '-3 -3 30 30',
+		sw: 2,
+		linecap: 'round',
+		linejoin: 'round',
+		stroke: [
+			{ tag: 'path', d: 'M18 7V5a1 1 0 0 0-1-1H6.5a.5.5 0 0 0-.4.8l4.5 6a2 2 0 0 1 0 2.4l-4.5 6a.5.5 0 0 0 .4.8H17a1 1 0 0 0 1-1v-2' },
+		],
+	},
+	link: {
+		viewBox: '-3 -3 30 30',
+		sw: 2,
+		linecap: 'round',
+		linejoin: 'round',
+		stroke: [
+			{ tag: 'path', d: 'M13.1404 10C13.6728 10.3955 14.1134 10.9001 14.4322 11.4796C14.7511 12.0591 14.9407 12.6999 14.9882 13.3586C15.0357 14.0172 14.94 14.6783 14.7076 15.297C14.4751 15.9157 14.1115 16.4775 13.6412 16.9443L10.8588 19.7073C9.98423 20.5462 8.81284 21.0103 7.59697 20.9998C6.38109 20.9893 5.21801 20.505 4.35822 19.6512C3.49844 18.7974 3.01074 17.6424 3.00018 16.435C2.98961 15.2276 3.45702 14.0644 4.30173 13.1959L5.88768 11.6117' },
+			{ tag: 'path', d: 'M10.8596 14C10.3272 13.6045 9.88658 13.0999 9.56776 12.5204C9.24894 11.9409 9.05935 11.3001 9.01185 10.6414C8.96435 9.98279 9.06004 9.32171 9.29245 8.70302C9.52486 8.08433 9.88853 7.52251 10.3588 7.05567L13.1412 4.29268C14.0158 3.45384 15.1872 2.98968 16.403 3.00017C17.6189 3.01067 18.782 3.49497 19.6418 4.34877C20.5016 5.20257 20.9893 6.35756 20.9998 7.56498C21.0104 8.77239 20.543 9.93562 19.6983 10.8041L18.1123 12.379' },
+		],
+	},
+};
+
+function renderStrokeIcon(parent: HTMLElement, icon: StrokeIconDef): void {
+	const svg = parent.createSvg('svg');
+	svg.setAttribute('viewBox', icon.viewBox);
+	svg.setAttribute('aria-hidden', 'true');
+	svg.setAttribute('focusable', 'false');
+	svg.setAttribute('fill', 'none');
+	svg.setAttribute('stroke', 'currentColor');
+	svg.setAttribute('stroke-width', String(icon.sw ?? 1));
+	if (icon.linecap) svg.setAttribute('stroke-linecap', icon.linecap);
+	if (icon.linejoin) svg.setAttribute('stroke-linejoin', icon.linejoin);
+	svg.addClass('be-toolbar-icon');
+	for (const primitive of icon.stroke) {
+		const el = svg.createSvg(primitive.tag);
+		if (primitive.sw !== undefined) el.setAttribute('stroke-width', String(primitive.sw));
+		if (primitive.tag === 'line') {
+			el.setAttribute('x1', String(primitive.x1));
+			el.setAttribute('y1', String(primitive.y1));
+			el.setAttribute('x2', String(primitive.x2));
+			el.setAttribute('y2', String(primitive.y2));
+		} else if (primitive.tag === 'rect') {
+			el.setAttribute('x', String(primitive.x));
+			el.setAttribute('y', String(primitive.y));
+			el.setAttribute('width', String(primitive.w));
+			el.setAttribute('height', String(primitive.h));
+			if (primitive.rx !== undefined) {
+				el.setAttribute('rx', String(primitive.rx));
+				el.setAttribute('ry', String(primitive.rx));
+			}
+		} else {
+			el.setAttribute('d', primitive.d);
+		}
+	}
+}
+
+export function renderTextStylingIcon(parent: HTMLElement, name: TextStylingIconName): void {
+	renderStrokeIcon(parent, TEXT_STYLING_ICONS[name]);
+}
 
 const IMAGE_TOOLBAR_ICONS: Record<ImageIconName, ImageIconDef> = {
 	caption: {

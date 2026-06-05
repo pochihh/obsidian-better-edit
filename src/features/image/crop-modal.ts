@@ -5,15 +5,16 @@ interface RatioOption {
 	label: string;
 	ratio: number | null; // null = free; otherwise w/h
 	shape: 'rect' | 'circle';
+	icon: string;
 }
 
 const RATIOS: RatioOption[] = [
-	{ label: 'Free',   ratio: null, shape: 'rect'   },
-	{ label: 'Square', ratio: 1,    shape: 'rect'   },
-	{ label: '16 : 9', ratio: 16/9, shape: 'rect'   },
-	{ label: '4 : 3',  ratio: 4/3,  shape: 'rect'   },
-	{ label: '3 : 2',  ratio: 3/2,  shape: 'rect'   },
-	{ label: 'Circle', ratio: 1,    shape: 'circle' },
+	{ label: 'Free',   ratio: null, shape: 'rect',   icon: 'move' },
+	{ label: 'Square', ratio: 1,    shape: 'rect',   icon: 'square' },
+	{ label: '16 : 9', ratio: 16/9, shape: 'rect',   icon: 'rectangle-horizontal' },
+	{ label: '4 : 3',  ratio: 4/3,  shape: 'rect',   icon: 'rectangle-horizontal' },
+	{ label: '3 : 2',  ratio: 3/2,  shape: 'rect',   icon: 'rectangle-horizontal' },
+	{ label: 'Circle', ratio: 1,    shape: 'circle', icon: 'circle' },
 ];
 
 export class CropModal extends Modal {
@@ -282,6 +283,7 @@ export class CropModal extends Modal {
 		for (const option of RATIOS) {
 			menu.addItem(item => {
 				item.setTitle(option.label);
+				item.setIcon(option.icon);
 				if (this.activeRatio === option) item.setChecked(true);
 				item.onClick(() => {
 					this.activeRatio = option;
