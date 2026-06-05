@@ -1,38 +1,46 @@
 # Testing Notes
 
-Better Edit currently relies on a mix of manual regression testing and targeted
-logic isolation.
+Better Edit uses committed automated test code plus local, generated sandbox notes.
+The public repo should not contain a full Obsidian test vault.
 
-## Manual fixture vault
+## Automated tests
 
-Use the files under [`test-vault/`](../test-vault/) as the primary regression
-set for editor UX:
+Fast logic tests live under `tests/` and can run without Obsidian:
 
-- `blocks-regression.md`
-- `slash-command-regression.md`
-- `text-styling-regression.md`
-- `image-regression.md`
-- `symbol-picker-regression.md`
+```bash
+node --test tests/block-transform.test.mjs tests/block-model.test.mjs
+```
 
-These fixtures should be opened in Live Preview and tested against real editor
-interactions, because many risks involve DOM geometry, selection behavior, and
-Obsidian-owned rendering states.
+The Windows Obsidian smoke harness lives under `tests/e2e/` with support scripts in
+`scripts/e2e-*.mjs` and `scripts/e2e-*.ps1`.
 
-## Planned automated tests
+Useful commands:
 
-Add unit-style tests under `tests/` for pure logic and source transforms:
+```bash
+npm run e2e:reset
+npm run e2e:sync
+npm run e2e:smoke:direct
+```
 
-- block detection
-- drop boundary normalization
-- table separator normalization
-- text-style delimiter normalization
-- slash command state transitions
-- shortcut matching
+## Sandbox vault policy
+
+The sandbox vault is generated locally at `D:\Projects\test_vault` on Windows or
+`/mnt/d/Projects/test_vault` from WSL unless `BETTER_EDIT_E2E_VAULT` overrides it.
+
+The reset script writes deterministic fixture notes into that vault. Those notes
+are test data, not product documentation, so they are generated from the harness
+and are not committed as a `test-vault/` folder.
+
+## Test artifacts
+
+Playwright reports, screenshots, traces, and deep-test evidence belong under
+`test-results/`, which is gitignored.
 
 ## Regression rule
 
 Any bug fixed from live testing should be reflected in at least one of:
 
-- a new fixture section in `test-vault/`
 - a pure logic test under `tests/`
-- both, when the bug has a deterministic transform rule
+- an E2E assertion under `tests/e2e/`
+- a generated sandbox fixture in `scripts/e2e-reset-vault.mjs` when a note body is needed
+- a documented known limitation in `docs/technical_notes/` when the behavior is intentionally out of scope

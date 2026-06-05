@@ -29,5 +29,12 @@ docs/ref/
 # Local plugin runtime data
 data.json
 
+# E2E artifacts
+test-results/
+D:/
+
+# Local/generated sandbox vault
+test-vault/
+
 # Local Codex / Claude settings
 .claude/settings.local.json

@@ -30,9 +30,24 @@ export default tseslint.config(
 		},
 	},
 	...obsidianmd.configs.recommended,
+	{
+		files: ['tests/e2e/**/*.ts'],
+		languageOptions: {
+			globals: {
+				...globals.browser,
+				...globals.node,
+			},
+		},
+		rules: {
+			'obsidianmd/prefer-active-doc': 'off',
+			'obsidianmd/prefer-active-window-timers': 'off',
+		},
+	},
 	globalIgnores([
 		"node_modules",
 		"dist",
+		"test-results",
+		"tests/e2e/playwright.config.ts",
 		"esbuild.config.mjs",
 		"eslint.config.js",
 		"version-bump.mjs",

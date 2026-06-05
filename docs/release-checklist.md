@@ -17,8 +17,11 @@ official Obsidian Community Plugins directory.
 
 ## Build artifacts
 
+- `npm run check` passes
 - `npm run build` passes
 - `npm run lint` passes or known exceptions are documented
+- `npm run check:release` confirms `package.json`, `package-lock.json`,
+  `manifest.json`, and `versions.json` are synchronized
 - Root `styles.css` has been regenerated
 - Release artifact contains:
   - `manifest.json`
@@ -34,11 +37,19 @@ official Obsidian Community Plugins directory.
 - Desktop/mobile claims are truthful
 - Disclosures in `README.md` are accurate
 
-## Manual regression pass
+## Regression pass
 
-Run through the files in `test-vault/` and confirm:
+Use the generated sandbox vault and automated harness:
 
-- blocks drag and drop
+```bash
+npm run e2e:reset
+npm run e2e:sync
+npm run e2e:smoke:direct
+```
+
+Then confirm the release-risk areas:
+
+- blocks drag and drop plus block operation menu
 - slash command trigger and menu behavior
 - text styling toolbar and formatting transforms
 - image arrangement interactions
