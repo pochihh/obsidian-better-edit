@@ -1,5 +1,28 @@
 /* ── Settings tab ─────────────────────────────────────────────────────────*/
 
+.be-settings-help {
+	box-sizing: border-box;
+	margin: 0 0 20px;
+	padding: 0 0 16px 16px;
+	border-bottom: 1px solid var(--background-modifier-border);
+}
+
+.be-settings-help-title {
+	display: block;
+	margin: 0 0 6px;
+	font-size: var(--font-ui-large, 20px);
+	font-weight: var(--font-semibold, 600);
+	line-height: var(--line-height-tight, 1.25);
+}
+
+.be-settings-help-description {
+	max-width: 52em;
+	margin: 0;
+	color: var(--text-muted);
+	font-size: var(--font-ui-small, 13px);
+	line-height: var(--line-height-tight, 1.35);
+}
+
 /* HR between feature sections */
 .be-settings-divider {
 	border: none;
@@ -364,27 +387,37 @@
 }
 
 /* ── Shortcut recorder ───────────────────────────────────────────────────*/
+.be-symbol-shortcut-setting .setting-item-control {
+	display: flex;
+	align-items: center;
+	gap: 6px;
+	flex-wrap: wrap;
+}
+
 .be-shortcut-badge {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
-	padding: 5px 12px;
-	border-radius: 4px;
+	padding: 3px 8px;
+	border-radius: var(--radius-s, 4px);
 	border: 1px solid var(--background-modifier-border) !important;
 	background: var(--background-modifier-form-field, var(--background-secondary)) !important;
 	box-shadow: none !important;
 	color: var(--text-normal);
-	font-size: 18px;
-	line-height: 1;
-	min-height: 34px;
-	font-family: var(--font-monospace);
+	font-size: var(--font-ui-smaller, 12px);
+	font-weight: var(--font-medium, 500);
+	line-height: 1.2;
+	min-height: 26px;
+	font-family: var(--font-interface);
 	cursor: pointer;
-	min-width: 72px;
+	min-width: 0;
+	max-width: 100%;
+	white-space: nowrap;
 	transition: border-color 100ms ease;
 }
 
 .be-shortcut-badge.is-recording {
 	border-color: var(--interactive-accent) !important;
 	color: var(--text-faint);
-	font-size: 14px;
+	font-size: var(--font-ui-smaller, 12px);
 }

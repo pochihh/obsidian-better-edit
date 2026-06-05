@@ -47,6 +47,13 @@ export class BetterEditSettingTab extends PluginSettingTab {
 		containerEl.empty();
 		containerEl.addClass('be-settings-root');
 
+		const headerEl = containerEl.createDiv({ cls: 'be-settings-help' });
+		headerEl.createDiv({ cls: 'be-settings-help-title', text: 'Better Edit' });
+		headerEl.createEl('p', {
+			cls: 'be-settings-help-description',
+			text: 'A focused editing toolbox for images, blocks, slash commands, text styling, symbols, and emoji.',
+		});
+
 		this.renderImageSection(containerEl);
 		containerEl.createEl('hr', { cls: 'be-settings-divider' });
 		this.renderBlocksSection(containerEl);
@@ -433,7 +440,8 @@ export class BetterEditSettingTab extends PluginSettingTab {
 
 				const shortcutSetting = new Setting(body)
 					.setName('Keyboard shortcut')
-					.setDesc('Plugin-managed shortcut. Click the badge to record a new key combination.');
+					.setDesc('Plugin-managed shortcut. Click the badge to record a new key combination.')
+					.setClass('be-symbol-shortcut-setting');
 
 				// Badge inserted first so it appears left of the reset button
 				const shortcutBadge = shortcutSetting.controlEl.createEl('button', {
