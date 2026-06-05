@@ -6,33 +6,19 @@ introducing proprietary storage formats or changing how notes render without the
 plugin.
 
 ## Features
-- **Image**: arrangement with resize, alignment, crop, caption, replace, alt text, and multi-image rows
-- **Block**: drag and drop with left-gutter controls
+- **Image arrangement**: resize, align, crop, caption, replace, set alt text, and arrange multi-image rows
+- **Block controls**: drag and drop with left-gutter controls, plus a click menu for delete, duplicate, and simple Turn into actions
 - **Slash commands**: customizable commands for fast block insertion
 - **Text styling**: selection toolbar for inline formatting and linking
-- **Symbol and emoji**: a symbol and emoji picker with customizable trigger, including context-menu, shortcut, and command-palette entry
-
-## Installation
-
-### Community Plugins
-
-Community Plugins installation will be available after the plugin is accepted
-into the official Obsidian directory.
-
-### Manual install
-
-1. Download `manifest.json`, `main.js`, and `styles.css` from a release.
-2. Create `<vault>/.obsidian/plugins/better-edit/`.
-3. Copy those three files into that folder.
-4. Reload Obsidian and enable **Better Edit** in Community Plugins.
-
-## Usage
+- **Symbol and emoji picker**: insert symbols and emoji from a context menu, shortcut, or command-palette entry
 
 ### Block drag and drop
 
 - Hover a block to reveal the left-gutter add button and drag handle.
 - Drag vertically to reorder blocks while preserving Markdown/HTML source.
-- Tables, code blocks, HTML blocks, and image blocks move as whole blocks.
+- Click the drag handle to open a block menu with Delete, Create copy, and Turn into.
+- Turn into supports conservative conversions from simple Markdown types such as paragraphs, headings, lists, checkboxes, normal code blocks, and math blocks into V1 targets like paragraphs, headings, lists, checkboxes, and code blocks.
+- Tables, image blocks, HTML blocks, callouts, and other complex structures move as whole blocks but are excluded from V1 Turn into conversions.
 
 ### Slash commands
 
@@ -58,6 +44,20 @@ into the official Obsidian directory.
 - Insert math symbols, Greek letters, arrows, and emoji at the cursor.
 - Available from the editor context menu, a plugin-managed shortcut, and an
   Obsidian command.
+  
+## Installation
+
+### Community Plugins
+
+Community Plugins installation will be available after the plugin is accepted
+into the official Obsidian directory.
+
+### Manual install
+
+1. Download `manifest.json`, `main.js`, and `styles.css` from a release.
+2. Create `<vault>/.obsidian/plugins/better-edit/`.
+3. Copy those three files into that folder.
+4. Reload Obsidian and enable **Better Edit** in Community Plugins.
 
 ## Compatibility
 
@@ -81,16 +81,17 @@ into the official Obsidian directory.
 - The plugin is optimized for Live Preview, not Reading View.
 - Some interactions depend on current Obsidian editor internals and should be
   regression-tested against new Obsidian releases.
-- Automated tests are still being expanded; current coverage relies heavily on
-  fixture-driven manual testing.
+- Automated coverage includes fast transform/model tests plus a Windows Obsidian smoke harness; feature-level E2E coverage is still expanding.
 
 ## Documentation
 
+- User-facing feature list: [`docs/feature_list/`](./docs/feature_list/)
+- Demo page and release screenshots: [`docs/demo/`](./docs/demo/)
 - Product and feature design: [`DESIGN.md`](./DESIGN.md)
 - Technical architecture and build notes: [`docs/technical.md`](./docs/technical.md)
+- Feature implementation notes: [`docs/technical_notes/`](./docs/technical_notes/)
 - Release checklist: [`docs/release-checklist.md`](./docs/release-checklist.md)
-- Testing notes and fixtures: [`docs/testing.md`](./docs/testing.md)
-- Feature docs: [`docs/features/`](./docs/features/)
+- Testing workflow: [`docs/testing.md`](./docs/testing.md)
 - Development rules and Obsidian guidance: [`docs/guidelines.md`](./docs/guidelines.md)
 
 ## Development

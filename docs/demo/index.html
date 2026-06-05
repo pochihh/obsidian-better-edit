@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>Better Edit Feature Demo</title>
+	<style>
+		:root {
+			color-scheme: dark;
+			--bg: #111318;
+			--panel: #181b22;
+			--panel-2: #20242d;
+			--text: #eef1f7;
+			--muted: #9aa3b2;
+			--faint: #6f7888;
+			--accent: #8b7cf6;
+			--accent-2: #2dd4bf;
+			--border: rgba(255,255,255,.10);
+			--shadow: 0 24px 80px rgba(0,0,0,.38);
+		}
+		* { box-sizing: border-box; }
+		body {
+			margin: 0;
+			font: 15px/1.55 Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+			background:
+				radial-gradient(circle at 20% 0%, rgba(139,124,246,.26), transparent 30%),
+				radial-gradient(circle at 85% 18%, rgba(45,212,191,.18), transparent 28%),
+				var(--bg);
+			color: var(--text);
+		}
+		.page { width: min(1180px, calc(100% - 48px)); margin: 0 auto; padding: 56px 0 72px; }
+		.hero { display: grid; grid-template-columns: 1.05fr .95fr; gap: 32px; align-items: center; }
+		.eyebrow { color: var(--accent-2); text-transform: uppercase; letter-spacing: .16em; font-size: 12px; font-weight: 700; }
+		h1 { font-size: clamp(42px, 6vw, 76px); line-height: .95; margin: 12px 0 18px; letter-spacing: -0.06em; }
+		.lede { color: var(--muted); font-size: 19px; max-width: 58ch; margin: 0 0 28px; }
+		.chips { display: flex; flex-wrap: wrap; gap: 10px; }
+		.chip { border: 1px solid var(--border); background: rgba(255,255,255,.04); color: #dfe4ef; padding: 8px 11px; border-radius: 999px; }
+		.window { background: rgba(24,27,34,.88); border: 1px solid var(--border); border-radius: 22px; box-shadow: var(--shadow); overflow: hidden; }
+		.titlebar { height: 44px; display: flex; align-items: center; gap: 8px; padding: 0 16px; border-bottom: 1px solid var(--border); background: rgba(255,255,255,.035); }
+		.dot { width: 11px; height: 11px; border-radius: 50%; background: #ef4444; }
+		.dot:nth-child(2) { background: #f59e0b; }
+		.dot:nth-child(3) { background: #22c55e; }
+		.titlebar span:last-child { margin-left: 10px; color: var(--muted); font-size: 13px; }
+		.editor { padding: 28px 34px 34px 58px; position: relative; }
+		.block { position: relative; padding: 8px 10px; border-radius: 12px; }
+		.block.active { background: rgba(139,124,246,.11); outline: 1px solid rgba(139,124,246,.22); }
+		.handle { position: absolute; left: -36px; top: 13px; width: 25px; height: 25px; border: 1px solid var(--border); border-radius: 8px; display:flex; align-items:center; justify-content:center; color: var(--faint); background: var(--panel-2); }
+		.menu { position: absolute; left: -18px; top: 42px; width: 188px; padding: 8px; border: 1px solid var(--border); border-radius: 14px; background: #222630; box-shadow: 0 16px 50px rgba(0,0,0,.35); z-index: 3; }
+		.menu-row { display:flex; align-items:center; gap: 10px; padding: 8px 10px; border-radius: 9px; color:#e9edf6; }
+		.menu-row:nth-child(3) { background: rgba(139,124,246,.15); color:#fff; }
+		.menu-row small { margin-left:auto; color: var(--faint); }
+		.editor h2 { font-size: 28px; letter-spacing: -.03em; margin: 0 0 8px; }
+		.editor p { margin: 0; color: #c8ceda; }
+		.list { margin: 8px 0 0; padding-left: 22px; color: #cfd5df; }
+		.code { margin-top: 10px; background: #11151d; color: #b8f7e6; padding: 12px; border-radius: 10px; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 13px; }
+		.features { margin-top: 34px; display: grid; grid-template-columns: repeat(5, 1fr); gap: 14px; }
+		.card { background: rgba(24,27,34,.78); border: 1px solid var(--border); border-radius: 18px; padding: 18px; min-height: 170px; }
+		.icon { width: 36px; height: 36px; border-radius: 12px; background: linear-gradient(135deg, rgba(139,124,246,.32), rgba(45,212,191,.22)); display:flex; align-items:center; justify-content:center; margin-bottom: 12px; font-size: 19px; }
+		.card h3 { margin: 0 0 8px; font-size: 16px; }
+		.card p { margin: 0; color: var(--muted); font-size: 13px; }
+		.footer-note { margin-top: 26px; color: var(--faint); font-size: 13px; text-align:center; }
+		@media (max-width: 900px) {
+			.hero { grid-template-columns: 1fr; }
+			.features { grid-template-columns: repeat(2, 1fr); }
+		}
+	</style>
+</head>
+<body>
+	<main class="page">
+		<section class="hero">
+			<div>
+				<div class="eyebrow">Obsidian Live Preview editing toolbox</div>
+				<h1>Notion-inspired editing, Markdown-first notes.</h1>
+				<p class="lede">Better Edit adds practical writing controls to Obsidian: visual image tools, block drag handles, slash commands, inline formatting, and symbols — without locking your notes into a proprietary format.</p>
+				<div class="chips">
+					<span class="chip">No telemetry</span>
+					<span class="chip">Local vault only</span>
+					<span class="chip">Live Preview focused</span>
+					<span class="chip">Native Markdown/HTML</span>
+				</div>
+			</div>
+			<div class="window" aria-label="Better Edit mock editor screenshot">
+				<div class="titlebar"><span class="dot"></span><span class="dot"></span><span class="dot"></span><span>Research Plan.md</span></div>
+				<div class="editor">
+					<div class="block active">
+						<div class="handle">⋮⋮</div>
+						<div class="menu">
+							<div class="menu-row">🗑 Delete</div>
+							<div class="menu-row">⧉ Create copy</div>
+							<div class="menu-row">↳ Turn into <small>›</small></div>
+						</div>
+						<h2>Weekly experiment review</h2>
+						<p>Select the handle to reorder, duplicate, delete, or turn this block into a list, checkbox, heading, paragraph, or code block.</p>
+					</div>
+					<div class="block">
+						<ul class="list">
+							<li>Resize and caption images directly</li>
+							<li>Type / to insert Markdown blocks</li>
+							<li>Select text for inline styling</li>
+						</ul>
+					</div>
+					<div class="code">$$\nE = mc^2\n$$</div>
+				</div>
+			</div>
+		</section>
+		<section class="features">
+			<article class="card"><div class="icon">🖼</div><h3>Image arrangement</h3><p>Paste, resize, crop, align, caption, replace, and arrange images in rows.</p></article>
+			<article class="card"><div class="icon">☷</div><h3>Block controls</h3><p>Drag blocks, click handles for operations, and turn simple blocks into other types.</p></article>
+			<article class="card"><div class="icon">/</div><h3>Slash commands</h3><p>Insert headings, lists, math, code, images, dividers, and custom templates.</p></article>
+			<article class="card"><div class="icon">B</div><h3>Text styling</h3><p>Apply Markdown formatting, links, inline code, and equations from selection.</p></article>
+			<article class="card"><div class="icon">Ω</div><h3>Symbols & emoji</h3><p>Quickly insert math symbols, Greek letters, arrows, and emoji.</p></article>
+		</section>
+		<p class="footer-note">Demo page for release screenshots. Main README GIF can be added separately.</p>
+	</main>
+</body>
+</html>
