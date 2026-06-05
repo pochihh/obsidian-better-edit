@@ -84,9 +84,9 @@ committed runtime data files.
 Use the docs this way:
 
 - `README.md`: short public project entrypoint
-- `DESIGN.md`: product-level design and feature scope
 - `docs/feature_list/`: user-facing feature explanations
 - `docs/demo/`: static user-facing demo page used for release screenshots
+- `docs/technical_notes/project-architecture.md`: design principles and cross-feature architecture
 - `docs/technical_notes/`: detailed implementation notes and edge cases
 - `docs/technical.md`: implementation structure and build conventions
 - `docs/testing.md`: automated test workflow and local sandbox notes
@@ -94,3 +94,4 @@ Use the docs this way:
 
 Historical long-form feature implementation docs were moved from `docs/features/`
 to `docs/technical_notes/` so the public feature list can stay product-facing.
+The original `DESIGN.md` implementation plan has been extracted into technical notes and removed.
