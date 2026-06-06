@@ -1367,6 +1367,7 @@ class ImageRowToolbarController {
 	private showMoreMenu(event: MouseEvent): void {
 		const row = this.resolveActiveRow();
 		if (row === null) return;
+		const resolveMenuRow = (): ResolvedRowState | null => resolveRowStateByFrom(this.view, row.from) ?? row;
 		const menu = new Menu();
 
 		menu.addItem(item => {
@@ -1386,7 +1387,7 @@ class ImageRowToolbarController {
 					si.setTitle(title);
 					si.setChecked(row.block.justify === value);
 					si.onClick(() => {
-						const current = this.resolveActiveRow();
+						const current = resolveMenuRow();
 						if (current === null) return;
 						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, justify: value });
 						this.refreshActiveRow();
@@ -1411,7 +1412,7 @@ class ImageRowToolbarController {
 					si.setTitle(title);
 					si.setChecked(row.block.alignItems === value);
 					si.onClick(() => {
-						const current = this.resolveActiveRow();
+						const current = resolveMenuRow();
 						if (current === null) return;
 						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, alignItems: value });
 						this.refreshActiveRow();
@@ -1434,7 +1435,7 @@ class ImageRowToolbarController {
 					si.setTitle(title);
 					si.setChecked(row.block.wrap === value);
 					si.onClick(() => {
-						const current = this.resolveActiveRow();
+						const current = resolveMenuRow();
 						if (current === null) return;
 						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, wrap: value });
 						this.refreshActiveRow();
@@ -1453,7 +1454,7 @@ class ImageRowToolbarController {
 					si.setTitle(`${px}px`);
 					si.setChecked(row.block.gap === px);
 					si.onClick(() => {
-						const current = this.resolveActiveRow();
+						const current = resolveMenuRow();
 						if (current === null) return;
 						dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, gap: px });
 						this.refreshActiveRow();
@@ -1467,7 +1468,7 @@ class ImageRowToolbarController {
 			item.setSection('layout');
 			item.setIcon('rotate-ccw');
 			item.onClick(() => {
-				const current = this.resolveActiveRow();
+				const current = resolveMenuRow();
 				if (current === null) return;
 				dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, ...ROW_DEFAULTS });
 				this.refreshActiveRow();
@@ -1479,7 +1480,7 @@ class ImageRowToolbarController {
 			item.setSection('actions');
 			item.setIcon('image');
 			item.onClick(() => {
-				const current = this.resolveActiveRow();
+				const current = resolveMenuRow();
 				if (current === null) return;
 				dispatchRowBlockUpdate(this.view, this.plugin, current, { ...current.block, images: [...current.block.images, { kind: 'placeholder' }] });
 				this.refreshActiveRow();
@@ -1496,7 +1497,7 @@ class ImageRowToolbarController {
 			item.setSection('actions');
 			item.setIcon('copy-plus');
 			item.onClick(() => {
-				const current = this.resolveActiveRow();
+				const current = resolveMenuRow();
 				if (current === null) return;
 				duplicateRowState(this.view, current);
 			});
@@ -1506,7 +1507,7 @@ class ImageRowToolbarController {
 			item.setSection('actions');
 			item.setIcon('trash');
 			item.onClick(() => {
-				const current = this.resolveActiveRow();
+				const current = resolveMenuRow();
 				if (current === null) return;
 				deleteRowState(this.view, current);
 				this.hide();

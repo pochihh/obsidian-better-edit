@@ -150,8 +150,9 @@
 }
 
 /* Placeholder: Obsidian's cm-html-embed renders the raw HTML alongside our widget.
-   Hide it — our widget is the authoritative rendering. */
-.cm-html-embed:has([data-better-edit-image="placeholder"]) {
+   Hide only standalone placeholder embeds while the image feature is active.
+   Do not match image rows: rows must remain portable/raw-rendered when row enhancement is off. */
+.be-image-arrangement-active .cm-html-embed:has([data-better-edit-image="placeholder"]):not(:has([data-better-edit-image-row])) {
 	display: none !important;
 }
 

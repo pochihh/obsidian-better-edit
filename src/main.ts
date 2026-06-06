@@ -26,12 +26,16 @@ export default class BetterEditPlugin extends Plugin {
 	}
 
 	onunload() {
+		this.app.workspace.containerEl.ownerDocument.body.removeClass('be-image-arrangement-active');
 		this.app.workspace.containerEl.ownerDocument.body.removeClass('be-image-rows-active');
 	}
 
 	syncBodyClasses(): void {
-		const rowsActive = this.settings.image.enabled && this.settings.image.imageRows;
-		this.app.workspace.containerEl.ownerDocument.body.toggleClass('be-image-rows-active', rowsActive);
+		const imageActive = this.settings.image.enabled;
+		const rowsActive = imageActive && this.settings.image.imageRows;
+		const body = this.app.workspace.containerEl.ownerDocument.body;
+		body.toggleClass('be-image-arrangement-active', imageActive);
+		body.toggleClass('be-image-rows-active', rowsActive);
 	}
 
 	async loadSettings() {

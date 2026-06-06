@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 560" role="img" aria-label="Abstract canyon image">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#f1dca7"/>
+      <stop offset="1" stop-color="#d9825a"/>
+    </linearGradient>
+    <linearGradient id="rock" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#8c3f3b"/>
+      <stop offset="1" stop-color="#2d2527"/>
+    </linearGradient>
+  </defs>
+  <rect width="900" height="560" fill="url(#sky)"/>
+  <path d="M0 250 C130 170 210 220 305 155 C430 70 560 190 680 110 C770 50 830 80 900 35 L900 560 L0 560 Z" fill="url(#rock)"/>
+  <path d="M0 365 C170 315 310 420 450 330 C610 230 720 335 900 260 L900 560 L0 560 Z" fill="#251e22" opacity="0.72"/>
+  <path d="M190 160 C280 130 350 155 420 115" fill="none" stroke="#ffe5b5" stroke-width="10" opacity="0.65"/>
+  <path d="M520 260 C610 210 690 240 775 190" fill="none" stroke="#ffbb83" stroke-width="14" opacity="0.5"/>
+</svg>
