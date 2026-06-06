@@ -2,6 +2,7 @@ import { Extension, StateEffect } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { App, Menu, editorLivePreviewField } from 'obsidian';
 import type BetterEditPlugin from '../../main';
+import { resolveDragSourceForBlock } from './block-drag-source';
 import { BlockRange, getBlockAtPos, getBlocksInRange } from './block-model';
 import { BlockTurnIntoTarget, canTurnIntoSource, duplicateBlockText, turnBlockTextInto } from './block-transform';
 
@@ -748,9 +749,12 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private dragSourceForBlock(block: BlockRange): DragSource {
-			const selectedSource = this.selectedDragSourceForBlock(block);
-			if (selectedSource !== null) return selectedSource;
-			return this.singleDragSource(block);
+			return resolveDragSourceForBlock(
+				block,
+				this.selectedSource,
+				this.selectedDragSourceForBlock(block),
+				this.singleDragSource(block),
+			);
 		}
 
 		private selectedDragSourceForBlock(block: BlockRange): DragSource | null {

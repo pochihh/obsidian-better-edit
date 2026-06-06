@@ -14,6 +14,7 @@ export default tseslint.config(
 					allowDefaultProject: [
 						'eslint.config.js',
 						'manifest.json',
+						'tests/block-drag-source.test.ts',
 						'tests/image-drag-changes.test.ts'
 					]
 				},

@@ -9,9 +9,10 @@
 		"styles:build": "node scripts/build-styles.mjs",
 		"dev": "node scripts/build-styles.mjs && node esbuild.config.mjs",
 		"build": "node scripts/build-styles.mjs && tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"test": "node scripts/run-node-tests.mjs",
 		"version": "node scripts/version-bump.mjs && git add manifest.json versions.json",
 		"check:release": "node scripts/check-release.mjs",
-		"check": "npm run lint && npm run build && npm run check:release",
+		"check": "npm run lint && npm run test && npm run build && npm run check:release",
 		"lint": "eslint .",
 		"lint:fix": "eslint . --fix"
 	},
