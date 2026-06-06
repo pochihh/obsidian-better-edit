@@ -10,8 +10,8 @@ const outPath = 'test-results/e2e/image-row-add-menu-live-check.json';
 const seed = `# Better Edit image row add regression
 
 <div data-better-edit-image-row style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start;">
-<div data-better-edit-image="filled" style="width: 240px; text-align: center;">
-  <img src="demo-canyon.svg" style="width: 100%; max-width: 100%; border-radius: 4px;" />
+<div data-better-edit-image="filled" style="width: 240px; max-width: 100%; flex: 0 0 auto; text-align: center;">
+  <img src="demo-canyon.svg" style="width: 100%; max-width: 100%; display: block; border-radius: 4px;" />
 </div>
 </div>
 `;

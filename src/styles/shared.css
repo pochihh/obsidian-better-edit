@@ -157,6 +157,10 @@ body .be-replace-panel .be-replace-tab.is-active {
 	font-size: 13px;
 }
 
+.be-replace-link-pane .be-replace-link-input {
+	margin-bottom: 10px;
+}
+
 .be-replace-apply-btn {
 	align-self: flex-end;
 	padding: 4px 14px;

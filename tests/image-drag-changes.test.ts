@@ -2,10 +2,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { EditorState } from '@codemirror/state';
-import { readFileSync } from 'node:fs';
 
 import { orderImageDragChanges } from '../src/features/image/drag-changes';
-import { findBlockEnd, imageRowHtml, parseImageBlock, parseImageRowBlock } from '../src/features/image/html-schema';
+import { findBlockEnd, imageRowHtml, parseImageBlock, parseImageRowBlock, placeholderHtml } from '../src/features/image/html-schema';
 
 void test('row image drag changes are ordered before CodeMirror applies them', () => {
 	const doc = 'aaaa\nbbbb\ncccc\ndddd';
@@ -21,7 +20,17 @@ void test('row image drag changes are ordered before CodeMirror applies them', (
 });
 
 void test('dragging an image out of a row onto a later placeholder keeps both resulting blocks valid', () => {
-	const original = readFileSync('test-results/toby_test_original.md', 'utf8').replace(/\r\n/g, '\n');
+	const original = [
+		'# Image drag test',
+		'',
+		imageRowHtml([
+			{ kind: 'single', src: 'assets/demo-canyon.svg', width: '139px', alignment: 'center', caption: 'Canyon study' },
+			{ kind: 'single', src: 'assets/demo-aurora.svg', width: '138px', alignment: 'center', caption: 'Aurora study' },
+		], 8, 'center', 'wrap', 'flex-start'),
+		'',
+		placeholderHtml(),
+		'',
+	].join('\n');
 	const rowFrom = original.indexOf('<div data-better-edit-image-row');
 	const rowTo = findBlockEnd(original, rowFrom);
 	const rowBlock = parseImageRowBlock(original.slice(rowFrom, rowTo));
@@ -32,7 +41,7 @@ void test('dragging an image out of a row onto a later placeholder keeps both re
 	const sourceImages = [...rowBlock.images];
 	sourceImages.splice(1, 1);
 
-	const targetFrom = original.indexOf('<div data-better-edit-image="placeholder"></div>', rowTo);
+	const targetFrom = original.indexOf('<div data-better-edit-image="placeholder"', rowTo);
 	const targetTo = findBlockEnd(original, targetFrom);
 	const targetBlock = parseImageBlock(original.slice(targetFrom, targetTo));
 	assert.equal(targetBlock?.kind, 'placeholder');
@@ -50,6 +59,6 @@ void test('dragging an image out of a row onto a later placeholder keeps both re
 	assert.equal((next.match(/data-better-edit-image-row/g) ?? []).length, 2);
 	assert.ok(next.includes('Aurora study'));
 	assert.ok(next.includes('Canyon study'));
-	assert.doesNotMatch(next, /<div data-better-edit-image="placeholder"><\/div>>/);
+	assert.doesNotMatch(next, /<\/div>>/);
 	assert.ok(parseImageRowBlock(next.slice(next.indexOf('<div data-better-edit-image-row'), findBlockEnd(next, next.indexOf('<div data-better-edit-image-row')))));
 });

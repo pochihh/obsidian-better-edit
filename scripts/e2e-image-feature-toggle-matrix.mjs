@@ -12,22 +12,26 @@ const seed = `# Better Edit feature toggle portability regression
 
 Single filled image:
 
-<div data-better-edit-image="filled" style="width: 240px; text-align: center;">
-  <img src="demo-canyon.svg" style="width: 100%; max-width: 100%; border-radius: 4px;" />
-  <figcaption style="font-size: 0.85em; color: var(--text-muted);">Portable single image</figcaption>
+<div data-better-edit-image="filled" style="width: 240px; max-width: 100%; margin: 0 auto; text-align: center;">
+  <img src="demo-canyon.svg" style="width: 100%; max-width: 100%; display: block; border-radius: 4px;" />
+  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">Portable single image</p>
 </div>
 
 Single placeholder:
 
-<div data-better-edit-image="placeholder"></div>
+<div data-better-edit-image="placeholder" style="border: 2px dashed #ccc; border-radius: 4px; padding: 32px 16px; text-align: center; color: #999; font-size: 0.9em; min-height: 80px; box-sizing: border-box; max-width: 100%;">
+  Paste or drop an image here
+</div>
 
 Image row:
 
 <div data-better-edit-image-row style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start; justify-content: flex-start;">
-<div data-better-edit-image="filled" style="width: 220px; text-align: center;">
-  <img src="demo-canyon.svg" style="width: 100%; max-width: 100%; border-radius: 4px;" />
+<div data-better-edit-image="filled" style="width: 220px; max-width: 100%; flex: 0 0 auto; text-align: center;">
+  <img src="demo-canyon.svg" style="width: 100%; max-width: 100%; display: block; border-radius: 4px;" />
 </div>
-<div data-better-edit-image="placeholder"></div>
+<div data-better-edit-image="placeholder" style="border: 2px dashed #ccc; border-radius: 4px; padding: 32px 16px; text-align: center; color: #999; font-size: 0.9em; min-height: 80px; box-sizing: border-box; width: 160px; max-width: 100%; flex: 0 0 auto;">
+  Add an image
+</div>
 </div>
 `;
 

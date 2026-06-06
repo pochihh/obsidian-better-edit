@@ -1,3 +1,5 @@
+import { placeholderHtml } from '../image/html-schema';
+
 export interface SlashCommandSettings {
 	enabled: boolean;
 	commands: SlashCommandDefinition[];
@@ -138,7 +140,7 @@ export const DEFAULT_SLASH_COMMANDS: SlashCommandDefinition[] = [
 		description: 'Insert an image placeholder block.',
 		aliases: ['img', 'media', 'picture'],
 		actionType: 'insert-template',
-		template: `<div data-better-edit-image="placeholder" style="border: 2px dashed #ccc; border-radius: 4px; padding: 32px 16px; text-align: center; color: #999; font-size: 0.9em; min-height: 80px;">\n  Paste or drop an image here\n</div>\n`,
+		template: `${placeholderHtml()}\n`,
 		commandId: '',
 	},
 	{

@@ -9,7 +9,7 @@
  *
  * All filled blocks are wrapped in a <div> so Lezer parses them as HTMLBlock
  * (block-level) rather than inline HTMLTag inside a Paragraph.
- * Alignment is controlled by text-align (flow) or float (wrap variants) on the wrapper.
+ * Alignment is controlled by block margins (flow) or float (wrap variants) on the wrapper.
  */
 
 // ---------------------------------------------------------------------------
@@ -53,36 +53,53 @@ export interface ImageRowBlock {
 }
 
 export type ImageBlock = SingleImageBlock | PlaceholderBlock | ImageRowBlock;
+export type ImageHtmlContext = 'standalone' | 'row';
+export const DEFAULT_ROW_IMAGE_WIDTH = '220px';
 
 // ---------------------------------------------------------------------------
 // Generators
 // ---------------------------------------------------------------------------
 
-/** Returns the placeholder HTML inserted by the slash command. */
-export function placeholderHtml(): string {
-	return '<div data-better-edit-image="placeholder"></div>';
+/** Returns portable placeholder HTML inserted by slash commands and image tools. */
+export function placeholderHtml(context: ImageHtmlContext = 'standalone'): string {
+	const rowStyle = context === 'row' ? ' width: 160px; max-width: 100%; flex: 0 0 auto;' : ' max-width: 100%;';
+	const text = context === 'row' ? 'Add an image' : 'Paste or drop an image here';
+	return (
+		`<div data-better-edit-image="placeholder" style="border: 2px dashed #ccc; border-radius: 4px; padding: 32px 16px; text-align: center; color: #999; font-size: 0.9em; min-height: 80px; box-sizing: border-box;${rowStyle}">\n` +
+		`  ${text}\n` +
+		`</div>`
+	);
 }
 
-/** Returns the outer div style for a given alignment. */
-function outerStyleForAlignment(alignment: ImageAlignment): string {
+/** Returns the outer div style for a saved filled image block. */
+function imageOuterStyle(width: string, alignment: ImageAlignment, context: ImageHtmlContext): string {
+	const baseStyle = `width: ${width}; max-width: 100%;`;
+	if (context === 'row') return `${baseStyle} flex: 0 0 auto; text-align: center;`;
+
 	switch (alignment) {
-		case 'left':        return 'text-align: left;';
-		case 'center':      return 'text-align: center;';
-		case 'right':       return 'text-align: right;';
-		case 'float-left':  return 'float: left; margin: 0 16px 12px 0;';
-		case 'float-right': return 'float: right; margin: 0 0 12px 16px;';
+		case 'left':        return `${baseStyle} margin-right: auto; text-align: left;`;
+		case 'center':      return `${baseStyle} margin: 0 auto; text-align: center;`;
+		case 'right':       return `${baseStyle} margin-left: auto; text-align: right;`;
+		case 'float-left':  return `${baseStyle} float: left; margin: 0 16px 12px 0;`;
+		case 'float-right': return `${baseStyle} float: right; margin: 0 0 12px 16px;`;
 	}
 }
 
 /** Alignment style for the crop wrapper div (no overflow — that lives on the inner clip div). */
-function cropWrapperStyle(alignment: ImageAlignment): string {
+function cropWrapperAlignmentStyle(alignment: ImageAlignment): string {
 	switch (alignment) {
-		case 'left':        return '';
-		case 'center':      return 'margin: 0 auto;';
-		case 'right':       return 'margin-left: auto;';
+		case 'left':        return 'margin-right: auto; text-align: left;';
+		case 'center':      return 'margin: 0 auto; text-align: center;';
+		case 'right':       return 'margin-left: auto; text-align: right;';
 		case 'float-left':  return 'float: left; margin: 0 16px 12px 0;';
 		case 'float-right': return 'float: right; margin: 0 0 12px 16px;';
 	}
+}
+
+function cropWrapperStyle(width: string, alignment: ImageAlignment, context: ImageHtmlContext): string {
+	const baseStyle = `width: ${width}; max-width: 100%;`;
+	if (context === 'row') return `${baseStyle} flex: 0 0 auto; text-align: center;`;
+	return `${baseStyle} ${cropWrapperAlignmentStyle(alignment)}`;
 }
 
 /** Inline style for the crop clip div (overflow:hidden + shape). */
@@ -100,6 +117,7 @@ export function singleImageHtml(
 	alt?: string,
 	cornerRadius = 4,
 	captionHidden = false,
+	context: ImageHtmlContext = 'standalone',
 ): string {
 	const altAttr = alt ? ` alt="${escapeHtmlAttr(alt)}"` : '';
 	const radiusStyle = cornerRadius > 0 ? ` border-radius: ${cornerRadius}px;` : '';
@@ -110,11 +128,10 @@ export function singleImageHtml(
 	if (crop) {
 		// Two-div structure: outer div = width + alignment, inner div = clip mask.
 		// Caption sits between them so overflow:hidden on the inner div never clips it.
-		const wrapperStyle = cropWrapperStyle(alignment);
+		const wrapperStyle = cropWrapperStyle(width, alignment, context);
 		const clipStyle = cropClipStyle(crop.height, crop.shape === 'circle', cornerRadius);
-		const wrapperAttr = wrapperStyle ? ` style="width: ${width}; ${wrapperStyle}"` : ` style="width: ${width};"`;
 		return (
-			`<div data-better-edit-image="filled"${wrapperAttr}>\n` +
+			`<div data-better-edit-image="filled" style="${wrapperStyle}">\n` +
 			`  <div style="${clipStyle}">\n` +
 			`    <img src="${src}"${altAttr} style="width: ${crop.imgWidth}px; max-width: none; margin-left: -${crop.offsetX}px; margin-top: -${crop.offsetY}px; display: block;" />\n` +
 			`  </div>\n` +
@@ -123,11 +140,11 @@ export function singleImageHtml(
 		);
 	}
 
-	const outerStyle = outerStyleForAlignment(alignment);
+	const outerStyle = imageOuterStyle(width, alignment, context);
 
 	return (
-		`<div data-better-edit-image="filled" style="width: ${width}; ${outerStyle}">\n` +
-		`  <img src="${src}"${altAttr} style="width: 100%; max-width: 100%;${radiusStyle}" />\n` +
+		`<div data-better-edit-image="filled" style="${outerStyle}">\n` +
+		`  <img src="${src}"${altAttr} style="width: 100%; max-width: 100%; display: block;${radiusStyle}" />\n` +
 		captionHtml +
 		`</div>`
 	);
@@ -152,10 +169,27 @@ export function imageRowHtml(
 	const style = `display: flex; gap: ${gap}px; flex-wrap: ${wrap}; align-items: ${alignItems}; justify-content: ${justify};`;
 	const children = images.map(img =>
 		img.kind === 'placeholder'
-			? placeholderHtml()
-			: singleImageHtml(img.src, img.width, 'center', img.caption, img.crop, img.alt, cornerRadius, img.captionHidden),
+			? placeholderHtml('row')
+			: singleImageHtml(img.src, img.width, 'center', img.caption, img.crop, img.alt, cornerRadius, img.captionHidden, 'row'),
 	);
 	return `<div data-better-edit-image-row style="${style}">\n${children.join('\n')}\n</div>`;
+}
+
+export function imageRowReplacementWidth(
+	images: (SingleImageBlock | PlaceholderBlock)[],
+	index: number,
+	standaloneDefaultWidth: string,
+): string {
+	for (let distance = 1; distance < images.length; distance++) {
+		const left = images[index - distance];
+		if (left?.kind === 'single' && isRowSafeImageWidth(left.width)) return left.width;
+
+		const right = images[index + distance];
+		if (right?.kind === 'single' && isRowSafeImageWidth(right.width)) return right.width;
+	}
+
+	const width = standaloneDefaultWidth.trim();
+	return isRowSafeImageWidth(width) ? width : DEFAULT_ROW_IMAGE_WIDTH;
 }
 
 export function parseImageRowBlock(html: string): ImageRowBlock | null {
@@ -327,6 +361,15 @@ function extractStyleProp(style: string, prop: string): string | null {
 	return m ? (m[1] ?? '').trim() : null;
 }
 
+function isRowSafeImageWidth(width: string): boolean {
+	const trimmed = width.trim();
+	if (!trimmed) return false;
+	if (trimmed === 'auto') return false;
+	if (!trimmed.endsWith('%')) return true;
+	const percentage = Number.parseFloat(trimmed);
+	return Number.isFinite(percentage) && percentage < 100;
+}
+
 function detectAlignment(outerStyle: string, isCropped = false): ImageAlignment {
 	if (/float:\s*left/.test(outerStyle))  return 'float-left';
 	if (/float:\s*right/.test(outerStyle)) return 'float-right';
@@ -334,6 +377,9 @@ function detectAlignment(outerStyle: string, isCropped = false): ImageAlignment 
 		// Cropped images use margin-based alignment, not text-align
 		if (/margin:\s*0\s+auto/.test(outerStyle)) return 'center';
 		if (/margin-left:\s*auto/.test(outerStyle)) return 'right';
+		const textAlign = extractStyleProp(outerStyle, 'text-align');
+		if (textAlign === 'center') return 'center';
+		if (textAlign === 'right') return 'right';
 		return 'left';
 	}
 	const textAlign = extractStyleProp(outerStyle, 'text-align') ?? 'center';

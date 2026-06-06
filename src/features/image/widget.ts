@@ -36,6 +36,7 @@ import {
 	parseImageRowBlock,
 	singleImageHtml,
 	imageRowHtml,
+	imageRowReplacementWidth,
 	placeholderHtml,
 	findBlockEnd,
 } from './html-schema';
@@ -886,11 +887,14 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 	uploadArea.append(uploadBtn, fileInput);
 	uploadPane.appendChild(uploadArea);
 
-	const linkPane  = createDiv({ cls: 'be-replace-pane is-hidden' });
+	const linkPane  = createDiv({ cls: 'be-replace-pane be-replace-link-pane is-hidden' });
 	const linkInput = createEl('input', { cls: 'be-replace-link-input', attr: {
 		type: 'text', value: opts.linkInitialValue, placeholder: 'Paste image URL or vault path…',
 	} });
-	linkPane.appendChild(linkInput);
+	const linkArea = createDiv({ cls: 'be-replace-upload-area' });
+	const linkBtn = createEl('button', { cls: 'be-replace-upload-btn', text: 'Add link', attr: { type: 'button' } });
+	linkArea.appendChild(linkBtn);
+	linkPane.append(linkInput, linkArea);
 
 	panel.append(tabBar, uploadPane, linkPane);
 
@@ -913,6 +917,13 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 		opts.scrollAnchor?.closest('.cm-scroller')?.removeEventListener('scroll', positionPanel);
 		for (const fn of cleanups) fn();
 		panel.remove();
+	};
+	const commitLinkInput = (): void => {
+		if (panelClosed) return;
+		const src = linkInput.value.trim();
+		if (!src) return;
+		opts.onSrc(src);
+		closePanel();
 	};
 
 	const pickFile = (file: File) => void opts.onFile(file).then(() => closePanel());
@@ -937,11 +948,11 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 
 	linkInput.addEventListener('keydown', ev => {
 		if (ev.key !== 'Enter') return;
-		const src = linkInput.value.trim();
-		if (!src) return;
-		opts.onSrc(src);
-		closePanel();
+		ev.preventDefault();
+		ev.stopPropagation();
+		commitLinkInput();
 	});
+	linkBtn.addEventListener('click', commitLinkInput);
 
 	const closeOnOutside = (ev: MouseEvent) => {
 		if (!panel.contains(ev.target as Node)) closePanel();
@@ -2105,7 +2116,8 @@ class ImageRowWidget extends WidgetType {
 	private replacePlaceholderAt(view: EditorView, index: number, src: string): void {
 		const { defaultImageWidth } = this.plugin.settings.image;
 		const images = [...this.block.images];
-		images[index] = { kind: 'single', src, width: defaultImageWidth, alignment: 'center' };
+		const width = imageRowReplacementWidth(images, index, defaultImageWidth);
+		images[index] = { kind: 'single', src, width, alignment: 'center' };
 		this.updateRow(view, { ...this.block, images });
 	}
 
