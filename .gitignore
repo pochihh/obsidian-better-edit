@@ -37,7 +37,8 @@ D:/
 test-vault/
 
 # Local Codex / Claude settings
-.claude/settings.local.json
+.claude/
+.codex/
 
 # Local Hermes/private files
 .hermes/
