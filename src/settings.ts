@@ -1,4 +1,4 @@
-import { App, Command, getIconIds, Modal, Platform, Plugin, PluginSettingTab, Setting, setIcon } from 'obsidian';
+import { App, Command, getIconIds, Modal, Platform, PluginSettingTab, Setting, setIcon } from 'obsidian';
 import { ImageSettings, IMAGE_DEFAULT_SETTINGS } from './features/image/settings';
 import { BlocksSettings, BLOCKS_DEFAULT_SETTINGS } from './features/blocks/settings';
 import {
@@ -11,6 +11,7 @@ import { TextStylingSettings, TEXT_STYLING_DEFAULT_SETTINGS } from './features/t
 import { SymbolPickerSettings, SYMBOL_PICKER_DEFAULT_SETTINGS, formatShortcut, ShortcutDef } from './features/symbol-picker/settings';
 import { refreshImageDecorations } from './features/image/index';
 import { refreshBlockControls } from './features/blocks/index';
+import type BetterEditPlugin from './main';
 
 export interface BetterEditSettings {
 	image: ImageSettings;
@@ -28,16 +29,10 @@ export const DEFAULT_SETTINGS: BetterEditSettings = {
 	symbolPicker: SYMBOL_PICKER_DEFAULT_SETTINGS,
 };
 
-type PluginWithSettings = Plugin & {
-	settings: BetterEditSettings;
-	saveSettings: () => Promise<void>;
-	syncBodyClasses: () => void;
-};
-
 export class BetterEditSettingTab extends PluginSettingTab {
-	plugin: PluginWithSettings;
+	plugin: BetterEditPlugin;
 
-	constructor(app: App, plugin: PluginWithSettings) {
+	constructor(app: App, plugin: BetterEditPlugin) {
 		super(app, plugin);
 		this.plugin = plugin;
 	}
@@ -512,11 +507,11 @@ export class BetterEditSettingTab extends PluginSettingTab {
 }
 
 class SlashCommandEditModal extends Modal {
-	private readonly plugin: PluginWithSettings;
+	private readonly plugin: BetterEditPlugin;
 	private readonly command: SlashCommandDefinition;
 	private readonly onSave: () => void;
 
-	constructor(app: App, plugin: PluginWithSettings, command: SlashCommandDefinition, onSave: () => void) {
+	constructor(app: App, plugin: BetterEditPlugin, command: SlashCommandDefinition, onSave: () => void) {
 		super(app);
 		this.plugin = plugin;
 		this.command = command;

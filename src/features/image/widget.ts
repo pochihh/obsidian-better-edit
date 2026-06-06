@@ -2623,12 +2623,15 @@ export function createImageDecorationField(plugin: BetterEditPlugin): Extension 
 export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension {
 	return ViewPlugin.fromClass(
 			class {
+				private readonly view: EditorView;
 				private readonly dragManager: ImageDragManager;
 				private readonly rowToolbarController: ImageRowToolbarController;
 
 				constructor(view: EditorView) {
+					this.view = view;
 					this.dragManager = new ImageDragManager(view, plugin);
 					this.rowToolbarController = new ImageRowToolbarController(view, plugin);
+					syncNativeImageEmbedClasses(view);
 
 					plugin.registerDomEvent(view.dom, 'drop', () => {
 						if (!plugin.settings.image.enabled) return;
@@ -2685,6 +2688,7 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 				}
 
 				update(): void {
+					syncNativeImageEmbedClasses(this.view);
 					this.rowToolbarController.update();
 				}
 
@@ -2695,3 +2699,15 @@ export function createImageWidgetExtension(plugin: BetterEditPlugin): Extension 
 			},
 		);
 	}
+
+function syncNativeImageEmbedClasses(view: EditorView): void {
+	const embedEls = view.dom.querySelectorAll<HTMLElement>('.cm-html-embed');
+	for (const embedEl of Array.from(embedEls)) {
+		const hasImage = embedEl.querySelector('[data-better-edit-image]') !== null;
+		const hasRow = embedEl.querySelector('[data-better-edit-image-row]') !== null;
+		const hasStandalonePlaceholder = !hasRow && embedEl.querySelector('[data-better-edit-image="placeholder"]') !== null;
+		embedEl.toggleClass('be-native-image-embed', hasImage);
+		embedEl.toggleClass('be-native-image-row-embed', hasRow);
+		embedEl.toggleClass('be-native-image-placeholder-embed', hasStandalonePlaceholder);
+	}
+}

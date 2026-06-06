@@ -1,13 +1,13 @@
 /* ── Shared toolbar primitives ───────────────────────────────────────────*/
 .be-toolbar-btn {
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
-	background: transparent !important;
-	border: none !important;
-	box-shadow: none !important;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 	cursor: pointer;
-	padding: 0 !important;
+	padding: 0;
 	border-radius: 4px;
 	color: var(--text-muted);
 	min-width: 24px;
@@ -16,12 +16,12 @@
 }
 
 .be-toolbar-btn:hover {
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
 .be-toolbar-btn.is-active {
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 	color: var(--text-accent);
 }
 
@@ -36,8 +36,8 @@
    is the only visual inset — no additional shrinkage is applied here. */
 .be-toolbar-icon {
 	display: block;
-	width: 20px !important;
-	height: 20px !important;
+	width: 20px;
+	height: 20px;
 }
 
 .be-toolbar-sep {
@@ -74,10 +74,10 @@
 body .be-replace-panel .be-replace-tab {
 	padding: 8px 10px;
 	font-size: 13px;
-	background: transparent !important;
-	border: none !important;
-	border-bottom: 2px solid transparent !important;
-	box-shadow: none !important;
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	box-shadow: none;
 	margin-bottom: -1px;
 	cursor: pointer;
 	color: var(--text-muted);
@@ -88,15 +88,15 @@ body .be-replace-panel .be-replace-tab {
 
 .be-replace-tab:hover,
 body .be-replace-panel .be-replace-tab:hover {
-	background: transparent !important;
-	box-shadow: none !important;
+	background: transparent;
+	box-shadow: none;
 	color: var(--text-normal);
 }
 
 .be-replace-tab.is-active,
 body .be-replace-panel .be-replace-tab.is-active {
 	color: var(--text-normal);
-	border-bottom: 2px solid var(--interactive-accent) !important;
+	border-bottom: 2px solid var(--interactive-accent);
 }
 
 .be-replace-pane {
@@ -152,7 +152,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background: var(--background-modifier-form-field, var(--background-secondary));
-	box-shadow: none !important;
+	box-shadow: none;
 	color: var(--text-normal);
 	font-size: 13px;
 }

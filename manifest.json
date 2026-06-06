@@ -2,7 +2,7 @@
 	"id": "better-edit",
 	"name": "Better Edit",
 	"version": "0.1.0",
-	"minAppVersion": "1.5.7",
+	"minAppVersion": "1.12.3",
 	"description": "A multi-feature editing toolbox with rich image arrangement and faster writing controls.",
 	"author": "Toby Chen",
 	"authorUrl": "",

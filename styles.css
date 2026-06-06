@@ -205,7 +205,7 @@
 	height: 30px;
 	min-width: 30px;
 	min-height: 30px;
-	padding: 0 !important;
+	padding: 0;
 	margin: 0;
 	line-height: 0;
 	box-sizing: border-box;
@@ -407,9 +407,9 @@
 	justify-content: center;
 	padding: 3px 8px;
 	border-radius: var(--radius-s, 4px);
-	border: 1px solid var(--background-modifier-border) !important;
-	background: var(--background-modifier-form-field, var(--background-secondary)) !important;
-	box-shadow: none !important;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-modifier-form-field, var(--background-secondary));
+	box-shadow: none;
 	color: var(--text-normal);
 	font-size: var(--font-ui-smaller, 12px);
 	font-weight: var(--font-medium, 500);
@@ -424,21 +424,21 @@
 }
 
 .be-shortcut-badge.is-recording {
-	border-color: var(--interactive-accent) !important;
+	border-color: var(--interactive-accent);
 	color: var(--text-faint);
 	font-size: var(--font-ui-smaller, 12px);
 }
 
 /* ── Shared toolbar primitives ───────────────────────────────────────────*/
 .be-toolbar-btn {
-	display: flex !important;
-	align-items: center !important;
-	justify-content: center !important;
-	background: transparent !important;
-	border: none !important;
-	box-shadow: none !important;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 	cursor: pointer;
-	padding: 0 !important;
+	padding: 0;
 	border-radius: 4px;
 	color: var(--text-muted);
 	min-width: 24px;
@@ -447,12 +447,12 @@
 }
 
 .be-toolbar-btn:hover {
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
 .be-toolbar-btn.is-active {
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 	color: var(--text-accent);
 }
 
@@ -467,8 +467,8 @@
    is the only visual inset — no additional shrinkage is applied here. */
 .be-toolbar-icon {
 	display: block;
-	width: 20px !important;
-	height: 20px !important;
+	width: 20px;
+	height: 20px;
 }
 
 .be-toolbar-sep {
@@ -505,10 +505,10 @@
 body .be-replace-panel .be-replace-tab {
 	padding: 8px 10px;
 	font-size: 13px;
-	background: transparent !important;
-	border: none !important;
-	border-bottom: 2px solid transparent !important;
-	box-shadow: none !important;
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	box-shadow: none;
 	margin-bottom: -1px;
 	cursor: pointer;
 	color: var(--text-muted);
@@ -519,15 +519,15 @@ body .be-replace-panel .be-replace-tab {
 
 .be-replace-tab:hover,
 body .be-replace-panel .be-replace-tab:hover {
-	background: transparent !important;
-	box-shadow: none !important;
+	background: transparent;
+	box-shadow: none;
 	color: var(--text-normal);
 }
 
 .be-replace-tab.is-active,
 body .be-replace-panel .be-replace-tab.is-active {
 	color: var(--text-normal);
-	border-bottom: 2px solid var(--interactive-accent) !important;
+	border-bottom: 2px solid var(--interactive-accent);
 }
 
 .be-replace-pane {
@@ -583,7 +583,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background: var(--background-modifier-form-field, var(--background-secondary));
-	box-shadow: none !important;
+	box-shadow: none;
 	color: var(--text-normal);
 	font-size: 13px;
 }
@@ -653,10 +653,10 @@ body .be-replace-panel .be-replace-tab.is-active {
 .cm-editor .cm-tooltip.be-slash-tooltip,
 .theme-dark .cm-tooltip.be-slash-tooltip,
 .theme-light .cm-tooltip.be-slash-tooltip {
-	border: none !important;
-	background: transparent !important;
-	padding: 0 !important;
-	box-shadow: none !important;
+	border: none;
+	background: transparent;
+	padding: 0;
+	box-shadow: none;
 }
 
 .be-slash-menu.is-visible {
@@ -715,7 +715,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 }
 
 .be-slash-item.is-selected,
-.be-slash-menu:not(:has(.be-slash-item.is-selected)) .be-slash-item:hover {
+.be-slash-menu:not(.has-selection) .be-slash-item:hover {
 	background: var(--background-modifier-hover);
 }
 
@@ -812,7 +812,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 }
 
 /* Suppress item selection highlight while the close footer is hovered */
-.be-slash-menu:has(.be-slash-footer:hover) .be-slash-item.is-selected {
+.be-slash-menu.is-footer-hovered .be-slash-item.is-selected {
 	background: transparent;
 }
 
@@ -899,12 +899,12 @@ body .be-replace-panel .be-replace-tab.is-active {
 
 body .be-block-controls > button.be-block-add,
 body .be-block-controls > button.be-block-handle {
-	background: transparent !important;
-	background-color: transparent !important;
-	box-shadow: none !important;
-	border-color: transparent !important;
-	border-width: 0 !important;
-	outline: none !important;
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
+	border-color: transparent;
+	border-width: 0;
+	outline: none;
 }
 
 .be-block-add {
@@ -936,9 +936,9 @@ body .be-block-controls > button.be-block-add:focus,
 body .be-block-controls > button.be-block-handle:focus,
 body .be-block-controls > button.be-block-add:active,
 body .be-block-controls > button.be-block-handle:active {
-	background: transparent !important;
-	background-color: transparent !important;
-	box-shadow: none !important;
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
 }
 
 .be-block-tooltip {
@@ -1118,15 +1118,15 @@ body .be-block-controls > button.be-block-handle:active {
 
 .be-image-toolbar .be-toolbar-btn,
 .be-image-row-toolbar .be-toolbar-btn {
-	min-width: 28px !important;
-	height: 28px !important;
+	min-width: 28px;
+	height: 28px;
 	border-radius: 6px;
 }
 
 .be-image-toolbar .be-toolbar-icon,
 .be-image-row-toolbar .be-toolbar-icon {
-	width: 20px !important;
-	height: 20px !important;
+	width: 20px;
+	height: 20px;
 }
 
 .be-image-toolbar .be-toolbar-sep {
@@ -1142,20 +1142,20 @@ body .be-block-controls > button.be-block-handle:active {
 /* Placeholder: Obsidian's cm-html-embed renders the raw HTML alongside our widget.
    Hide only standalone placeholder embeds while the image feature is active.
    Do not match image rows: rows must remain portable/raw-rendered when row enhancement is off. */
-.be-image-arrangement-active .cm-html-embed:has([data-better-edit-image="placeholder"]):not(:has([data-better-edit-image-row])) {
-	display: none !important;
+.be-image-arrangement-active .cm-html-embed.be-native-image-placeholder-embed {
+	display: none;
 }
 
 /* Filled images: suppress edit affordance and focus ring; the embed content itself
    is invisible (broken vault paths) so we don't need to hide the element. */
-.cm-html-embed:has([data-better-edit-image]) > .edit-block-button {
-	display: none !important;
+.cm-html-embed.be-native-image-embed > .edit-block-button {
+	display: none;
 }
 
-.cm-html-embed:has([data-better-edit-image]),
-.cm-html-embed:has([data-better-edit-image]):hover {
-	box-shadow: none !important;
-	outline: none !important;
+.cm-html-embed.be-native-image-embed,
+.cm-html-embed.be-native-image-embed:hover {
+	box-shadow: none;
+	outline: none;
 }
 
 /* ── Placeholder widget ───────────────────────────────────────────────────*/
@@ -1176,7 +1176,7 @@ body .be-block-controls > button.be-block-handle:active {
 
 /* ── Placeholder more button ──────────────────────────────────────────────*/
 .be-placeholder-more {
-	position: absolute !important;
+	position: absolute;
 	right: 6px;
 	top: 50%;
 	transform: translateY(-50%);
@@ -1263,7 +1263,7 @@ body .be-block-controls > button.be-block-handle:active {
 .be-image-dragging .be-resize-handle,
 .be-image-dragging .be-image-alt-badge,
 .be-image-dragging .be-placeholder-more {
-	display: none !important;
+	display: none;
 }
 
 .be-image-drag-ghost {
@@ -1371,10 +1371,9 @@ body .be-block-controls > button.be-block-handle:active {
 	display: flex;
 }
 
-/* When the row is shorter than the full toolbar, hide everything except the More button.
-   !important required to beat .be-toolbar-btn { display: flex !important } in shared.css. */
+/* When the row is shorter than the full toolbar, hide everything except the More button. */
 .be-image-row-toolbar.is-collapsed > *:not(.be-row-toolbar-more) {
-	display: none !important;
+	display: none;
 }
 
 /* Separator is horizontal inside the vertical toolbar */
@@ -1389,8 +1388,8 @@ body .be-block-controls > button.be-block-handle:active {
 /* Placeholder inside a row — more compact than standalone version */
 .be-image-row-placeholder {
 	min-width: 80px;
-	padding: 12px 16px !important;
-	padding-inline-end: 16px !important;
+	padding: 12px 16px;
+	padding-inline-end: 16px;
 	flex-direction: column;
 	gap: 6px;
 	align-items: center;
@@ -1404,19 +1403,19 @@ body .be-block-controls > button.be-block-handle:active {
 
 /* Hide Obsidian's native embed only while the feature is active (body class toggled by JS).
    Without this class, the inline-styled HTML renders as-is when the feature is off. */
-.be-image-rows-active .cm-html-embed:has([data-better-edit-image-row]) {
-	display: none !important;
+.be-image-rows-active .cm-html-embed.be-native-image-row-embed {
+	display: none;
 }
 
 /* Suppress edit button and chrome on the native embed (always safe — our widget is authoritative) */
-.cm-html-embed:has([data-better-edit-image-row]) > .edit-block-button {
-	display: none !important;
+.cm-html-embed.be-native-image-row-embed > .edit-block-button {
+	display: none;
 }
 
-.cm-html-embed:has([data-better-edit-image-row]),
-.cm-html-embed:has([data-better-edit-image-row]):hover {
-	box-shadow: none !important;
-	outline: none !important;
+.cm-html-embed.be-native-image-row-embed,
+.cm-html-embed.be-native-image-row-embed:hover {
+	box-shadow: none;
+	outline: none;
 }
 
 /* ── Crop clip — in-flow block; padding-top% provides crop-window height ─*/
@@ -1487,9 +1486,9 @@ body .be-block-controls > button.be-block-handle:active {
 }
 
 .be-alt-popover-close {
-	background: transparent !important;
-	border: none !important;
-	box-shadow: none !important;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 	color: var(--text-muted);
 	cursor: pointer;
 	font-size: 16px;
@@ -1511,22 +1510,22 @@ body .be-block-controls > button.be-block-handle:active {
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background: var(--background-modifier-form-field, var(--background-secondary));
-	box-shadow: none !important;
+	box-shadow: none;
 	color: var(--text-normal);
 	font-size: 13px;
 }
 
 /* ── Crop modal ───────────────────────────────────────────────────────────*/
 .be-crop-modal {
-	padding: 0 !important;
-	width: min(90vw, 860px) !important;
-	max-width: min(90vw, 860px) !important;
-	max-height: min(90vh, 700px) !important;
+	padding: 0;
+	width: min(90vw, 860px);
+	max-width: min(90vw, 860px);
+	max-height: min(90vh, 700px);
 	overflow: hidden;
 }
 
 .be-crop-modal .modal-content {
-	padding: 0 !important;
+	padding: 0;
 }
 
 .be-crop-modal-content {
@@ -1852,7 +1851,7 @@ body .be-block-controls > button.be-block-handle:active {
 
 /* ── Symbol / emoji picker ────────────────────────────────────────────────*/
 .be-symbol-picker {
-	position: fixed !important;
+	position: fixed;
 	z-index: 200;
 	background: var(--background-primary);
 	border: 1px solid var(--background-modifier-border);
@@ -1870,10 +1869,10 @@ body .be-block-controls > button.be-block-handle:active {
 	width: 100%;
 	box-sizing: border-box;
 	padding: 8px 10px;
-	border: none !important;
-	border-bottom: 1px solid var(--background-modifier-border) !important;
-	background: transparent !important;
-	box-shadow: none !important;
+	border: none;
+	border-bottom: 1px solid var(--background-modifier-border);
+	background: transparent;
+	box-shadow: none;
 	color: var(--text-normal);
 	font-size: 13px;
 	outline: none;
@@ -1915,10 +1914,10 @@ body .be-block-controls > button.be-block-handle:active {
 .be-symbol-tab {
 	padding: 6px 10px;
 	font-size: 12px;
-	background: transparent !important;
-	border: none !important;
-	border-bottom: 2px solid transparent !important;
-	box-shadow: none !important;
+	background: transparent;
+	border: none;
+	border-bottom: 2px solid transparent;
+	box-shadow: none;
 	margin-bottom: -1px;
 	cursor: pointer;
 	color: var(--text-muted);
@@ -1932,7 +1931,7 @@ body .be-block-controls > button.be-block-handle:active {
 
 .be-symbol-tab.is-active {
 	color: var(--text-normal);
-	border-bottom: 2px solid var(--interactive-accent) !important;
+	border-bottom: 2px solid var(--interactive-accent);
 }
 
 .be-symbol-grid {
@@ -1972,16 +1971,16 @@ body .be-block-controls > button.be-block-handle:active {
 	line-height: 1;
 	cursor: pointer;
 	border-radius: 4px;
-	border: none !important;
-	background: transparent !important;
-	box-shadow: none !important;
+	border: none;
+	background: transparent;
+	box-shadow: none;
 	color: var(--text-normal);
-	padding: 0 !important;
+	padding: 0;
 	transition: background 80ms ease;
 }
 
 .be-symbol-btn:hover {
-	background: var(--background-modifier-hover) !important;
+	background: var(--background-modifier-hover);
 }
 
 .be-symbol-empty {

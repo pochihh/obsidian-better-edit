@@ -55,12 +55,12 @@
 
 body .be-block-controls > button.be-block-add,
 body .be-block-controls > button.be-block-handle {
-	background: transparent !important;
-	background-color: transparent !important;
-	box-shadow: none !important;
-	border-color: transparent !important;
-	border-width: 0 !important;
-	outline: none !important;
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
+	border-color: transparent;
+	border-width: 0;
+	outline: none;
 }
 
 .be-block-add {
@@ -92,9 +92,9 @@ body .be-block-controls > button.be-block-add:focus,
 body .be-block-controls > button.be-block-handle:focus,
 body .be-block-controls > button.be-block-add:active,
 body .be-block-controls > button.be-block-handle:active {
-	background: transparent !important;
-	background-color: transparent !important;
-	box-shadow: none !important;
+	background: transparent;
+	background-color: transparent;
+	box-shadow: none;
 }
 
 .be-block-tooltip {

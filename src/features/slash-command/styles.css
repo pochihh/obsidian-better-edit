@@ -48,10 +48,10 @@
 .cm-editor .cm-tooltip.be-slash-tooltip,
 .theme-dark .cm-tooltip.be-slash-tooltip,
 .theme-light .cm-tooltip.be-slash-tooltip {
-	border: none !important;
-	background: transparent !important;
-	padding: 0 !important;
-	box-shadow: none !important;
+	border: none;
+	background: transparent;
+	padding: 0;
+	box-shadow: none;
 }
 
 .be-slash-menu.is-visible {
@@ -110,7 +110,7 @@
 }
 
 .be-slash-item.is-selected,
-.be-slash-menu:not(:has(.be-slash-item.is-selected)) .be-slash-item:hover {
+.be-slash-menu:not(.has-selection) .be-slash-item:hover {
 	background: var(--background-modifier-hover);
 }
 
@@ -207,7 +207,7 @@
 }
 
 /* Suppress item selection highlight while the close footer is hovered */
-.be-slash-menu:has(.be-slash-footer:hover) .be-slash-item.is-selected {
+.be-slash-menu.is-footer-hovered .be-slash-item.is-selected {
 	background: transparent;
 }
 

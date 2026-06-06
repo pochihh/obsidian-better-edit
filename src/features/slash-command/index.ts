@@ -358,6 +358,8 @@ class SlashCommandTooltipView implements TooltipView {
 			this.interactionMode = 'keyboard';
 		});
 		this.listEl.addEventListener('mousemove', event => this.onListMouseMove(event));
+		this.footerEl.addEventListener('mouseenter', () => this.menuEl.addClass('is-footer-hovered'));
+		this.footerEl.addEventListener('mouseleave', () => this.menuEl.removeClass('is-footer-hovered'));
 		// Toggle top-fade class while the list is scrolled.
 		this.listEl.addEventListener('scroll', () => {
 			slashMenuScrollMemory = this.listEl.scrollTop;
@@ -404,13 +406,14 @@ class SlashCommandTooltipView implements TooltipView {
 		const state = this.view.state.field(this.field, false);
 		this.listEl.empty();
 		this.footerEl.empty();
-		this.menuEl.removeClass('is-visible', 'is-scrolled');
+		this.menuEl.removeClass('is-visible', 'is-scrolled', 'has-selection', 'is-footer-hovered');
 		this.selectedEl = null;
 		this.lastRenderedQuery = undefined;
 		this.lastSelectedIndex = -1;
 		if (state === undefined || state === null) return;
 
 		this.menuEl.addClass('is-visible');
+		this.menuEl.toggleClass('has-selection', state.items.length > 0);
 		this.lastRenderedQuery = state.query;
 		this.lastSelectedIndex = state.selectedIndex;
 

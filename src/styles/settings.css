@@ -198,7 +198,7 @@
 	height: 30px;
 	min-width: 30px;
 	min-height: 30px;
-	padding: 0 !important;
+	padding: 0;
 	margin: 0;
 	line-height: 0;
 	box-sizing: border-box;
@@ -400,9 +400,9 @@
 	justify-content: center;
 	padding: 3px 8px;
 	border-radius: var(--radius-s, 4px);
-	border: 1px solid var(--background-modifier-border) !important;
-	background: var(--background-modifier-form-field, var(--background-secondary)) !important;
-	box-shadow: none !important;
+	border: 1px solid var(--background-modifier-border);
+	background: var(--background-modifier-form-field, var(--background-secondary));
+	box-shadow: none;
 	color: var(--text-normal);
 	font-size: var(--font-ui-smaller, 12px);
 	font-weight: var(--font-medium, 500);
@@ -417,7 +417,7 @@
 }
 
 .be-shortcut-badge.is-recording {
-	border-color: var(--interactive-accent) !important;
+	border-color: var(--interactive-accent);
 	color: var(--text-faint);
 	font-size: var(--font-ui-smaller, 12px);
 }

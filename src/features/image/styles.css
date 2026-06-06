@@ -128,15 +128,15 @@
 
 .be-image-toolbar .be-toolbar-btn,
 .be-image-row-toolbar .be-toolbar-btn {
-	min-width: 28px !important;
-	height: 28px !important;
+	min-width: 28px;
+	height: 28px;
 	border-radius: 6px;
 }
 
 .be-image-toolbar .be-toolbar-icon,
 .be-image-row-toolbar .be-toolbar-icon {
-	width: 20px !important;
-	height: 20px !important;
+	width: 20px;
+	height: 20px;
 }
 
 .be-image-toolbar .be-toolbar-sep {
@@ -152,20 +152,20 @@
 /* Placeholder: Obsidian's cm-html-embed renders the raw HTML alongside our widget.
    Hide only standalone placeholder embeds while the image feature is active.
    Do not match image rows: rows must remain portable/raw-rendered when row enhancement is off. */
-.be-image-arrangement-active .cm-html-embed:has([data-better-edit-image="placeholder"]):not(:has([data-better-edit-image-row])) {
-	display: none !important;
+.be-image-arrangement-active .cm-html-embed.be-native-image-placeholder-embed {
+	display: none;
 }
 
 /* Filled images: suppress edit affordance and focus ring; the embed content itself
    is invisible (broken vault paths) so we don't need to hide the element. */
-.cm-html-embed:has([data-better-edit-image]) > .edit-block-button {
-	display: none !important;
+.cm-html-embed.be-native-image-embed > .edit-block-button {
+	display: none;
 }
 
-.cm-html-embed:has([data-better-edit-image]),
-.cm-html-embed:has([data-better-edit-image]):hover {
-	box-shadow: none !important;
-	outline: none !important;
+.cm-html-embed.be-native-image-embed,
+.cm-html-embed.be-native-image-embed:hover {
+	box-shadow: none;
+	outline: none;
 }
 
 /* ── Placeholder widget ───────────────────────────────────────────────────*/
@@ -186,7 +186,7 @@
 
 /* ── Placeholder more button ──────────────────────────────────────────────*/
 .be-placeholder-more {
-	position: absolute !important;
+	position: absolute;
 	right: 6px;
 	top: 50%;
 	transform: translateY(-50%);
@@ -273,7 +273,7 @@
 .be-image-dragging .be-resize-handle,
 .be-image-dragging .be-image-alt-badge,
 .be-image-dragging .be-placeholder-more {
-	display: none !important;
+	display: none;
 }
 
 .be-image-drag-ghost {
@@ -381,10 +381,9 @@
 	display: flex;
 }
 
-/* When the row is shorter than the full toolbar, hide everything except the More button.
-   !important required to beat .be-toolbar-btn { display: flex !important } in shared.css. */
+/* When the row is shorter than the full toolbar, hide everything except the More button. */
 .be-image-row-toolbar.is-collapsed > *:not(.be-row-toolbar-more) {
-	display: none !important;
+	display: none;
 }
 
 /* Separator is horizontal inside the vertical toolbar */
@@ -399,8 +398,8 @@
 /* Placeholder inside a row — more compact than standalone version */
 .be-image-row-placeholder {
 	min-width: 80px;
-	padding: 12px 16px !important;
-	padding-inline-end: 16px !important;
+	padding: 12px 16px;
+	padding-inline-end: 16px;
 	flex-direction: column;
 	gap: 6px;
 	align-items: center;
@@ -414,19 +413,19 @@
 
 /* Hide Obsidian's native embed only while the feature is active (body class toggled by JS).
    Without this class, the inline-styled HTML renders as-is when the feature is off. */
-.be-image-rows-active .cm-html-embed:has([data-better-edit-image-row]) {
-	display: none !important;
+.be-image-rows-active .cm-html-embed.be-native-image-row-embed {
+	display: none;
 }
 
 /* Suppress edit button and chrome on the native embed (always safe — our widget is authoritative) */
-.cm-html-embed:has([data-better-edit-image-row]) > .edit-block-button {
-	display: none !important;
+.cm-html-embed.be-native-image-row-embed > .edit-block-button {
+	display: none;
 }
 
-.cm-html-embed:has([data-better-edit-image-row]),
-.cm-html-embed:has([data-better-edit-image-row]):hover {
-	box-shadow: none !important;
-	outline: none !important;
+.cm-html-embed.be-native-image-row-embed,
+.cm-html-embed.be-native-image-row-embed:hover {
+	box-shadow: none;
+	outline: none;
 }
 
 /* ── Crop clip — in-flow block; padding-top% provides crop-window height ─*/
@@ -497,9 +496,9 @@
 }
 
 .be-alt-popover-close {
-	background: transparent !important;
-	border: none !important;
-	box-shadow: none !important;
+	background: transparent;
+	border: none;
+	box-shadow: none;
 	color: var(--text-muted);
 	cursor: pointer;
 	font-size: 16px;
@@ -521,22 +520,22 @@
 	border: 1px solid var(--background-modifier-border);
 	border-radius: 4px;
 	background: var(--background-modifier-form-field, var(--background-secondary));
-	box-shadow: none !important;
+	box-shadow: none;
 	color: var(--text-normal);
 	font-size: 13px;
 }
 
 /* ── Crop modal ───────────────────────────────────────────────────────────*/
 .be-crop-modal {
-	padding: 0 !important;
-	width: min(90vw, 860px) !important;
-	max-width: min(90vw, 860px) !important;
-	max-height: min(90vh, 700px) !important;
+	padding: 0;
+	width: min(90vw, 860px);
+	max-width: min(90vw, 860px);
+	max-height: min(90vh, 700px);
 	overflow: hidden;
 }
 
 .be-crop-modal .modal-content {
-	padding: 0 !important;
+	padding: 0;
 }
 
 .be-crop-modal-content {
