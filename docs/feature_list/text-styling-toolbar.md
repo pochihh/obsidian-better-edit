@@ -1,128 +1,46 @@
 # Text Styling Toolbar
 
-The text styling toolbar makes common inline Markdown formatting available directly from the selection. It is for writers who know the style they want — bold, italic, highlight, inline code, math, or links — but do not want to manually type and balance Markdown delimiters every time.
+The text styling toolbar makes common inline Markdown formatting available directly from the selection. Select a phrase, choose the style you want, and Better Edit writes the Markdown syntax back into the note.
 
-The toolbar keeps formatting close to the text being edited. Select a phrase, choose an action, and Better Edit writes the standard Markdown markers back into the note. That makes the feature feel visual in Live Preview while keeping the saved file readable in Source mode, Git diffs, exports, and Obsidian without the plugin.
+Use it when you are revising prose, marking important ideas, linking notes, annotating research, writing technical notes, or cleaning up emphasis without manually typing pairs of Markdown delimiters.
+
+## Why Use It?
+
+Inline Markdown is portable, but it is easy to interrupt your writing flow when you need to wrap existing text in bold, highlight, inline code, math, or link syntax. The toolbar keeps those actions close to the selected text, so formatting feels visual while the saved file stays plain.
 
 ## Demo
 
-<a href="./assets/text_styling.gif"><img src="./assets/text_styling.gif" alt="Text styling toolbar and link picker demo" width="900"></a>
+<a href="./assets/text_styling.gif"><img src="./assets/text_styling.gif" alt="Text styling toolbar applying inline formatting and links in Obsidian" width="900"></a>
 
-The demo shows the floating toolbar appearing near selected text, applying inline styles, and using the link workflow for faster editing. The important behavior is that actions write normal Markdown syntax rather than plugin-only rich-text state.
+The demo shows the floating toolbar appearing near selected text, applying inline styles, and using the link workflow while the note remains normal Markdown.
 
-## What users see
+## Toolbar Close-Up
 
-Typical workflow:
+<a href="./assets/text-styling-toolbar.png"><img src="./assets/text-styling-toolbar.png" alt="Floating text styling toolbar with bold, italic, strike, highlight, inline code, math, and link actions" width="650"></a>
 
-1. Select text in Live Preview.
-2. A floating toolbar appears near the selection.
-3. Click a formatting action.
-4. Better Edit wraps or unwraps the selected text with standard Markdown syntax.
+The toolbar appears only when a useful text selection is active. It stays compact, follows the selection, and hides when the selection is cleared or the action is complete.
 
-The toolbar stays compact and close to the selected text. It should help the user continue writing rather than pull them into a large formatting panel.
+## What You Can Do
 
-![Text styling toolbar in Obsidian](./assets/text-styling-toolbar.png)
+- Apply or remove bold.
+- Apply or remove italic.
+- Apply or remove strikethrough.
+- Highlight selected text.
+- Format short selections as inline code.
+- Wrap variables or expressions as inline math.
+- Turn selected text into an Obsidian wiki link.
+- Create a standard Markdown link.
 
-## Sub-features
+## Better For Revisions
 
-### Floating selection toolbar
+The toolbar is most useful once text already exists. Select a term and make it bold, mark a sentence for review with highlight, convert a filename to inline code, or turn a phrase into a link without moving your hands through multiple delimiter pairs.
 
-The toolbar appears when Better Edit detects a usable text selection. It contains common inline formatting actions and hides when the selection is cleared.
+Where possible, actions behave like toggles. If the selected text already has the requested format, using the same action removes that wrapper instead of nesting another copy.
 
-Expected behavior:
+## Portable by Design
 
-- appears near the selected text;
-- avoids covering the selection when possible;
-- flips below the selection if there is not enough space above;
-- hides after the action is complete or when the user moves away;
-- works with normal Live Preview editing, not only Source mode.
+The toolbar writes standard inline Markdown markers: bold, italic, strikethrough, highlight, inline code, inline math, wiki links, and Markdown links. Source mode, Git diffs, exports, and Obsidian without Better Edit all see normal Markdown.
 
-### Bold
+## Notes And Limits
 
-Bold wraps the selection in Markdown bold markers.
-
-```md
-**selected text**
-```
-
-Use for emphasis, important terms, and section-level highlights inside normal paragraphs.
-
-### Italic
-
-Italic wraps the selection in Markdown italic markers.
-
-```md
-*selected text*
-```
-
-Use for light emphasis, titles, or terminology.
-
-### Strikethrough
-
-Strikethrough wraps the selection with Markdown strikethrough markers.
-
-```md
-~~selected text~~
-```
-
-Use for revisions, crossed-out alternatives, or visible edits in planning notes.
-
-### Highlight
-
-Highlight wraps the selection with Obsidian/Markdown highlight syntax.
-
-```md
-==selected text==
-```
-
-Use for study notes, important statements, or review markers.
-
-### Inline code
-
-Inline code wraps the selection in backticks.
-
-```md
-`selected text`
-```
-
-Use for commands, filenames, identifiers, or short code fragments. V1 keeps inline code single-line so it does not accidentally create malformed Markdown.
-
-### Inline equation
-
-Inline equation wraps the selection in math delimiters.
-
-```md
-$selected text$
-```
-
-Use for variables, formulas, and mathematical notation inside a sentence.
-
-### Wiki link
-
-Wiki link turns the selection into an Obsidian wikilink.
-
-```md
-[[selected text]]
-```
-
-Use for connecting notes without manually typing brackets.
-
-### Markdown link
-
-Markdown link turns the selection into link text and prepares the URL portion.
-
-```md
-[selected text](https://example.com)
-```
-
-Use for standard Markdown links, especially when notes need to remain portable outside Obsidian.
-
-### Toggle and normalization behavior
-
-Where possible, toolbar actions are reversible. If the selected text already has the target formatting, clicking the same action removes that formatting instead of nesting duplicate markers.
-
-Better Edit also normalizes common delimiter runs so combinations stay valid. For example, bold plus italic can become `***text***`, and highlight remains a clean outer wrapper such as `==**important**==`.
-
-## Native-note promise
-
-The toolbar writes standard Markdown inline markers such as `**bold**`, `*italic*`, `~~strike~~`, `==highlight==`, `` `code` ``, `$math$`, `[[wiki links]]`, and standard Markdown link syntax.
+Inline code is intended for short single-line selections. For larger code samples, use a fenced code block from Markdown or slash commands.

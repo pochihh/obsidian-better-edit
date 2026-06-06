@@ -1,85 +1,46 @@
 # Block Drag and Drop
 
-Block drag and drop makes Obsidian Live Preview easier to reorganize without forcing users back into manual cut-and-paste editing. Better Edit adds lightweight controls beside editable blocks so users can add nearby content, move blocks, duplicate or delete blocks, and transform simple Markdown blocks while keeping the underlying note format intact.
+Block drag and drop helps you reshape an Obsidian note without falling back to manual cut, paste, and Markdown cleanup. Better Edit adds lightweight controls beside editable blocks so you can add nearby content, move sections, duplicate useful starting points, delete clutter, and convert simple blocks into the structure you need.
 
-This feature is for the everyday restructuring work that happens while writing: moving a paragraph earlier in a draft, turning rough notes into checkboxes, reordering sections, moving a table below its explanation, or duplicating a block as a starting point for a variation. It is intentionally a source-aware editing helper, not a separate block database.
+Use it while drafting, outlining, revising meeting notes, reorganizing study notes, or turning a rough list of ideas into a cleaner document.
+
+## Why Use It?
+
+Notes change shape as you think. A paragraph needs to move above its explanation, a checklist belongs under a different heading, or a rough line should become a heading before you lose momentum. Block drag and drop keeps those edits in the reading surface, so restructuring feels like part of writing instead of a separate cleanup pass.
 
 ## Demo
 
-<a href="./assets/block_drag_n_drop.gif"><img src="./assets/block_drag_n_drop.gif" alt="Block drag and drop demo" width="900"></a>
+<a href="./assets/block_drag_n_drop.gif"><img src="./assets/block_drag_n_drop.gif" alt="Block drag-and-drop workflow in Obsidian" width="900"></a>
 
-The demo shows the left-gutter controls appearing near the current block, then using the drag handle and operation menu to reshape the note directly in Live Preview.
+The demo shows Better Edit controls appearing beside the current block, then using the drag handle and block menu to reorganize the note directly in Live Preview.
 
-## What users see
+## Block Controls
 
-When the cursor or pointer is near a supported block, Better Edit shows a small left-gutter control group:
+<a href="./assets/block-controls.png"><img src="./assets/block-controls.png" alt="Plus and drag handle controls beside a paragraph block" width="650"></a>
 
-- a **plus** control for quickly adding nearby content;
-- a **drag handle** for moving the block;
-- a block operation menu for actions such as duplicate, delete, and turn into.
+The left-gutter controls stay out of the way until you are working near a block. The plus button adds content near the current block, and the drag handle moves the block through the note.
 
-The controls appear in the editing surface instead of in a separate side panel, so users can act on the block they are already reading or editing.
+## Turn Into Menu
 
-![Block controls shown beside a paragraph in Obsidian](./assets/block-controls.png)
+<a href="./assets/block-turn-into.png"><img src="./assets/block-turn-into.png" alt="Block menu with Delete, Create copy, and Turn into options" width="900"></a>
 
-## Sub-features
+The block menu handles quick cleanup and conversion. Delete removes the block, Create copy duplicates it, and Turn into changes plain text into common Markdown structures such as headings, lists, checkboxes, and code blocks.
 
-### Hover controls
+## What You Can Do
 
-Hover controls keep the note visually clean most of the time. They appear only when the user is working near a block, reducing permanent UI clutter.
+- Add a block below the current block.
+- Option-click the add control to insert above.
+- Drag paragraphs, headings, lists, tables, embeds, and supported HTML blocks to a new position.
+- Duplicate a block when you want a nearby variation.
+- Delete a block without selecting its source text by hand.
+- Turn plain blocks into paragraphs, headings, bullet lists, numbered lists, checkboxes, or code blocks.
+- Reorder Better Edit image blocks and image rows as whole blocks.
 
-Expected behavior:
+## Turn Rough Notes Into Structure
 
-- controls align with the current block;
-- controls hide when the block is no longer active or hovered;
-- controls do not cover the text being edited;
-- controls are suppressed while other Better Edit surfaces, such as image resize or text selection, are active.
+Turn into is useful when a note starts as raw text and gains structure later. A brainstorm can become a checklist, a sentence can become a heading, and a short explanation can become a quote or code block. Better Edit rewrites the Markdown markers while preserving the content you wrote.
 
-### Add above or below
-
-The plus control supports fast insertion around a block:
-
-- click to add below;
-- option-click to add above.
-
-This helps users build notes from the middle without moving the cursor manually to exact line boundaries.
-
-### Drag to reorder
-
-The drag handle moves blocks or list items vertically. This is intended for reorganizing drafts, outlines, meeting notes, and study notes where order changes frequently.
-
-Better Edit moves the corresponding source text rather than creating plugin-only block references. A paragraph remains a paragraph, a list item remains Markdown list text, and an HTML block remains the same HTML block.
-
-### Block operation menu
-
-The V1 menu intentionally stays small:
-
-- **Delete** removes the current block or selected simple block range.
-- **Create copy** duplicates the current block or selected simple block range.
-- **Turn into** converts simple Markdown blocks line-by-line.
-
-Keeping the menu small makes the first release easier to understand and safer to maintain.
-
-### Turn into
-
-Supported Turn into targets:
-
-- Paragraph
-- Heading 1
-- Heading 2
-- Heading 3
-- Bullet list
-- Numbered list
-- Checkbox
-- Code block
-
-The transformation rule is conservative:
-
-1. Strip the source block marker.
-2. Preserve indentation and text.
-3. Apply the target marker line-by-line.
-
-Example: a nested numbered list can become nested checkboxes while keeping indentation intact.
+For example, a nested numbered list can become nested checkboxes while keeping the same indentation and text:
 
 ```md
 1. Plan release
@@ -95,35 +56,10 @@ becomes:
    - [ ] Capture screenshots
 ```
 
-### Supported block types for movement
+## Portable by Design
 
-Block controls are primarily for normal Markdown writing structures, but movement also handles larger atomic structures where possible:
+Block drag and drop moves the note content itself. A paragraph remains Markdown text, a list remains a Markdown list, a table remains a table, and an image row remains visible HTML. Better Edit does not create custom block IDs or hidden block storage.
 
-- paragraphs;
-- headings;
-- bullet lists;
-- numbered lists;
-- checkboxes;
-- blockquotes and callouts;
-- fenced code blocks and math blocks as whole blocks;
-- tables as whole tables;
-- complete HTML blocks;
-- Better Edit image blocks and rows as whole HTML blocks;
-- native Obsidian image embeds such as `![[image.png]]`.
+## Notes And Limits
 
-### Stability boundaries
-
-For the first release, Better Edit refuses risky transformations instead of guessing. Turn into is disabled or refused for mixed or structurally complex selections such as:
-
-- tables;
-- images and embeds;
-- callouts and blockquotes;
-- HTML blocks;
-- horizontal rules;
-- Dataview, Mermaid, or other special fenced blocks.
-
-Normal fenced code blocks and math blocks can move as whole blocks. They can be transformed only when the selection is unambiguous.
-
-## Native-note promise
-
-Drag and drop moves existing source ranges. Turn into rewrites plain Markdown markers. Better Edit does not add custom block IDs, hidden metadata, or plugin-only block syntax.
+Better Edit is careful around complex Markdown. It moves larger structures as whole blocks when possible, but it avoids conversions that would produce confusing source text. Tables, callouts, blockquotes, embeds, HTML blocks, dividers, and special fenced blocks are better treated as movable blocks than as Turn into targets.

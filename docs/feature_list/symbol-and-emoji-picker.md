@@ -1,80 +1,40 @@
 # Symbol and Emoji Picker
 
-The symbol and emoji picker helps users insert characters that are awkward to remember, search for, or type directly. It is useful for math notes, research notes, technical writing, annotation, and lightweight emoji marking without leaving Obsidian.
+The symbol and emoji picker helps you insert characters that are awkward to remember, search for, or type directly. Open the picker, search or browse, choose a symbol, and Better Edit inserts the actual Unicode character into the note.
 
-The picker is deliberately simple: open it from the context menu, command palette, or a shortcut; search or browse; choose a symbol; and Better Edit inserts ordinary Unicode text at the cursor. That keeps the feature useful outside the plugin because the saved note contains the actual character, not an image asset or plugin-specific token.
+Use it for math notes, research notes, technical writing, lightweight annotation, and visual markers that should remain readable outside the plugin.
+
+## Why Use It?
+
+Characters like `α`, `≈`, `→`, `≤`, and `∞` are useful in notes, but typing them usually means memorizing shortcuts, copying from another page, or switching tools. The picker keeps those characters available inside Obsidian.
 
 ## Demo
 
-<a href="./assets/emoji.gif"><img src="./assets/emoji.gif" alt="Symbol and emoji picker demo" width="900"></a>
+<a href="./assets/emoji.gif"><img src="./assets/emoji.gif" alt="Symbol and emoji picker search and insertion workflow in Obsidian" width="900"></a>
 
-The demo shows quick lookup and insertion for symbols and emoji. It is meant to cover both technical writing, where characters like `α`, `→`, or `≈` should be easy to insert, and general note-taking, where emoji can act as compact visual markers.
+The demo shows quick lookup and insertion for both technical symbols and emoji.
 
-## What users see
+## Picker Close-Up
 
-Users open the picker from an enabled entry point, search or browse the available characters, and insert one at the cursor.
+<a href="./assets/symbol-picker.png"><img src="./assets/symbol-picker.png" alt="Symbol picker filtering math symbols and arrows by search text" width="650"></a>
 
-Typical workflow:
+Search filters symbols by name or label. Browsable tabs keep common technical symbols and emoji discoverable even when you do not remember the exact name.
 
-1. Place the cursor where the symbol should go.
-2. Open the picker from the editor context menu, Better Edit command, or configured shortcut.
-3. Search for a symbol name, category, or common alias.
-4. Choose the symbol.
-5. Better Edit inserts the Unicode character into the note.
+## What You Can Insert
 
-![Symbol picker in Obsidian](./assets/symbol-picker.png)
+- Greek letters such as `α`, `β`, `γ`, `Δ`, and `Ω`.
+- Math operators such as `≈`, `≠`, `≤`, `≥`, `∑`, and `∞`.
+- Arrows such as `→`, `←`, `↔`, and `⇒`.
+- Emoji for lightweight labels, reactions, and visual markers.
 
-## Sub-features
+## Entry Points
 
-### Search box
+Open the picker from the editor context menu, an Obsidian command, or a configured shortcut. The shortcut workflow is best for frequent technical writing because it keeps insertion close to the cursor.
 
-The search box filters symbols and emoji by name or label. Searching for `alpha`, for example, makes Greek alpha `α` easy to find without remembering how to type it.
+## Portable by Design
 
-Search supports quick lookup for common writing needs such as:
+The picker inserts ordinary Unicode text. Notes remain readable in Markdown, HTML, Git diffs, PDF exports, and other tools wherever the chosen font supports the character.
 
-- Greek letters;
-- arrows;
-- math operators;
-- comparison symbols;
-- emoji names.
+## Notes And Limits
 
-### Category tabs
-
-The picker groups characters into browsable categories. Current first-release categories include:
-
-- **Math & arrows** for technical symbols, operators, arrows, and Greek letters;
-- **Emoji** for common emoji insertion.
-
-The category tabs let users browse when they do not remember the exact symbol name.
-
-### Math symbols and Greek letters
-
-This group is intended for research and technical notes. Examples include:
-
-- Greek letters such as `α`, `β`, `γ`, `Δ`, and `Ω`;
-- math operators such as `≈`, `≠`, `≤`, `≥`, `∑`, and `∞`;
-- arrows such as `→`, `←`, `↔`, and `⇒`.
-
-### Emoji insertion
-
-Emoji insertion supports lightweight annotation and visual markers in notes. The picker inserts standard Unicode emoji rather than plugin-specific image assets.
-
-### Context-menu entry
-
-When enabled, users can open the picker from the editor context menu. This is useful for mouse-driven editing or when a user notices they need a symbol while revising text.
-
-### Command entry
-
-The picker can be opened from an Obsidian command. This makes it discoverable through Obsidian's command palette and allows users to bind it through Obsidian's normal hotkey system.
-
-### Configurable shortcut
-
-Users can assign a Better Edit shortcut for fast symbol insertion. This is the best workflow for frequent math or technical writing.
-
-### Cursor and selection behavior
-
-The picker inserts at the current cursor position. When text is selected, Better Edit avoids surprising replacement unless the selected insertion mode explicitly supports it.
-
-## Native-note promise
-
-The picker inserts ordinary Unicode text. Notes remain portable and readable without Better Edit, and the characters work in Markdown, HTML, Git diffs, PDFs, and exported notes wherever the chosen font supports them.
+The picker inserts at the current cursor position. It is meant for characters and emoji, not generated images or custom icon assets.

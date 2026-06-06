@@ -1,73 +1,63 @@
 # Better Edit Feature List
 
-Better Edit adds a native-first editing layer to Obsidian Live Preview. It focuses on common writing and layout actions that usually require awkward Markdown editing, while keeping every note readable as normal Markdown or visible HTML when the plugin is disabled.
+Better Edit brings visual editing controls to Obsidian Live Preview without turning your notes into a proprietary format. These pages explain what each feature helps you do, how the workflow feels in Obsidian, and what remains in the note when Better Edit is disabled.
 
-This folder is the user-facing feature reference. Each feature page gives a more detailed introduction than the main README: what the feature is for, what the demo shows, the expected workflow, important sub-features, and what Better Edit writes back to the note.
+If you are deciding whether Better Edit fits your vault, start with the outcomes: cleaner image-heavy notes, faster block restructuring, keyboard-first insertion, one-click inline formatting, and quick access to symbols that are hard to type.
 
-## Feature overview
+## Features
 
-| Feature | What it improves | Native-note promise |
-|---|---|---|
-| [Image arrangement](./image-arrangement.md) | Paste/drop images, image placeholders, toolbar actions, resize, align, crop, caption, replace, alt text, copy/duplicate/delete, and multi-image rows. | Stores images as regular Markdown or visible portable HTML image blocks and rows. |
-| [Block drag and drop](./block-drag-and-drop.md) | Hover blocks to reveal left-gutter controls, add nearby blocks, reorder content, duplicate/delete blocks, and turn simple blocks into other Markdown block types. | Moves or transforms source text directly; no proprietary block IDs. |
-| [Slash commands](./slash-commands.md) | Type `/` at the start of a line to insert headings, lists, checkboxes, quotes, code, math, image placeholders, dividers, custom templates, or registered Obsidian commands. | Inserts plain Markdown/HTML templates or delegates to Obsidian commands. |
-| [Text styling toolbar](./text-styling-toolbar.md) | Select text and apply inline formatting without remembering Markdown wrappers. | Writes standard Markdown inline syntax. |
-| [Symbol and emoji picker](./symbol-and-emoji-picker.md) | Insert math symbols, Greek letters, arrows, and emoji from command, shortcut, or context menu. | Inserts normal Unicode characters. |
+### [Image Arrangement](./image-arrangement.md)
 
-## Demo coverage
+Build image-heavy notes without leaving the editor. Paste, drop, resize, align, crop, caption, replace, and describe images, then group related images into rows for comparisons, visual research, documentation drafts, and design reviews.
 
-The GIF demos in these pages are the primary user-facing visuals. They match the main README and show the features running in Obsidian, not generated mockups.
+### [Block Drag and Drop](./block-drag-and-drop.md)
 
-| Asset | Used for |
-|---|---|
-| [image_edit.gif](./assets/image_edit.gif) | Image crop, circle crop, focused image editing, and image toolbar workflow. |
-| [image_row.gif](./assets/image_row.gif) | Image rows, row drag-and-drop, captions, and multi-image layout workflow. |
-| [block_drag_n_drop.gif](./assets/block_drag_n_drop.gif) | Block controls, drag-to-reorder, add nearby content, and block operation flow. |
-| [slash_command.gif](./assets/slash_command.gif) | Slash command menu, built-in insertion, and custom command configuration. |
-| [text_styling.gif](./assets/text_styling.gif) | Floating text toolbar, inline formatting, and link picking. |
-| [emoji.gif](./assets/emoji.gif) | Symbol and emoji picker search and insertion. |
+Rework a note while you are reading it. Add blocks near the current line, drag sections into a better order, duplicate useful starting points, delete clutter, and turn rough text into headings, lists, checkboxes, quotes, or code blocks.
 
-Older PNG screenshots remain in this folder as supporting close-ups for menus and static states that are hard to pause on in a GIF.
+### [Slash Commands](./slash-commands.md)
 
-## Release highlights
+Type `/` on a fresh line to insert common Markdown structures or run configured Obsidian commands. It is a fast way to create headings, checklists, quotes, code blocks, math blocks, image placeholders, dividers, and reusable templates.
 
-### Portable HTML for visual editing
+### [Text Styling Toolbar](./text-styling-toolbar.md)
 
-Better Edit's image features deliberately use visible HTML instead of hidden plugin state. A rich image block or image row may include `data-better-edit-image` / `data-better-edit-image-row` attributes so Better Edit can reopen controls, but the important content is still ordinary HTML: `<div>`, `<img>`, `alt`, caption text, and inline layout styles.
+Select text and apply common inline Markdown styles directly from a floating toolbar. Use it for quick emphasis, highlights, inline code, equations, wiki links, and Markdown links while keeping the file readable in Source mode.
 
-That means an image-heavy note remains useful in Obsidian without the plugin, in Source mode, in Git diffs, and in other Markdown/HTML renderers.
+### [Symbol and Emoji Picker](./symbol-and-emoji-picker.md)
 
-### Image rows are first-class
+Search and insert math symbols, Greek letters, arrows, and emoji without leaving Obsidian. The picker inserts real Unicode characters, so notes stay portable across exports, Git diffs, and other Markdown tools.
 
-Image rows are not just a menu detail. They are a core layout feature for comparing screenshots, grouping figures, and building visual notes. Better Edit supports creating rows from standalone images, adding images/placeholders to rows, reordering row items, moving images between rows, and popping a row image back out as a standalone block.
+## Visual Demos
 
-### Conservative source rewriting
+Each feature page includes a workflow GIF plus focused screenshots for menus and settings. The GIFs show the feature in motion; the screenshots pause on details that are easy to miss during playback.
 
-For block movement, row operations, and Turn into conversions, Better Edit favors valid Markdown/HTML over clever guessing. Complex structures move as whole source ranges, while risky conversions are refused instead of corrupting the note.
+### Image Editing and Rows
 
-## Supporting screenshot coverage
+The image page uses two demos because single-image editing and multi-image rows are one feature area with two major workflows.
 
-The PNG screenshots in these pages are real Obsidian screenshots captured from Better Edit running in a local test vault. They are cropped for documentation focus; they are not generated mockups.
+- [Image editing demo](./assets/image_edit.gif)
+- [Image row demo](./assets/image_row.gif)
+- [Image toolbar close-up](./assets/image-toolbar-menu.png)
+- [Image row layout controls](./assets/image-row-flexbox.png)
+- [Image placeholder upload flow](./assets/image-placeholder.png)
 
-| Asset | Used for |
-|---|---|
-| [Image toolbar and menu](./assets/image-toolbar-menu.png) | Focused image toolbar and overflow menu. |
-| [Image overflow menu](./assets/image-overflow-menu.png) | Full image action list. |
-| [Image row placeholders](./assets/image-row-placeholders.png) | Multi-image row layout. |
-| [Image placeholder stress case](./assets/image-placeholder-stress.png) | Placeholder behavior across wider row-like layouts. |
-| [Block controls](./assets/block-controls.png) | Left-gutter add and drag controls. |
-| [Slash command menu](./assets/slash-command-menu.png) | `/` command picker. |
-| [Text styling toolbar](./assets/text-styling-toolbar.png) | Floating inline-formatting toolbar. |
-| [Symbol picker](./assets/symbol-picker.png) | Searchable symbol/emoji picker. |
+### Block Editing
 
-## Recommended first-release positioning
+- [Block drag-and-drop demo](./assets/block_drag_n_drop.gif)
+- [Block controls close-up](./assets/block-controls.png)
+- [Turn into menu close-up](./assets/block-turn-into.png)
 
-Better Edit is best described as a **Live Preview editing toolbox** rather than a complete block editor. The first public release should promise stable, useful editing helpers and avoid implying complete Notion parity.
+### Writing Helpers
 
-Use language like:
+- [Slash command demo](./assets/slash_command.gif)
+- [Slash command menu close-up](./assets/slash-command-menu.png)
+- [Slash command settings](./assets/slash-command-settings.png)
+- [Text styling demo](./assets/text_styling.gif)
+- [Text styling toolbar close-up](./assets/text-styling-toolbar.png)
+- [Symbol and emoji picker demo](./assets/emoji.gif)
+- [Symbol picker close-up](./assets/symbol-picker.png)
 
-> Better Edit brings Notion-inspired editing affordances to Obsidian while keeping your notes local, portable, and Markdown/HTML-first.
+## Portable by Design
 
-Avoid language like:
+Better Edit is designed around Obsidian notes that remain useful outside the plugin. Formatting actions write Markdown. Symbol insertion writes Unicode. Block movement rearranges the note text you already have. Image features use Markdown images or visible HTML for richer layouts, so captions, alt text, dimensions, and rows remain inspectable instead of being hidden away.
 
-> Turns Obsidian into Notion.
+That portability matters if you edit in Source mode, review changes in Git, publish Markdown, use static-site tools, or open a vault on a device where Better Edit is not installed.
