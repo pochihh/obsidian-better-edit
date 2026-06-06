@@ -1,8 +1,14 @@
 # Slash Commands
 
-Slash commands provide a fast menu for common Markdown blocks, Better Edit templates, and Obsidian command actions. Users type `/` at a valid insertion point, choose a command, and Better Edit either inserts a Markdown/HTML template or executes a registered Obsidian command.
+Slash commands provide a fast keyboard menu for building common note structures in Obsidian Live Preview. Instead of remembering Markdown markers or leaving the editor to open a command palette, users type `/` on a fresh line, pick an action, and keep writing.
 
-![Slash command menu in Obsidian](./assets/slash-command-menu.png)
+Better Edit uses slash commands for two related workflows: inserting portable Markdown/HTML templates, and launching registered Obsidian commands. That makes the menu useful both as a block inserter for headings, lists, code blocks, math blocks, image placeholders, and dividers, and as a customizable launcher for workflows that already exist in Obsidian.
+
+## Demo
+
+<a href="./assets/slash_command.gif"><img src="./assets/slash_command.gif" alt="Slash command configuration and insertion demo" width="900"></a>
+
+The demo shows the slash menu appearing in the editor, inserting built-in structures, and using settings to customize slash commands. The important idea is that slash commands produce normal note content or delegate to normal Obsidian commands; they do not create a separate Better Edit document model.
 
 ## What users see
 
@@ -17,6 +23,8 @@ Typical workflow:
 For template actions, Better Edit replaces the slash trigger with the selected block template and places the cursor where the user should continue typing. For execute-command actions, Better Edit clears the slash trigger and runs the selected Obsidian command without inserting template content.
 
 The menu uses readable command names, icons, and a short right-side hint for the Markdown shape that will be inserted.
+
+![Slash command menu in Obsidian](./assets/slash-command-menu.png)
 
 ## Sub-features
 

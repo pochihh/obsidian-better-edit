@@ -1,8 +1,14 @@
 # Symbol and Emoji Picker
 
-The symbol and emoji picker helps users insert characters that are hard to remember or type directly. It is useful for math notes, research notes, technical writing, and quick emoji insertion without leaving Obsidian.
+The symbol and emoji picker helps users insert characters that are awkward to remember, search for, or type directly. It is useful for math notes, research notes, technical writing, annotation, and lightweight emoji marking without leaving Obsidian.
 
-![Symbol picker in Obsidian](./assets/symbol-picker.png)
+The picker is deliberately simple: open it from the context menu, command palette, or a shortcut; search or browse; choose a symbol; and Better Edit inserts ordinary Unicode text at the cursor. That keeps the feature useful outside the plugin because the saved note contains the actual character, not an image asset or plugin-specific token.
+
+## Demo
+
+<a href="./assets/emoji.gif"><img src="./assets/emoji.gif" alt="Symbol and emoji picker demo" width="900"></a>
+
+The demo shows quick lookup and insertion for symbols and emoji. It is meant to cover both technical writing, where characters like `α`, `→`, or `≈` should be easy to insert, and general note-taking, where emoji can act as compact visual markers.
 
 ## What users see
 
@@ -15,6 +21,8 @@ Typical workflow:
 3. Search for a symbol name, category, or common alias.
 4. Choose the symbol.
 5. Better Edit inserts the Unicode character into the note.
+
+![Symbol picker in Obsidian](./assets/symbol-picker.png)
 
 ## Sub-features
 

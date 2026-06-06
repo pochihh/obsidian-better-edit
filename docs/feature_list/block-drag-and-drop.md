@@ -1,8 +1,14 @@
 # Block Drag and Drop
 
-Block controls make Obsidian Live Preview easier to rearrange without changing the underlying note format. The feature adds lightweight controls near editable blocks so users can move, add, duplicate, delete, or transform content without manually cutting and pasting Markdown.
+Block drag and drop makes Obsidian Live Preview easier to reorganize without forcing users back into manual cut-and-paste editing. Better Edit adds lightweight controls beside editable blocks so users can add nearby content, move blocks, duplicate or delete blocks, and transform simple Markdown blocks while keeping the underlying note format intact.
 
-![Block controls shown beside a paragraph in Obsidian](./assets/block-controls.png)
+This feature is for the everyday restructuring work that happens while writing: moving a paragraph earlier in a draft, turning rough notes into checkboxes, reordering sections, moving a table below its explanation, or duplicating a block as a starting point for a variation. It is intentionally a source-aware editing helper, not a separate block database.
+
+## Demo
+
+<a href="./assets/block_drag_n_drop.gif"><img src="./assets/block_drag_n_drop.gif" alt="Block drag and drop demo" width="900"></a>
+
+The demo shows the left-gutter controls appearing near the current block, then using the drag handle and operation menu to reshape the note directly in Live Preview.
 
 ## What users see
 
@@ -13,6 +19,8 @@ When the cursor or pointer is near a supported block, Better Edit shows a small 
 - a block operation menu for actions such as duplicate, delete, and turn into.
 
 The controls appear in the editing surface instead of in a separate side panel, so users can act on the block they are already reading or editing.
+
+![Block controls shown beside a paragraph in Obsidian](./assets/block-controls.png)
 
 ## Sub-features
 

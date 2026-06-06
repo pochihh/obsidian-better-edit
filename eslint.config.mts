@@ -15,6 +15,7 @@ export default tseslint.config(
 						'eslint.config.js',
 						'manifest.json',
 						'tests/block-drag-source.test.ts',
+						'tests/block-table-spacing.test.ts',
 						'tests/image-drag-changes.test.ts'
 					]
 				},

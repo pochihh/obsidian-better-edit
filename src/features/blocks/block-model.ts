@@ -258,6 +258,7 @@ function getTableBlock(state: EditorState, lineNumber: number): BlockRange | nul
 	let end = lineNumber;
 	while (start > 1 && isTableLine(state.doc.line(start - 1).text)) start--;
 	while (end < state.doc.lines && isTableLine(state.doc.line(end + 1).text)) end++;
+	if (!hasTableBlockStartBoundary(state, start)) return null;
 
 	let hasDelimiter = false;
 	for (let n = start; n <= end; n++) {
@@ -268,6 +269,10 @@ function getTableBlock(state: EditorState, lineNumber: number): BlockRange | nul
 	}
 
 	return hasDelimiter ? rangeFromLines(state, start, end, 'table') : null;
+}
+
+function hasTableBlockStartBoundary(state: EditorState, startLine: number): boolean {
+	return startLine === 1 || state.doc.line(startLine - 1).text.trim() === '';
 }
 
 function isTableLine(text: string): boolean {

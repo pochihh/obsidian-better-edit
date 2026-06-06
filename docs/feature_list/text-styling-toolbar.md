@@ -1,8 +1,14 @@
 # Text Styling Toolbar
 
-The text styling toolbar makes common inline Markdown formatting available from a small selection menu. It is designed for writers who know what style they want but do not want to type Markdown delimiters manually every time.
+The text styling toolbar makes common inline Markdown formatting available directly from the selection. It is for writers who know the style they want — bold, italic, highlight, inline code, math, or links — but do not want to manually type and balance Markdown delimiters every time.
 
-![Text styling toolbar in Obsidian](./assets/text-styling-toolbar.png)
+The toolbar keeps formatting close to the text being edited. Select a phrase, choose an action, and Better Edit writes the standard Markdown markers back into the note. That makes the feature feel visual in Live Preview while keeping the saved file readable in Source mode, Git diffs, exports, and Obsidian without the plugin.
+
+## Demo
+
+<a href="./assets/text_styling.gif"><img src="./assets/text_styling.gif" alt="Text styling toolbar and link picker demo" width="900"></a>
+
+The demo shows the floating toolbar appearing near selected text, applying inline styles, and using the link workflow for faster editing. The important behavior is that actions write normal Markdown syntax rather than plugin-only rich-text state.
 
 ## What users see
 
@@ -14,6 +20,8 @@ Typical workflow:
 4. Better Edit wraps or unwraps the selected text with standard Markdown syntax.
 
 The toolbar stays compact and close to the selected text. It should help the user continue writing rather than pull them into a large formatting panel.
+
+![Text styling toolbar in Obsidian](./assets/text-styling-toolbar.png)
 
 ## Sub-features
 

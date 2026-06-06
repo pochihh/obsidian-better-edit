@@ -2,7 +2,7 @@
 
 Better Edit adds a native-first editing layer to Obsidian Live Preview. It focuses on common writing and layout actions that usually require awkward Markdown editing, while keeping every note readable as normal Markdown or visible HTML when the plugin is disabled.
 
-This folder is the user-facing feature reference. Each feature page explains the feature, its sub-features, expected user workflow, screenshots, and what Better Edit writes back to the note.
+This folder is the user-facing feature reference. Each feature page gives a more detailed introduction than the main README: what the feature is for, what the demo shows, the expected workflow, important sub-features, and what Better Edit writes back to the note.
 
 ## Feature overview
 
@@ -13,6 +13,21 @@ This folder is the user-facing feature reference. Each feature page explains the
 | [Slash commands](./slash-commands.md) | Type `/` at the start of a line to insert headings, lists, checkboxes, quotes, code, math, image placeholders, dividers, custom templates, or registered Obsidian commands. | Inserts plain Markdown/HTML templates or delegates to Obsidian commands. |
 | [Text styling toolbar](./text-styling-toolbar.md) | Select text and apply inline formatting without remembering Markdown wrappers. | Writes standard Markdown inline syntax. |
 | [Symbol and emoji picker](./symbol-and-emoji-picker.md) | Insert math symbols, Greek letters, arrows, and emoji from command, shortcut, or context menu. | Inserts normal Unicode characters. |
+
+## Demo coverage
+
+The GIF demos in these pages are the primary user-facing visuals. They match the main README and show the features running in Obsidian, not generated mockups.
+
+| Asset | Used for |
+|---|---|
+| [image_edit.gif](./assets/image_edit.gif) | Image crop, circle crop, focused image editing, and image toolbar workflow. |
+| [image_row.gif](./assets/image_row.gif) | Image rows, row drag-and-drop, captions, and multi-image layout workflow. |
+| [block_drag_n_drop.gif](./assets/block_drag_n_drop.gif) | Block controls, drag-to-reorder, add nearby content, and block operation flow. |
+| [slash_command.gif](./assets/slash_command.gif) | Slash command menu, built-in insertion, and custom command configuration. |
+| [text_styling.gif](./assets/text_styling.gif) | Floating text toolbar, inline formatting, and link picking. |
+| [emoji.gif](./assets/emoji.gif) | Symbol and emoji picker search and insertion. |
+
+Older PNG screenshots remain in this folder as supporting close-ups for menus and static states that are hard to pause on in a GIF.
 
 ## Release highlights
 
@@ -30,9 +45,9 @@ Image rows are not just a menu detail. They are a core layout feature for compar
 
 For block movement, row operations, and Turn into conversions, Better Edit favors valid Markdown/HTML over clever guessing. Complex structures move as whole source ranges, while risky conversions are refused instead of corrupting the note.
 
-## Screenshot coverage
+## Supporting screenshot coverage
 
-The screenshots in these pages are real Obsidian screenshots captured from Better Edit running in a local test vault. They are cropped for documentation focus; they are not generated mockups.
+The PNG screenshots in these pages are real Obsidian screenshots captured from Better Edit running in a local test vault. They are cropped for documentation focus; they are not generated mockups.
 
 | Asset | Used for |
 |---|---|

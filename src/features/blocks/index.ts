@@ -3,8 +3,9 @@ import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { App, Menu, editorLivePreviewField } from 'obsidian';
 import type BetterEditPlugin from '../../main';
 import { resolveDragSourceForBlock } from './block-drag-source';
+import { allowBlankLineDropBoundary, duplicateBlockTextForSource, tableSafeTextForDrop } from './block-spacing';
 import { BlockRange, getBlockAtPos, getBlocksInRange } from './block-model';
-import { BlockTurnIntoTarget, canTurnIntoSource, duplicateBlockText, turnBlockTextInto } from './block-transform';
+import { BlockTurnIntoTarget, canTurnIntoSource, turnBlockTextInto } from './block-transform';
 
 type MenuItemWithSubmenu = {
 	setSubmenu?: () => Menu;
@@ -528,7 +529,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private copySource(source: DragSource): void {
 			const text = this.textForSource(source);
-			const replacement = duplicateBlockText(text);
+			const replacement = duplicateBlockTextForSource(text, {
+				firstBlockKind: this.firstSourceBlock(source).kind,
+				lastBlockKind: this.lastSourceBlock(source).kind,
+			});
 			this.view.dispatch({
 				changes: { from: source.from, to: source.to, insert: replacement },
 				selection: { anchor: source.from + replacement.length },
@@ -901,6 +905,12 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			}
 
 			for (const { pos, rect } of this.visibleBlankLines()) {
+				if (!allowBlankLineDropBoundary({
+					firstBlockKind: this.firstSourceBlock(source).kind,
+					lastBlockKind: this.lastSourceBlock(source).kind,
+					previousBlockKind: this.nearestBlockBefore(pos)?.kind ?? null,
+					nextBlockKind: this.nearestBlockAtOrAfter(pos)?.kind ?? null,
+				})) continue;
 				this.addDropBoundary(boundaries, source, slice, {
 					pos,
 					top: rect.bottom,
@@ -1055,28 +1065,15 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		}
 
 		private tableSafeTextForDrop(text: string, target: DropBoundary, source: DragSource): string {
-			const firstBlock = this.firstSourceBlock(source);
-			const lastBlock = this.lastSourceBlock(source);
-			if (firstBlock.kind !== 'table' && lastBlock.kind !== 'table') return text;
-
-			let normalized = text;
 			const previousBlock = this.nearestBlockBefore(target.pos);
 			const nextBlock = this.nearestBlockAtOrAfter(target.pos);
-
-			if (firstBlock.kind === 'table') {
-				const needsLeadingBlank = previousBlock !== null && this.isParagraphLike(previousBlock);
-				normalized = normalized.replace(/^\n+/, '');
-				if (needsLeadingBlank) normalized = `\n${normalized}`;
-			}
-
-			if (lastBlock.kind === 'table') {
-				const minimumTrailingNewlines = nextBlock === null
-					? 0
-					: this.isParagraphLike(nextBlock) ? 2 : 1;
-				normalized = this.ensureTrailingNewlines(normalized, minimumTrailingNewlines);
-			}
-
-			return normalized;
+			return tableSafeTextForDrop(text, {
+				firstBlockKind: this.firstSourceBlock(source).kind,
+				lastBlockKind: this.lastSourceBlock(source).kind,
+				previousBlockKind: previousBlock?.kind ?? null,
+				nextBlockKind: nextBlock?.kind ?? null,
+				hasBlankLineBeforeTarget: this.hasBlankLineBefore(target.pos),
+			});
 		}
 
 		private shouldSeparateFromHorizontalRule(text: string, target: DropBoundary, source: DragSource): boolean {
@@ -1151,9 +1148,9 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return null;
 		}
 
-		private ensureTrailingNewlines(text: string, count: number): string {
-			const content = text.replace(/\n+$/, '');
-			return `${content}${'\n'.repeat(count)}`;
+		private hasBlankLineBefore(pos: number): boolean {
+			if (pos <= 0) return false;
+			return this.view.state.doc.lineAt(Math.max(0, pos - 1)).text.trim() === '';
 		}
 
 		private selectionSourceForOverlay(): DragSource | null {

@@ -1,10 +1,18 @@
 # Image Arrangement
 
-Image arrangement is one of Better Edit's headline features. It gives images a visual editing surface in Obsidian Live Preview while keeping the saved note portable: image layout is written as ordinary Markdown image syntax or visible HTML blocks, not as a proprietary database.
+Image arrangement is one of Better Edit's headline features. It turns images into editable parts of the Obsidian Live Preview surface: paste or drop an image, resize it, align it, crop it, add captions and alt text, replace the source, or organize related images into side-by-side rows.
 
-![Image toolbar and overflow menu in Obsidian](./assets/image-toolbar-menu.png)
+The feature is designed for notes where images are part of the thinking process, not just attachments at the end of a file: research screenshots, design references, before/after comparisons, diagrams, visual study notes, and documentation drafts. Better Edit gives those images direct manipulation controls while still saving the note as Markdown or visible HTML.
 
-The important design choice is that Better Edit uses **HTML that still renders outside the plugin**. If Better Edit is disabled, the note still contains inspectable `<div>` and `<img>` markup with inline layout styles. That makes image-heavy notes easier to move between Obsidian, Git, VS Code, static-site pipelines, and other Markdown/HTML renderers.
+## Demo
+
+<a href="./assets/image_edit.gif"><img src="./assets/image_edit.gif" alt="Image crop and circle crop demo" width="900"></a>
+
+The first demo focuses on editing a single image: opening the image controls, using crop/circle-crop style workflows, and keeping the result attached to the note instead of sending the user to a separate image editor.
+
+<a href="./assets/image_row.gif"><img src="./assets/image_row.gif" alt="Image row drag and caption demo" width="900"></a>
+
+The second demo shows image rows: grouping images, dragging images inside a row, working with captions, and using a row layout for comparison-style notes.
 
 ## What users see
 
@@ -17,7 +25,9 @@ Typical workflow:
 3. Use the toolbar to align, resize, crop, caption, replace, or organize the image.
 4. Continue writing; the image remains part of the note's normal Markdown/HTML content.
 
-## Visual examples
+The important design choice is that Better Edit uses **HTML that still renders outside the plugin**. If Better Edit is disabled, the note still contains inspectable `<div>` and `<img>` markup with inline layout styles. That makes image-heavy notes easier to move between Obsidian, Git, VS Code, static-site pipelines, and other Markdown/HTML renderers.
+
+## Supporting visual examples
 
 | Screenshot | What it shows |
 |---|---|
