@@ -24,11 +24,12 @@ Expected behavior:
 
 - controls align with the current block;
 - controls hide when the block is no longer active or hovered;
-- controls should not cover the text being edited.
+- controls do not cover the text being edited;
+- controls are suppressed while other Better Edit surfaces, such as image resize or text selection, are active.
 
 ### Add above or below
 
-The plus control supports fast insertion around a block. The current first-release behavior is:
+The plus control supports fast insertion around a block:
 
 - click to add below;
 - option-click to add above.
@@ -37,9 +38,9 @@ This helps users build notes from the middle without moving the cursor manually 
 
 ### Drag to reorder
 
-The drag handle is used to move blocks or list items. This is intended for reorganizing drafts, outlines, meeting notes, and study notes where order changes frequently.
+The drag handle moves blocks or list items vertically. This is intended for reorganizing drafts, outlines, meeting notes, and study notes where order changes frequently.
 
-Better Edit should move the corresponding source text rather than creating plugin-only block references.
+Better Edit moves the corresponding source text rather than creating plugin-only block references. A paragraph remains a paragraph, a list item remains Markdown list text, and an HTML block remains the same HTML block.
 
 ### Block operation menu
 
@@ -86,16 +87,21 @@ becomes:
    - [ ] Capture screenshots
 ```
 
-### Supported simple blocks
+### Supported block types for movement
 
-Block controls are primarily for normal Markdown writing structures:
+Block controls are primarily for normal Markdown writing structures, but movement also handles larger atomic structures where possible:
 
 - paragraphs;
 - headings;
 - bullet lists;
 - numbered lists;
 - checkboxes;
-- simple code-like blocks when the selection is unambiguous.
+- blockquotes and callouts;
+- fenced code blocks and math blocks as whole blocks;
+- tables as whole tables;
+- complete HTML blocks;
+- Better Edit image blocks and rows as whole HTML blocks;
+- native Obsidian image embeds such as `![[image.png]]`.
 
 ### Stability boundaries
 
@@ -108,8 +114,8 @@ For the first release, Better Edit refuses risky transformations instead of gues
 - horizontal rules;
 - Dataview, Mermaid, or other special fenced blocks.
 
-Normal fenced code blocks and math blocks are treated as code-like text and can be transformed when the selection is unambiguous.
+Normal fenced code blocks and math blocks can move as whole blocks. They can be transformed only when the selection is unambiguous.
 
 ## Native-note promise
 
-Drag and drop moves existing source ranges. Turn into rewrites plain Markdown markers. Better Edit does not add custom block IDs or plugin-only syntax.
+Drag and drop moves existing source ranges. Turn into rewrites plain Markdown markers. Better Edit does not add custom block IDs, hidden metadata, or plugin-only block syntax.

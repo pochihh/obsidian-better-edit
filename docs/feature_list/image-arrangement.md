@@ -1,41 +1,67 @@
 # Image Arrangement
 
-Image arrangement provides direct image editing controls in Live Preview so users can work with images visually instead of repeatedly editing Markdown or HTML by hand.
+Image arrangement is one of Better Edit's headline features. It gives images a visual editing surface in Obsidian Live Preview while keeping the saved note portable: image layout is written as ordinary Markdown image syntax or visible HTML blocks, not as a proprietary database.
 
 ![Image toolbar and overflow menu in Obsidian](./assets/image-toolbar-menu.png)
 
+The important design choice is that Better Edit uses **HTML that still renders outside the plugin**. If Better Edit is disabled, the note still contains inspectable `<div>` and `<img>` markup with inline layout styles. That makes image-heavy notes easier to move between Obsidian, Git, VS Code, static-site pipelines, and other Markdown/HTML renderers.
+
 ## What users see
 
-When Better Edit recognizes an image block, it adds a compact floating toolbar near the image. The toolbar exposes the most common image actions directly and keeps secondary actions in an overflow menu.
+When Better Edit recognizes an image block, it adds a compact floating toolbar near the image. The toolbar exposes frequent layout actions directly and keeps secondary actions in an overflow menu.
 
 Typical workflow:
 
 1. Paste, drop, or insert an image in a note.
 2. Click or hover the image to reveal Better Edit controls.
-3. Use the toolbar to resize, align, crop, caption, replace, or organize the image.
-4. Continue writing; the image remains part of the normal note content.
+3. Use the toolbar to align, resize, crop, caption, replace, or organize the image.
+4. Continue writing; the image remains part of the note's normal Markdown/HTML content.
+
+## Visual examples
+
+| Screenshot | What it shows |
+|---|---|
+| ![Image toolbar and menu](./assets/image-toolbar-menu.png) | Main image toolbar plus the overflow menu: alignment, caption, crop, replace, alt text, copy, duplicate, add to row, and delete. |
+| ![Image overflow menu](./assets/image-overflow-menu.png) | The full image action menu in a focused crop. |
+| ![Image row placeholders](./assets/image-row-placeholders.png) | Multiple image placeholders arranged in a row. Image rows are a first-class layout feature, not just a side effect of drag-and-drop. |
+| ![Image placeholder stress case](./assets/image-placeholder-stress.png) | Placeholder blocks stay visible and usable across narrow and row-based layouts. |
 
 ## Sub-features
 
+### Portable HTML image blocks
+
+Better Edit can store rich image layout in visible HTML:
+
+```html
+<div data-better-edit-image="filled" style="width: 320px; text-align: center;">
+  <img src="attachments/photo.png" style="width: 100%; max-width: 100%;" alt="Diagram of the setup" />
+  <p style="font-size: 0.85em; color: #888; margin: 4px 0 0;">Diagram caption</p>
+</div>
+```
+
+This is intentionally boring HTML. The `data-better-edit-image` attribute lets the plugin reopen the visual controls, while the `<img>`, `alt`, caption text, and inline styles remain understandable without Better Edit.
+
 ### Image placeholders
 
-Better Edit can show an **Add an image** placeholder for image insertion points. This gives users a visible target for adding an image without needing to remember Markdown image syntax.
+Better Edit can show an **Add an image** placeholder for image insertion points. This gives users a visible target for adding an image without remembering Markdown image syntax.
 
-The placeholder is useful when:
+Placeholders are useful when:
 
 - a slash command inserts an image slot;
 - a user wants a visual drop/click target;
-- a note layout needs images added later.
+- a note layout needs images added later;
+- a row needs planned image positions before the final files are available.
 
 ### Resize handles
 
-Images can be resized visually. Better Edit updates the rendered image size while preserving the image as note content rather than storing layout in a hidden project database.
+Images can be resized visually. Better Edit updates the stored width while preserving the image as note content rather than storing layout in hidden state.
 
 Expected behavior:
 
-- resizing should feel immediate in Live Preview;
+- resizing feels immediate in Live Preview;
 - the visible image updates in place;
-- the saved note remains inspectable and portable.
+- the saved note remains inspectable and portable;
+- crop and resize information stays in the HTML block rather than in plugin-only metadata.
 
 ### Alignment controls
 
@@ -51,19 +77,23 @@ The overflow menu shows the current alignment with a checkmark, so users can see
 
 The caption action lets users add or edit descriptive text attached to an image. Captions are intended for screenshots, diagrams, research images, and visual examples where the image needs context.
 
-Captions should stay visible and understandable even if Better Edit is disabled.
+Captions are stored as visible HTML text under the image, so they remain readable if Better Edit is disabled.
 
-### Crop
+### Crop and circle crop
 
-The crop action opens a focused editing workflow for changing the visible region of an image. This is meant for quick screenshot cleanup and visual note polish without leaving Obsidian.
+Crop opens a focused editing workflow for changing the visible region of an image. It is meant for quick screenshot cleanup and visual note polish without leaving Obsidian.
+
+Crop state is stored in visible HTML styles such as wrapper size, overflow, border radius, and image offset. Circle crop is represented with a circular wrapper (`border-radius: 50%`) rather than with a Better Edit-only image format.
 
 ### Replace
 
 Replace lets users keep the image block and its layout/caption context while swapping the underlying image source. This is useful when replacing a draft screenshot with a final screenshot.
 
+Replacement supports vault-local files and typed links. Paths are stored in the note, so the block remains readable as normal Markdown/HTML.
+
 ### Alt text
 
-Alt text gives the image a text description for accessibility and for readers who inspect the raw note. Better Edit should treat alt text as first-class image metadata, not only as visual decoration.
+Alt text gives the image a text description for accessibility and for readers who inspect the raw note. Better Edit stores alt text in the image's `alt` attribute.
 
 ### Copy, duplicate, and delete
 
@@ -73,16 +103,38 @@ The overflow menu includes maintenance actions:
 - **Duplicate** creates another copy of the image block.
 - **Delete** removes the image block from the note.
 
-These actions are grouped away from the main toolbar so the most common layout controls stay visible without making the toolbar too dense.
+These actions are grouped away from the main toolbar so the visible toolbar stays compact.
 
-### Add to row
+### Image rows
 
-Add to row helps arrange multiple images side by side. It is intended for screenshot comparisons, before/after examples, and visual research notes where images should be scanned together.
+Image rows arrange multiple images or placeholders side by side. They are important for screenshot comparisons, before/after examples, design alternatives, visual research, and any note where multiple figures should be scanned together.
+
+Rows are stored as a visible HTML flex container:
+
+```html
+<div data-better-edit-image-row style="display: flex; gap: 8px; flex-wrap: wrap; align-items: flex-start;">
+  <div data-better-edit-image="filled" style="width: 240px; text-align: center;">
+    <img src="attachments/before.png" style="width: 100%; max-width: 100%;" alt="Before" />
+  </div>
+  <div data-better-edit-image="filled" style="width: 240px; text-align: center;">
+    <img src="attachments/after.png" style="width: 100%; max-width: 100%;" alt="After" />
+  </div>
+</div>
+```
+
+Supported row interactions include:
+
+- drag one standalone image onto another to create a row;
+- add a standalone image into an existing row;
+- reorder images inside a row;
+- drag a row image onto a standalone image or placeholder to create a new row;
+- drag a row image into another row;
+- drag a row image out of a row to pop it out as a standalone block while keeping the remaining source row valid.
 
 ### Compact toolbar behavior
 
-When an image or pane is narrow, Better Edit collapses less-common controls into a compact menu instead of letting a dense toolbar overflow. The main toolbar should stay usable even on smaller panes.
+When an image or pane is narrow, Better Edit collapses less-common controls into the overflow menu instead of letting a dense toolbar overflow. The main toolbar should stay usable on smaller panes.
 
 ## Native-note promise
 
-Better Edit stores image state in standard Markdown image syntax or visible HTML image blocks. HTML image blocks may include Better Edit data attributes and inline styles so the plugin can reopen the editing controls, but the image remains visible without Better Edit.
+Better Edit stores image state in standard Markdown image syntax or visible HTML image blocks. HTML blocks may include Better Edit data attributes and inline styles so the plugin can reopen editing controls, but the images, captions, alt text, row layout, and dimensions remain visible and portable without Better Edit.

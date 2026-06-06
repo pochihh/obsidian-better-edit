@@ -20,9 +20,9 @@ Typical workflow:
 
 ### Search box
 
-The search box filters symbols and emoji by name or label. In the screenshot, searching for `alpha` shows the normal Latin `A` entry and the Greek alpha `α` entry.
+The search box filters symbols and emoji by name or label. Searching for `alpha`, for example, makes Greek alpha `α` easy to find without remembering how to type it.
 
-Search should support quick lookup for common writing needs such as:
+Search supports quick lookup for common writing needs such as:
 
 - Greek letters;
 - arrows;
@@ -61,12 +61,12 @@ The picker can be opened from an Obsidian command. This makes it discoverable th
 
 ### Configurable shortcut
 
-Users can assign a shortcut for fast symbol insertion. This is the best workflow for frequent math or technical writing.
+Users can assign a Better Edit shortcut for fast symbol insertion. This is the best workflow for frequent math or technical writing.
 
 ### Cursor and selection behavior
 
-The picker inserts at the current cursor position. When text is selected, Better Edit should avoid surprising replacement unless the selected insertion mode explicitly supports it.
+The picker inserts at the current cursor position. When text is selected, Better Edit avoids surprising replacement unless the selected insertion mode explicitly supports it.
 
 ## Native-note promise
 
-The picker inserts ordinary Unicode text. Notes remain portable and readable without Better Edit.
+The picker inserts ordinary Unicode text. Notes remain portable and readable without Better Edit, and the characters work in Markdown, HTML, Git diffs, PDFs, and exported notes wherever the chosen font supports them.

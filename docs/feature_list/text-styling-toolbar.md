@@ -25,6 +25,7 @@ Expected behavior:
 
 - appears near the selected text;
 - avoids covering the selection when possible;
+- flips below the selection if there is not enough space above;
 - hides after the action is complete or when the user moves away;
 - works with normal Live Preview editing, not only Source mode.
 
@@ -76,7 +77,7 @@ Inline code wraps the selection in backticks.
 `selected text`
 ```
 
-Use for commands, filenames, identifiers, or short code fragments.
+Use for commands, filenames, identifiers, or short code fragments. V1 keeps inline code single-line so it does not accidentally create malformed Markdown.
 
 ### Inline equation
 
@@ -103,15 +104,17 @@ Use for connecting notes without manually typing brackets.
 Markdown link turns the selection into link text and prepares the URL portion.
 
 ```md
-[selected text](url)
+[selected text](https://example.com)
 ```
 
 Use for standard Markdown links, especially when notes need to remain portable outside Obsidian.
 
-### Toggle behavior
+### Toggle and normalization behavior
 
-Where possible, toolbar actions should be reversible. If the selected text already has the target formatting, clicking the same action should remove that formatting instead of nesting duplicate markers.
+Where possible, toolbar actions are reversible. If the selected text already has the target formatting, clicking the same action removes that formatting instead of nesting duplicate markers.
+
+Better Edit also normalizes common delimiter runs so combinations stay valid. For example, bold plus italic can become `***text***`, and highlight remains a clean outer wrapper such as `==**important**==`.
 
 ## Native-note promise
 
-The toolbar writes standard Markdown inline markers such as `**bold**`, `==highlight==`, `` `code` ``, `$math$`, and `[[wiki links]]`.
+The toolbar writes standard Markdown inline markers such as `**bold**`, `*italic*`, `~~strike~~`, `==highlight==`, `` `code` ``, `$math$`, `[[wiki links]]`, and standard Markdown link syntax.

@@ -19,8 +19,8 @@
 | Duplicate block | ✅ Done |
 | Delete block | ✅ Done |
 | Export cropped image | ⬜ Later (complexity: format handling) |
-| Multi-image flex row | 🚧 In progress |
-| Row drag and drop polish | 🚧 In progress |
+| Multi-image flex row | ✅ Done |
+| Row drag and drop polish | ✅ Done |
 
 ---
 
@@ -193,11 +193,14 @@ Triggered from toolbar or More menu. A floating panel anchored below the image, 
 
 Rows are stored as one HTML block with `data-better-edit-image-row` on the outer
 wrapper and individual Better Edit image / placeholder blocks nested inside it.
+The row HTML intentionally uses ordinary flexbox styles so the layout still reads
+as normal HTML outside Better Edit.
 
-Rows are normalized to represent multi-item layouts only:
+Rows normally represent multi-item layouts:
 
 - `0` items left: the row disappears
-- `1` item left: the remaining item becomes a standalone image or placeholder block
+- `1` item left after generic row normalization: the remaining item can become a standalone image or placeholder block
+- `1` item left after a row-item drag-out: the source row is preserved so the drag does not unexpectedly collapse the row context
 - `2+` items left: the row remains a row
 
 New rows default to `flex-wrap: wrap` so oversized rows stay reachable in the

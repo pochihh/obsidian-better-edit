@@ -6,11 +6,22 @@ introducing proprietary storage formats or changing how notes render without the
 plugin.
 
 ## Features
-- **Image arrangement**: resize, align, crop, caption, replace, set alt text, and arrange multi-image rows
-- **Block controls**: drag and drop with left-gutter controls, plus a click menu for delete, duplicate, and simple Turn into actions
-- **Slash commands**: customizable commands for fast block insertion
-- **Text styling**: selection toolbar for inline formatting and linking
-- **Symbol and emoji picker**: insert symbols and emoji from a context menu, shortcut, or command-palette entry
+- **Image arrangement**: portable HTML image blocks, placeholders, resize, align, crop, caption, replace, alt text, copy/duplicate/delete, and first-class multi-image rows
+- **Block controls**: drag and drop with left-gutter controls, plus a click menu for delete, duplicate, and conservative Turn into actions
+- **Slash commands**: built-in and customizable commands for fast Markdown/HTML block insertion or registered Obsidian command execution
+- **Text styling**: selection toolbar for inline formatting, highlighting, equations, code, and links
+- **Symbol and emoji picker**: insert math symbols, Greek letters, arrows, and emoji from a context menu, shortcut, or command-palette entry
+
+The release highlight is the native-note storage model: Better Edit's richer image layouts are stored as visible Markdown/HTML. Image rows use ordinary flexbox HTML with inline styles, so notes remain portable and inspectable even when the plugin is disabled.
+
+## Screenshots
+
+| Image toolbar and portable row layouts | Slash commands |
+|---|---|
+| ![Image toolbar and overflow menu](./docs/feature_list/assets/image-toolbar-menu.png) | ![Slash command menu](./docs/feature_list/assets/slash-command-menu.png) |
+| ![Image row placeholders](./docs/feature_list/assets/image-row-placeholders.png) | ![Text styling toolbar](./docs/feature_list/assets/text-styling-toolbar.png) |
+
+See [docs/feature_list](./docs/feature_list/README.md) for the complete feature reference and additional screenshots.
 
 ### Block drag and drop
 
@@ -35,9 +46,11 @@ plugin.
 
 ### Image arrangement
 
-- Paste or drop images into the note.
-- Resize, align, crop, add captions, replace the source, and set alt text
-  directly in Live Preview.
+- Paste, drop, or insert image placeholders into the note.
+- Resize, align, crop, add captions, replace the source, and set alt text directly in Live Preview.
+- Create and edit multi-image rows for comparisons, galleries, and figure groups.
+- Drag images into rows, reorder row items, move row items between rows, or pop a row item back out as a standalone block.
+- Store rich layout as visible, portable HTML rather than hidden plugin-only data.
 
 ### Symbol and emoji picker
 
