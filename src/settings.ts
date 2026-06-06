@@ -43,6 +43,10 @@ export class BetterEditSettingTab extends PluginSettingTab {
 	}
 
 	display(): void {
+		this.renderSettings();
+	}
+
+	private renderSettings(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass('be-settings-root');
@@ -261,7 +265,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 		this.plugin.registerDomEvent(addButton, 'click', async () => {
 			this.plugin.settings.slashCommand.commands.push(createCustomSlashCommand());
 			await this.plugin.saveSettings();
-			this.display();
+			this.renderSettings();
 		});
 	}
 
@@ -353,7 +357,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			event.dataTransfer?.setDragImage(rowEl, 12, 12);
 		});
 		this.plugin.registerDomEvent(editButton, 'click', () => {
-			new SlashCommandEditModal(this.app, this.plugin, command, () => this.display()).open();
+			new SlashCommandEditModal(this.app, this.plugin, command, () => this.renderSettings()).open();
 		});
 		this.plugin.registerDomEvent(toggleButton, 'click', async () => {
 			await this.moveSlashCommand(command.id, !enabled, this.commandsInSection(!enabled).length);
@@ -364,7 +368,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			this.plugin.registerDomEvent(deleteButton, 'click', async () => {
 				this.plugin.settings.slashCommand.commands = this.plugin.settings.slashCommand.commands.filter(item => item.id !== command.id);
 				await this.plugin.saveSettings();
-				this.display();
+				this.renderSettings();
 			});
 		}
 	}
@@ -390,7 +394,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			? [...targetSection, ...nextDisabled]
 			: [...nextEnabled, ...targetSection];
 		await this.plugin.saveSettings();
-		this.display();
+		this.renderSettings();
 	}
 
 	// ---------------------------------------------------------------------------
@@ -456,7 +460,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 						btn.onClick(async () => {
 							s().shortcut = { modKey: true, shiftKey: true, altKey: false, key: '.' };
 							await save();
-							this.display();
+							this.renderSettings();
 						});
 					})
 					.addToggle(toggle => toggle

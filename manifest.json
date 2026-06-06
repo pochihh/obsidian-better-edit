@@ -3,7 +3,7 @@
 	"name": "Better Edit",
 	"version": "0.1.0",
 	"minAppVersion": "1.5.7",
-	"description": "A multi-feature editing toolbox for Obsidian — rich image arrangement, and more.",
+	"description": "A multi-feature editing toolbox with rich image arrangement and faster writing controls.",
 	"author": "Toby Chen",
 	"authorUrl": "",
 	"isDesktopOnly": false

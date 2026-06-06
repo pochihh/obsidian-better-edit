@@ -38,7 +38,7 @@ export class SymbolPickerPanel {
 		this.documentEl.body.appendChild(this.panelEl);
 		this.position();
 		this.bindGlobalListeners();
-		requestAnimationFrame(() => {
+		this.windowEl.requestAnimationFrame(() => {
 			this.panelEl?.querySelector<HTMLInputElement>('.be-symbol-search-input')?.focus();
 		});
 	}

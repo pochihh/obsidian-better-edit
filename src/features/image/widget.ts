@@ -665,7 +665,7 @@ class ImageWidget extends WidgetType {
 		this.updateBlock(view, this.captionTogglePatch());
 		if (enabling) {
 			// Widget re-renders synchronously after dispatch; find the new caption and focus it.
-			requestAnimationFrame(() => {
+			window.requestAnimationFrame(() => {
 				const wrapper = view.dom.querySelector<HTMLElement>(`[data-be-from="${this.from}"]`);
 				wrapper?.querySelector<HTMLElement>('.be-image-caption')?.focus();
 			});
@@ -771,13 +771,13 @@ class ImageWidget extends WidgetType {
 		const closeOnOutside = (ev: MouseEvent) => {
 			if (!popover.contains(ev.target as Node)) closePopover(true);
 		};
-		activeWindow.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+		window.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
 
 		scroller?.addEventListener('scroll', positionPopover, { passive: true });
 
 		activeDocument.body.appendChild(popover);
 		positionPopover();
-		requestAnimationFrame(() => input.focus());
+		window.requestAnimationFrame(() => input.focus());
 	}
 
 	private copyBlock(): void {
@@ -905,7 +905,7 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 	linkTab.addEventListener('click', () => {
 		linkTab.addClass('is-active'); uploadTab.removeClass('is-active');
 		linkPane.removeClass('is-hidden'); uploadPane.addClass('is-hidden');
-		requestAnimationFrame(() => { linkInput.focus(); if (opts.linkInitialValue) linkInput.select(); });
+		window.requestAnimationFrame(() => { linkInput.focus(); if (opts.linkInitialValue) linkInput.select(); });
 	});
 
 	const cleanups: Array<() => void> = [];
@@ -957,7 +957,7 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 	const closeOnOutside = (ev: MouseEvent) => {
 		if (!panel.contains(ev.target as Node)) closePanel();
 	};
-	activeWindow.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+	window.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
 
 	if (opts.onDelete) {
 		const onKeyDown = (ev: KeyboardEvent) => {
@@ -2366,7 +2366,7 @@ class ImageRowWidget extends WidgetType {
 		}
 		this.updateImageAt(view, index, patch);
 		if (enabling) {
-			requestAnimationFrame(() => {
+			window.requestAnimationFrame(() => {
 				const frame = view.dom.querySelector<HTMLElement>(`[data-be-from="${this.from}"] .be-image-row-item:nth-child(${index + 1}) .be-image-caption`);
 				frame?.focus();
 			});
@@ -2434,12 +2434,12 @@ class ImageRowWidget extends WidgetType {
 		const closeOnOutside = (ev: MouseEvent) => {
 			if (!popover.contains(ev.target as Node)) closePopover(true);
 		};
-		activeWindow.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
+		window.setTimeout(() => activeDocument.addEventListener('mousedown', closeOnOutside, true), 50);
 		scroller?.addEventListener('scroll', positionPopover, { passive: true });
 
 		activeDocument.body.appendChild(popover);
 		positionPopover();
-		requestAnimationFrame(() => input.focus());
+		window.requestAnimationFrame(() => input.focus());
 	}
 
 	// ── Row / image mutations ─────────────────────────────────────────────────

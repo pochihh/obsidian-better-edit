@@ -370,7 +370,7 @@ class SlashCommandTooltipView implements TooltipView {
 
 	destroy(): void {
 		if (this.selectedScrollFrame !== 0) {
-			cancelAnimationFrame(this.selectedScrollFrame);
+			window.cancelAnimationFrame(this.selectedScrollFrame);
 			this.selectedScrollFrame = 0;
 		}
 	}
@@ -483,8 +483,8 @@ class SlashCommandTooltipView implements TooltipView {
 	}
 
 	private scheduleSelectedItemIntoView(): void {
-		if (this.selectedScrollFrame !== 0) cancelAnimationFrame(this.selectedScrollFrame);
-		this.selectedScrollFrame = requestAnimationFrame(() => {
+		if (this.selectedScrollFrame !== 0) window.cancelAnimationFrame(this.selectedScrollFrame);
+		this.selectedScrollFrame = window.requestAnimationFrame(() => {
 			this.selectedScrollFrame = 0;
 			this.scrollSelectedItemIntoView();
 		});
@@ -492,7 +492,7 @@ class SlashCommandTooltipView implements TooltipView {
 
 	private onListWheel(event: WheelEvent): void {
 		if (this.selectedScrollFrame !== 0) {
-			cancelAnimationFrame(this.selectedScrollFrame);
+			window.cancelAnimationFrame(this.selectedScrollFrame);
 			this.selectedScrollFrame = 0;
 		}
 		event.preventDefault();
@@ -527,7 +527,7 @@ class SlashCommandTooltipView implements TooltipView {
 
 	private onMouseDown(event: MouseEvent): void {
 		if (this.selectedScrollFrame !== 0) {
-			cancelAnimationFrame(this.selectedScrollFrame);
+			window.cancelAnimationFrame(this.selectedScrollFrame);
 			this.selectedScrollFrame = 0;
 		}
 		const target = event.target;
@@ -555,7 +555,7 @@ class SlashCommandTooltipView implements TooltipView {
 
 	private onListMouseMove(event: MouseEvent): void {
 		if (this.selectedScrollFrame !== 0) {
-			cancelAnimationFrame(this.selectedScrollFrame);
+			window.cancelAnimationFrame(this.selectedScrollFrame);
 			this.selectedScrollFrame = 0;
 		}
 		if (event.clientX === this.lastMouseX && event.clientY === this.lastMouseY) return;
@@ -664,7 +664,7 @@ function executeSlashObsidianCommand(
 		scrollIntoView: true,
 	});
 	view.focus();
-	requestAnimationFrame(() => {
+	window.requestAnimationFrame(() => {
 		manager.executeCommandById(commandId);
 	});
 	return true;

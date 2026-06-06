@@ -305,7 +305,7 @@
 	width: 2px;
 	border-radius: 999px;
 	background: var(--interactive-accent);
-	box-shadow: 0 0 0 1px color-mix(in srgb, var(--background-primary) 40%, transparent);
+	box-shadow: 0 0 0 1px var(--background-primary);
 	opacity: 0;
 }
 
@@ -329,7 +329,7 @@
 	background:
 		linear-gradient(
 			to right,
-			color-mix(in srgb, var(--interactive-accent) 18%, transparent) 0 50%,
+			var(--background-modifier-hover) 0 50%,
 			transparent 50% 100%
 		);
 	box-shadow: inset 2px 0 0 var(--interactive-accent);
@@ -340,7 +340,7 @@
 		linear-gradient(
 			to right,
 			transparent 0 50%,
-			color-mix(in srgb, var(--interactive-accent) 18%, transparent) 50% 100%
+			var(--background-modifier-hover) 50% 100%
 		);
 	box-shadow: inset -2px 0 0 var(--interactive-accent);
 }
@@ -352,7 +352,7 @@
 	height: 2px;
 	border-radius: 999px;
 	background: var(--interactive-accent);
-	box-shadow: 0 0 0 1px color-mix(in srgb, var(--background-primary) 40%, transparent);
+	box-shadow: 0 0 0 1px var(--background-primary);
 	opacity: 0;
 }
 

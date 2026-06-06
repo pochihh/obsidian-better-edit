@@ -107,7 +107,7 @@
 	margin: 2px 8px;
 	border-radius: 999px;
 	background: var(--interactive-accent);
-	box-shadow: 0 0 0 1px rgb(from var(--interactive-accent) r g b / 0.15);
+	box-shadow: 0 0 0 1px var(--background-modifier-border-focus);
 	pointer-events: none;
 }
 
@@ -676,8 +676,6 @@ body .be-replace-panel .be-replace-tab.is-active {
 	padding-bottom: 10px;
 	scroll-padding-top: 30px;
 	scroll-padding-bottom: 14px;
-	scrollbar-width: thin;
-	scrollbar-color: var(--scrollbar-thumb-bg) transparent;
 }
 
 .be-slash-menu-list::-webkit-scrollbar {
@@ -797,7 +795,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	gap: 10px;
 	padding: 10px 10px 10px;
 	margin-top: auto;
-	background: linear-gradient(to bottom, color-mix(in srgb, var(--background-primary) 40%, transparent), var(--background-primary) 35%);
+	background: var(--background-primary);
 	border-top: 1px solid var(--background-modifier-border);
 	border-bottom-left-radius: 8px;
 	border-bottom-right-radius: 8px;
@@ -825,7 +823,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	right: 0;
 	top: -10px;
 	height: 10px;
-	background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--background-primary) 90%, transparent));
+	background: linear-gradient(to bottom, transparent, var(--background-primary));
 	pointer-events: none;
 }
 
@@ -1297,7 +1295,7 @@ body .be-block-controls > button.be-block-handle:active {
 	width: 2px;
 	border-radius: 999px;
 	background: var(--interactive-accent);
-	box-shadow: 0 0 0 1px color-mix(in srgb, var(--background-primary) 40%, transparent);
+	box-shadow: 0 0 0 1px var(--background-primary);
 	opacity: 0;
 }
 
@@ -1321,7 +1319,7 @@ body .be-block-controls > button.be-block-handle:active {
 	background:
 		linear-gradient(
 			to right,
-			color-mix(in srgb, var(--interactive-accent) 18%, transparent) 0 50%,
+			var(--background-modifier-hover) 0 50%,
 			transparent 50% 100%
 		);
 	box-shadow: inset 2px 0 0 var(--interactive-accent);
@@ -1332,7 +1330,7 @@ body .be-block-controls > button.be-block-handle:active {
 		linear-gradient(
 			to right,
 			transparent 0 50%,
-			color-mix(in srgb, var(--interactive-accent) 18%, transparent) 50% 100%
+			var(--background-modifier-hover) 50% 100%
 		);
 	box-shadow: inset -2px 0 0 var(--interactive-accent);
 }
@@ -1344,7 +1342,7 @@ body .be-block-controls > button.be-block-handle:active {
 	height: 2px;
 	border-radius: 999px;
 	background: var(--interactive-accent);
-	box-shadow: 0 0 0 1px color-mix(in srgb, var(--background-primary) 40%, transparent);
+	box-shadow: 0 0 0 1px var(--background-primary);
 	opacity: 0;
 }
 

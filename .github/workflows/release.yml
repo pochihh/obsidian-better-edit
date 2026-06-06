@@ -1,0 +1,58 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "[0-9]*"
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Release tag to update
+        required: true
+        default: 0.1.0
+
+permissions:
+  contents: write
+  id-token: write
+  attestations: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      RELEASE_TAG: ${{ github.event.inputs.tag || github.ref_name }}
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate release
+        run: npm run check
+
+      - name: Ensure GitHub release exists
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release view "$RELEASE_TAG" || gh release create "$RELEASE_TAG" --title "$RELEASE_TAG" --notes ""
+
+      - name: Upload release assets
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "$RELEASE_TAG" manifest.json main.js styles.css --clobber
+
+      - name: Generate artifact attestations
+        uses: actions/attest@v4
+        with:
+          subject-path: |
+            manifest.json
+            main.js
+            styles.css

@@ -71,8 +71,6 @@
 	padding-bottom: 10px;
 	scroll-padding-top: 30px;
 	scroll-padding-bottom: 14px;
-	scrollbar-width: thin;
-	scrollbar-color: var(--scrollbar-thumb-bg) transparent;
 }
 
 .be-slash-menu-list::-webkit-scrollbar {
@@ -192,7 +190,7 @@
 	gap: 10px;
 	padding: 10px 10px 10px;
 	margin-top: auto;
-	background: linear-gradient(to bottom, color-mix(in srgb, var(--background-primary) 40%, transparent), var(--background-primary) 35%);
+	background: var(--background-primary);
 	border-top: 1px solid var(--background-modifier-border);
 	border-bottom-left-radius: 8px;
 	border-bottom-right-radius: 8px;
@@ -220,7 +218,7 @@
 	right: 0;
 	top: -10px;
 	height: 10px;
-	background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--background-primary) 90%, transparent));
+	background: linear-gradient(to bottom, transparent, var(--background-primary));
 	pointer-events: none;
 }
 

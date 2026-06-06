@@ -100,7 +100,7 @@
 	margin: 2px 8px;
 	border-radius: 999px;
 	background: var(--interactive-accent);
-	box-shadow: 0 0 0 1px rgb(from var(--interactive-accent) r g b / 0.15);
+	box-shadow: 0 0 0 1px var(--background-modifier-border-focus);
 	pointer-events: none;
 }
 

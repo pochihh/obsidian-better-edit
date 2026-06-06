@@ -264,7 +264,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				// coordsAtPos cannot be called during a CM6 update, so defer via rAF.
 				if (this.visible) {
 					this.updateButtonState();
-					requestAnimationFrame(() => {
+					this.windowEl.requestAnimationFrame(() => {
 						if (this.visible) this.positionToolbar();
 					});
 					return;
@@ -571,7 +571,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					urlTab.toggleClass('is-active', mode === 'url');
 					pagePane.style.display = mode === 'page' ? '' : 'none';
 					urlPane.style.display = mode === 'url' ? '' : 'none';
-					requestAnimationFrame(() => {
+					this.windowEl.requestAnimationFrame(() => {
 						if (mode === 'page') pageInput.focus();
 						else urlInput.focus();
 					});
@@ -611,7 +611,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					renderSuggestions();
 					if (source === 'keyboard') {
 						ensureSelectedVisible();
-						requestAnimationFrame(() => ensureSelectedVisible());
+						this.windowEl.requestAnimationFrame(() => ensureSelectedVisible());
 					}
 				};
 
@@ -736,8 +736,8 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				this.linkPopoverEl = popover;
 				this.positionLinkPopover();
 				renderSuggestions();
-				requestAnimationFrame(() => updateSuggestionFadeState());
-				requestAnimationFrame(() => {
+				this.windowEl.requestAnimationFrame(() => updateSuggestionFadeState());
+				this.windowEl.requestAnimationFrame(() => {
 					this.linkPopoverPending = false;
 					pageInput.focus();
 				});
