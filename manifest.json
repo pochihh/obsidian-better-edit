@@ -3,7 +3,7 @@
 	"name": "Better Edit",
 	"version": "0.1.1",
 	"minAppVersion": "1.12.3",
-	"description": "A multi-feature editing toolbox for Obsidian — rich image arrangement, block drag and drop, slash commands, and more...",
+	"description": "A multi-feature editing toolbox with rich image arrangement, block drag and drop, slash commands, and more.",
 	"author": "Toby Chen",
 	"authorUrl": "",
 	"isDesktopOnly": false

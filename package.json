@@ -1,6 +1,6 @@
 {
 	"name": "obsidian-better-edit",
-	"version": "0.1.0",
+	"version": "0.1.1",
 	"description": "A multi-feature editing toolbox for Obsidian",
 	"main": "main.js",
 	"type": "module",
