@@ -200,6 +200,7 @@
 	gap: 8px;
 }
 
+body button.be-command-modal-icon-button,
 .be-command-modal-icon-button {
 	width: 30px;
 	height: 30px;
@@ -207,6 +208,8 @@
 	min-height: 30px;
 	padding: 0;
 	margin: 0;
+	appearance: none;
+	font: inherit;
 	line-height: 0;
 	box-sizing: border-box;
 	display: inline-flex;
@@ -236,12 +239,14 @@
 	display: block;
 }
 
+body button.be-command-modal-icon-button:hover:not(:disabled),
 .be-command-modal-icon-button:hover:not(:disabled) {
 	background: var(--background-modifier-hover);
 	border-color: var(--background-modifier-border);
 	color: var(--text-normal);
 }
 
+body button.be-command-modal-icon-button:disabled,
 .be-command-modal-icon-button:disabled {
 	opacity: 0.45;
 }
@@ -260,6 +265,7 @@
 	padding: 2px;
 }
 
+body button.be-icon-picker-item,
 .be-icon-picker-item {
 	width: 36px;
 	height: 36px;
@@ -267,6 +273,12 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	appearance: none;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-normal);
+	cursor: pointer;
 }
 
 .be-icon-picker-item-icon {
@@ -283,6 +295,7 @@
 	display: block;
 }
 
+body button.be-icon-picker-item.is-selected,
 .be-icon-picker-item.is-selected {
 	background: var(--background-modifier-hover);
 }
@@ -350,16 +363,25 @@
 	background: var(--background-primary);
 }
 
+body button.be-command-picker-item,
 .be-command-picker-item {
 	display: block;
 	width: 100%;
 	height: auto;
 	padding: 8px 10px;
 	text-align: left;
+	appearance: none;
+	background: transparent;
+	border: none;
 	border-radius: 0;
 	box-shadow: none;
+	color: var(--text-normal);
+	cursor: pointer;
+	font: inherit;
 }
 
+body button.be-command-picker-item.is-selected,
+body button.be-command-picker-item:hover,
 .be-command-picker-item.is-selected,
 .be-command-picker-item:hover {
 	background: var(--background-modifier-hover);
@@ -401,10 +423,12 @@
 	flex-wrap: wrap;
 }
 
+body button.be-shortcut-badge,
 .be-shortcut-badge {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	appearance: none;
 	padding: 3px 8px;
 	border-radius: var(--radius-s, 4px);
 	border: 1px solid var(--background-modifier-border);
@@ -423,6 +447,7 @@
 	transition: border-color 100ms ease;
 }
 
+body button.be-shortcut-badge.is-recording,
 .be-shortcut-badge.is-recording {
 	border-color: var(--interactive-accent);
 	color: var(--text-faint);
@@ -430,6 +455,7 @@
 }
 
 /* ── Shared toolbar primitives ───────────────────────────────────────────*/
+body button.be-toolbar-btn,
 .be-toolbar-btn {
 	display: flex;
 	align-items: center;
@@ -438,7 +464,10 @@
 	border: none;
 	box-shadow: none;
 	cursor: pointer;
+	font: inherit;
+	line-height: 1;
 	padding: 0;
+	appearance: none;
 	border-radius: 4px;
 	color: var(--text-muted);
 	min-width: 24px;
@@ -446,16 +475,20 @@
 	transition: background 120ms ease, color 120ms ease;
 }
 
+body button.be-toolbar-btn:hover,
 .be-toolbar-btn:hover {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
+body button.be-toolbar-btn.is-active,
 .be-toolbar-btn.is-active {
 	background: var(--background-modifier-hover);
 	color: var(--text-accent);
 }
 
+body button.be-toolbar-btn.is-disabled,
+body button.be-toolbar-btn:disabled,
 .be-toolbar-btn.is-disabled,
 .be-toolbar-btn:disabled {
 	opacity: 0.45;
@@ -502,6 +535,7 @@
 }
 
 .be-replace-tab,
+body button.be-replace-tab,
 body .be-replace-panel .be-replace-tab {
 	padding: 8px 10px;
 	font-size: 13px;
@@ -509,6 +543,8 @@ body .be-replace-panel .be-replace-tab {
 	border: none;
 	border-bottom: 2px solid transparent;
 	box-shadow: none;
+	appearance: none;
+	font-family: var(--font-interface);
 	margin-bottom: -1px;
 	cursor: pointer;
 	color: var(--text-muted);
@@ -518,6 +554,7 @@ body .be-replace-panel .be-replace-tab {
 }
 
 .be-replace-tab:hover,
+body button.be-replace-tab:hover,
 body .be-replace-panel .be-replace-tab:hover {
 	background: transparent;
 	box-shadow: none;
@@ -525,6 +562,7 @@ body .be-replace-panel .be-replace-tab:hover {
 }
 
 .be-replace-tab.is-active,
+body button.be-replace-tab.is-active,
 body .be-replace-panel .be-replace-tab.is-active {
 	color: var(--text-normal);
 	border-bottom: 2px solid var(--interactive-accent);
@@ -550,6 +588,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	justify-content: center;
 }
 
+body button.be-replace-upload-btn,
 .be-replace-upload-btn {
 	width: 100%;
 	padding: 8px 16px;
@@ -558,11 +597,15 @@ body .be-replace-panel .be-replace-tab.is-active {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 	font-size: 14px;
+	font-family: var(--font-interface);
 	cursor: pointer;
 	text-align: center;
+	appearance: none;
+	box-shadow: none;
 	transition: background 100ms ease, border-color 100ms ease;
 }
 
+body button.be-replace-upload-btn:hover,
 .be-replace-upload-btn:hover {
 	background: var(--background-modifier-active-hover);
 }
@@ -571,6 +614,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	border-color: var(--interactive-accent);
 }
 
+body .be-replace-panel.is-over button.be-replace-upload-btn,
 .be-replace-panel.is-over .be-replace-upload-btn {
 	border-color: var(--interactive-accent);
 	background: var(--background-modifier-active-hover);
@@ -592,6 +636,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	margin-bottom: 10px;
 }
 
+body button.be-replace-apply-btn,
 .be-replace-apply-btn {
 	align-self: flex-end;
 	padding: 4px 14px;
@@ -600,7 +645,10 @@ body .be-replace-panel .be-replace-tab.is-active {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 	font-size: 13px;
+	font-family: var(--font-interface);
 	cursor: pointer;
+	appearance: none;
+	box-shadow: none;
 }
 
 /* ── Slash command menu ──────────────────────────────────────────────────*/
@@ -1485,12 +1533,15 @@ body .be-block-controls > button.be-block-handle:active {
 	color: var(--text-normal);
 }
 
+body button.be-alt-popover-close,
 .be-alt-popover-close {
 	background: transparent;
 	border: none;
 	box-shadow: none;
 	color: var(--text-muted);
 	cursor: pointer;
+	appearance: none;
+	font-family: var(--font-interface);
 	font-size: 16px;
 	padding: 0 2px;
 	line-height: 1;
@@ -1576,17 +1627,22 @@ body .be-block-controls > button.be-block-handle:active {
 	align-items: center;
 }
 
+body button.be-crop-action-btn,
 .be-crop-action-btn {
 	padding: 5px 14px;
 	border-radius: 4px;
 	border: 1px solid var(--background-modifier-border);
 	cursor: pointer;
+	appearance: none;
 	font-size: 13px;
+	font-family: var(--font-interface);
 	font-weight: 400;
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
+	box-shadow: none;
 }
 
+body button.be-crop-save-btn,
 .be-crop-save-btn {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
@@ -1911,6 +1967,7 @@ body .be-block-controls > button.be-block-handle:active {
 	padding: 0 4px;
 }
 
+body button.be-symbol-tab,
 .be-symbol-tab {
 	padding: 6px 10px;
 	font-size: 12px;
@@ -1918,6 +1975,8 @@ body .be-block-controls > button.be-block-handle:active {
 	border: none;
 	border-bottom: 2px solid transparent;
 	box-shadow: none;
+	appearance: none;
+	font-family: var(--font-interface);
 	margin-bottom: -1px;
 	cursor: pointer;
 	color: var(--text-muted);
@@ -1925,10 +1984,12 @@ body .be-block-controls > button.be-block-handle:active {
 	transition: color 100ms ease;
 }
 
+body button.be-symbol-tab:hover,
 .be-symbol-tab:hover {
 	color: var(--text-normal);
 }
 
+body button.be-symbol-tab.is-active,
 .be-symbol-tab.is-active {
 	color: var(--text-normal);
 	border-bottom: 2px solid var(--interactive-accent);
@@ -1961,6 +2022,7 @@ body .be-block-controls > button.be-block-handle:active {
 	padding: 0;
 }
 
+body button.be-symbol-btn,
 .be-symbol-btn {
 	width: 32px;
 	height: 32px;
@@ -1976,9 +2038,12 @@ body .be-block-controls > button.be-block-handle:active {
 	box-shadow: none;
 	color: var(--text-normal);
 	padding: 0;
+	appearance: none;
+	font-family: var(--font-interface);
 	transition: background 80ms ease;
 }
 
+body button.be-symbol-btn:hover,
 .be-symbol-btn:hover {
 	background: var(--background-modifier-hover);
 }

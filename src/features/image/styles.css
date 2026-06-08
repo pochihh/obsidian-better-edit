@@ -495,12 +495,15 @@
 	color: var(--text-normal);
 }
 
+body button.be-alt-popover-close,
 .be-alt-popover-close {
 	background: transparent;
 	border: none;
 	box-shadow: none;
 	color: var(--text-muted);
 	cursor: pointer;
+	appearance: none;
+	font-family: var(--font-interface);
 	font-size: 16px;
 	padding: 0 2px;
 	line-height: 1;
@@ -586,17 +589,22 @@
 	align-items: center;
 }
 
+body button.be-crop-action-btn,
 .be-crop-action-btn {
 	padding: 5px 14px;
 	border-radius: 4px;
 	border: 1px solid var(--background-modifier-border);
 	cursor: pointer;
+	appearance: none;
 	font-size: 13px;
+	font-family: var(--font-interface);
 	font-weight: 400;
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
+	box-shadow: none;
 }
 
+body button.be-crop-save-btn,
 .be-crop-save-btn {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);

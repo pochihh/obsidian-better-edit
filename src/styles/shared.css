@@ -1,4 +1,5 @@
 /* ── Shared toolbar primitives ───────────────────────────────────────────*/
+body button.be-toolbar-btn,
 .be-toolbar-btn {
 	display: flex;
 	align-items: center;
@@ -7,7 +8,10 @@
 	border: none;
 	box-shadow: none;
 	cursor: pointer;
+	font: inherit;
+	line-height: 1;
 	padding: 0;
+	appearance: none;
 	border-radius: 4px;
 	color: var(--text-muted);
 	min-width: 24px;
@@ -15,16 +19,20 @@
 	transition: background 120ms ease, color 120ms ease;
 }
 
+body button.be-toolbar-btn:hover,
 .be-toolbar-btn:hover {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 }
 
+body button.be-toolbar-btn.is-active,
 .be-toolbar-btn.is-active {
 	background: var(--background-modifier-hover);
 	color: var(--text-accent);
 }
 
+body button.be-toolbar-btn.is-disabled,
+body button.be-toolbar-btn:disabled,
 .be-toolbar-btn.is-disabled,
 .be-toolbar-btn:disabled {
 	opacity: 0.45;
@@ -71,6 +79,7 @@
 }
 
 .be-replace-tab,
+body button.be-replace-tab,
 body .be-replace-panel .be-replace-tab {
 	padding: 8px 10px;
 	font-size: 13px;
@@ -78,6 +87,8 @@ body .be-replace-panel .be-replace-tab {
 	border: none;
 	border-bottom: 2px solid transparent;
 	box-shadow: none;
+	appearance: none;
+	font-family: var(--font-interface);
 	margin-bottom: -1px;
 	cursor: pointer;
 	color: var(--text-muted);
@@ -87,6 +98,7 @@ body .be-replace-panel .be-replace-tab {
 }
 
 .be-replace-tab:hover,
+body button.be-replace-tab:hover,
 body .be-replace-panel .be-replace-tab:hover {
 	background: transparent;
 	box-shadow: none;
@@ -94,6 +106,7 @@ body .be-replace-panel .be-replace-tab:hover {
 }
 
 .be-replace-tab.is-active,
+body button.be-replace-tab.is-active,
 body .be-replace-panel .be-replace-tab.is-active {
 	color: var(--text-normal);
 	border-bottom: 2px solid var(--interactive-accent);
@@ -119,6 +132,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	justify-content: center;
 }
 
+body button.be-replace-upload-btn,
 .be-replace-upload-btn {
 	width: 100%;
 	padding: 8px 16px;
@@ -127,11 +141,15 @@ body .be-replace-panel .be-replace-tab.is-active {
 	background: var(--background-modifier-hover);
 	color: var(--text-normal);
 	font-size: 14px;
+	font-family: var(--font-interface);
 	cursor: pointer;
 	text-align: center;
+	appearance: none;
+	box-shadow: none;
 	transition: background 100ms ease, border-color 100ms ease;
 }
 
+body button.be-replace-upload-btn:hover,
 .be-replace-upload-btn:hover {
 	background: var(--background-modifier-active-hover);
 }
@@ -140,6 +158,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	border-color: var(--interactive-accent);
 }
 
+body .be-replace-panel.is-over button.be-replace-upload-btn,
 .be-replace-panel.is-over .be-replace-upload-btn {
 	border-color: var(--interactive-accent);
 	background: var(--background-modifier-active-hover);
@@ -161,6 +180,7 @@ body .be-replace-panel .be-replace-tab.is-active {
 	margin-bottom: 10px;
 }
 
+body button.be-replace-apply-btn,
 .be-replace-apply-btn {
 	align-self: flex-end;
 	padding: 4px 14px;
@@ -169,5 +189,8 @@ body .be-replace-panel .be-replace-tab.is-active {
 	background: var(--interactive-accent);
 	color: var(--text-on-accent);
 	font-size: 13px;
+	font-family: var(--font-interface);
 	cursor: pointer;
+	appearance: none;
+	box-shadow: none;
 }

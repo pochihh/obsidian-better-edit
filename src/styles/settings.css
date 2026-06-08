@@ -193,6 +193,7 @@
 	gap: 8px;
 }
 
+body button.be-command-modal-icon-button,
 .be-command-modal-icon-button {
 	width: 30px;
 	height: 30px;
@@ -200,6 +201,8 @@
 	min-height: 30px;
 	padding: 0;
 	margin: 0;
+	appearance: none;
+	font: inherit;
 	line-height: 0;
 	box-sizing: border-box;
 	display: inline-flex;
@@ -229,12 +232,14 @@
 	display: block;
 }
 
+body button.be-command-modal-icon-button:hover:not(:disabled),
 .be-command-modal-icon-button:hover:not(:disabled) {
 	background: var(--background-modifier-hover);
 	border-color: var(--background-modifier-border);
 	color: var(--text-normal);
 }
 
+body button.be-command-modal-icon-button:disabled,
 .be-command-modal-icon-button:disabled {
 	opacity: 0.45;
 }
@@ -253,6 +258,7 @@
 	padding: 2px;
 }
 
+body button.be-icon-picker-item,
 .be-icon-picker-item {
 	width: 36px;
 	height: 36px;
@@ -260,6 +266,12 @@
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	appearance: none;
+	background: transparent;
+	border: none;
+	box-shadow: none;
+	color: var(--text-normal);
+	cursor: pointer;
 }
 
 .be-icon-picker-item-icon {
@@ -276,6 +288,7 @@
 	display: block;
 }
 
+body button.be-icon-picker-item.is-selected,
 .be-icon-picker-item.is-selected {
 	background: var(--background-modifier-hover);
 }
@@ -343,16 +356,25 @@
 	background: var(--background-primary);
 }
 
+body button.be-command-picker-item,
 .be-command-picker-item {
 	display: block;
 	width: 100%;
 	height: auto;
 	padding: 8px 10px;
 	text-align: left;
+	appearance: none;
+	background: transparent;
+	border: none;
 	border-radius: 0;
 	box-shadow: none;
+	color: var(--text-normal);
+	cursor: pointer;
+	font: inherit;
 }
 
+body button.be-command-picker-item.is-selected,
+body button.be-command-picker-item:hover,
 .be-command-picker-item.is-selected,
 .be-command-picker-item:hover {
 	background: var(--background-modifier-hover);
@@ -394,10 +416,12 @@
 	flex-wrap: wrap;
 }
 
+body button.be-shortcut-badge,
 .be-shortcut-badge {
 	display: inline-flex;
 	align-items: center;
 	justify-content: center;
+	appearance: none;
 	padding: 3px 8px;
 	border-radius: var(--radius-s, 4px);
 	border: 1px solid var(--background-modifier-border);
@@ -416,6 +440,7 @@
 	transition: border-color 100ms ease;
 }
 
+body button.be-shortcut-badge.is-recording,
 .be-shortcut-badge.is-recording {
 	border-color: var(--interactive-accent);
 	color: var(--text-faint);
