@@ -16,6 +16,10 @@ export interface SourceSpacingContext {
 	lastBlockKind: BlockSpacingKind;
 }
 
+export interface LineDropSpacingContext {
+	insertionAtLineStart: boolean;
+}
+
 export interface BlankLineDropBoundaryContext {
 	firstBlockKind: BlockSpacingKind;
 	lastBlockKind: BlockSpacingKind;
@@ -53,6 +57,16 @@ export function duplicateBlockTextForSource(source: string, context: SourceSpaci
 	const core = trailing.length > 0 ? source.slice(0, -trailing.length) : source;
 	const separator = context.lastBlockKind === 'table' && context.firstBlockKind === 'table' ? '\n \n' : trailing.length > 0 ? trailing : '\n';
 	return `${core}${separator}${core}${trailing}`;
+}
+
+export function lineSafeTextForDrop(text: string, context: LineDropSpacingContext): string {
+	const leading = text.match(/^\n+/)?.[0] ?? '';
+	if (leading.length > 0 && context.insertionAtLineStart) {
+		const content = text.slice(leading.length);
+		return content.endsWith('\n') ? content : `${content}${leading}`;
+	}
+	if (leading.length === 0 && !context.insertionAtLineStart) return `\n${text}`;
+	return text;
 }
 
 export function allowBlankLineDropBoundary(context: BlankLineDropBoundaryContext): boolean {

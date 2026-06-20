@@ -7,6 +7,7 @@ import { EditorState } from '@codemirror/state';
 import {
 	allowBlankLineDropBoundary,
 	duplicateBlockTextForSource,
+	lineSafeTextForDrop,
 	tableSafeTextForDrop,
 	type BlockSpacingKind,
 } from '../src/features/blocks/block-spacing';
@@ -94,6 +95,14 @@ void test('non-table block copy keeps the existing duplicate behavior', () => {
 	};
 
 	assert.equal(duplicateBlockTextForSource(paragraph, sourceKinds), 'Alpha\nAlpha\n');
+});
+
+void test('dropping a final line at an existing line start moves its leading newline behind it', () => {
+	assert.equal(lineSafeTextForDrop('\n- c', { insertionAtLineStart: true }), '- c\n');
+});
+
+void test('dropping a line at document end adds the missing separator before it', () => {
+	assert.equal(lineSafeTextForDrop('- a\n', { insertionAtLineStart: false }), '\n- a\n');
 });
 
 void test('table drag does not offer separate drop targets on spacer lines adjacent to tables', () => {

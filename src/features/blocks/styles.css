@@ -1,12 +1,3 @@
-/* ── Block controls ───────────────────────────────────────────────────────*/
-.cm-editor.be-block-gutter-enabled .cm-sizer {
-	padding-inline-start: 40px;
-}
-
-.cm-editor.be-block-gutter-enabled .cm-contentContainer {
-	padding-inline-start: 0;
-}
-
 .be-block-controls {
 	position: fixed;
 	z-index: 30;
@@ -27,6 +18,10 @@
 
 .be-block-controls.is-dragging {
 	opacity: 0.5;
+}
+
+.be-block-controls.is-add-collapsed .be-block-add {
+	display: none;
 }
 
 .be-block-dragging-editor {

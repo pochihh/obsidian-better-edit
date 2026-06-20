@@ -3,9 +3,10 @@ import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import { App, Menu, editorLivePreviewField } from 'obsidian';
 import type BetterEditPlugin from '../../main';
 import { resolveDragSourceForBlock } from './block-drag-source';
-import { allowBlankLineDropBoundary, duplicateBlockTextForSource, tableSafeTextForDrop } from './block-spacing';
+import { allowBlankLineDropBoundary, duplicateBlockTextForSource, lineSafeTextForDrop, tableSafeTextForDrop } from './block-spacing';
 import { BlockRange, getBlockAtPos, getBlocksInRange } from './block-model';
 import { BlockTurnIntoTarget, canTurnIntoSource, turnBlockTextInto } from './block-transform';
+import { resolveBlockControlPlacement } from './control-placement';
 
 type MenuItemWithSubmenu = {
 	setSubmenu?: () => Menu;
@@ -46,9 +47,7 @@ type DragState =
 	| { kind: 'dragging'; source: DragSource; slice: MoveSlice; target: DropBoundary | null };
 
 const DRAG_START_THRESHOLD_PX = 4;
-const BLOCK_GUTTER_RESERVE_PX = 64;
 const BLOCK_GUTTER_HIT_WIDTH_PX = 72;
-const BLOCK_GUTTER_INSET_PX = 4;
 const BLOCK_ELEMENT_SELECTOR = '.cm-line, .cm-html-embed.cm-embed-block, .cm-preview-code-block.cm-embed-block, .cm-table-widget, .be-image-widget, .be-image-row-widget, .internal-embed.image-embed';
 const blocksFeatureEnabledEffect = StateEffect.define<boolean>();
 
@@ -103,10 +102,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.selectionEl = createDiv({ cls: 'be-block-selection' });
 			this.dropLineEl = createDiv({ cls: 'be-block-drop-line' });
 
-			if (!this.plugin.settings.blocks.showAddButton) {
-				this.addButtonEl.hide();
-			}
-
 			this.editorDocument().body.appendChild(this.controlsEl);
 			this.editorDocument().body.appendChild(this.selectionEl);
 			this.editorDocument().body.appendChild(this.dropLineEl);
@@ -133,11 +128,9 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				event.preventDefault();
 				event.stopPropagation();
 			});
-			this.syncEditorGutterClass();
 		}
 
 		update(update: ViewUpdate): void {
-			this.syncEditorGutterClass();
 			if (!this.blocksEnabled() || !this.isLivePreview() || !this.isPrimaryEditorView()) {
 				this.hideControls();
 				this.clearSelectedSource();
@@ -158,7 +151,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			this.clearTooltipTimer();
 			this.clearVisualRefreshFrame();
 			this.clearNativeTableSelectionUi();
-			this.view.dom.removeClass('be-block-gutter-enabled');
 			this.controlsEl.remove();
 			this.selectionEl.remove();
 			this.dropLineEl.remove();
@@ -459,6 +451,20 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private showBlockOperationMenu(source: DragSource, x: number, y: number): void {
 			const menu = new Menu();
 
+			if (this.plugin.settings.blocks.showAddButton && this.controlsEl.classList.contains('is-add-collapsed')) {
+				menu.addItem(item => {
+					item.setTitle('Add line above');
+					item.setIcon('plus');
+					item.onClick(() => this.addLineNearSource(source, true));
+				});
+				menu.addItem(item => {
+					item.setTitle('Add line below');
+					item.setIcon('plus');
+					item.onClick(() => this.addLineNearSource(source, false));
+				});
+				menu.addSeparator();
+			}
+
 			menu.addItem(item => {
 				item.setTitle('Delete');
 				item.setIcon('trash');
@@ -605,15 +611,25 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			event.stopPropagation();
 			if (this.hoveredBlock === null || !this.blocksEnabled() || !this.plugin.settings.blocks.showAddButton) return;
 
-			const insertAbove = event.altKey;
-			const insertAt = insertAbove ? this.hoveredBlock.from : this.hoveredBlock.to;
+			this.addLineNearBlock(this.hoveredBlock, event.altKey);
+			this.hideTooltip();
+		}
+
+		private addLineNearSource(source: DragSource, insertAbove: boolean): void {
+			this.addLineNearRange(insertAbove ? source.from : source.to, insertAbove);
+		}
+
+		private addLineNearBlock(block: BlockRange, insertAbove: boolean): void {
+			this.addLineNearRange(insertAbove ? block.from : block.to, insertAbove);
+		}
+
+		private addLineNearRange(insertAt: number, insertAbove: boolean): void {
 			this.view.dispatch({
 				changes: { from: insertAt, to: insertAt, insert: '\n' },
 				selection: { anchor: insertAbove ? insertAt : insertAt + 1 },
 				scrollIntoView: true,
 			});
 			this.view.focus();
-			this.hideTooltip();
 		}
 
 		private positionControls(): void {
@@ -631,9 +647,15 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			const editorRect = this.view.dom.getBoundingClientRect();
 			const contentRect = this.contentRect() ?? editorRect;
 			const controlTop = this.controlTopForBlock(this.hoveredBlock, rect);
-			const controlLeft = Math.max(editorRect.left + BLOCK_GUTTER_INSET_PX, contentRect.left - BLOCK_GUTTER_RESERVE_PX + BLOCK_GUTTER_INSET_PX);
+			const placement = resolveBlockControlPlacement({
+				contentLeft: contentRect.left,
+				boundaryLeft: this.controlBoundaryLeft(contentRect.left, editorRect.left),
+				showAddButton: this.plugin.settings.blocks.showAddButton,
+			});
+			this.controlsEl.toggleClass('is-add-collapsed', !placement.showAddButton);
+			this.controlsEl.style.width = `${placement.width}px`;
 			this.controlsEl.style.top = `${controlTop}px`;
-			this.controlsEl.style.left = `${controlLeft}px`;
+			this.controlsEl.style.left = `${placement.left}px`;
 			this.controlsEl.addClass('is-visible');
 		}
 
@@ -1054,9 +1076,10 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 		private textForDrop(text: string, target: DropBoundary, source: DragSource): string {
 			const quoteSafeText = this.quoteSafeTextForDrop(text, source);
 			const tableSafeText = this.tableSafeTextForDrop(quoteSafeText, target, source);
-			if (!this.shouldSeparateFromHorizontalRule(tableSafeText, target, source)) return tableSafeText;
-			if (this.firstSourceBlock(source).kind === 'horizontal-rule') return tableSafeText.startsWith('\n') ? tableSafeText : `\n${tableSafeText}`;
-			return tableSafeText.endsWith('\n') ? `${tableSafeText}\n` : `${tableSafeText}\n\n`;
+			const lineSafeText = this.lineSafeTextForDrop(tableSafeText, target, source);
+			if (!this.shouldSeparateFromHorizontalRule(lineSafeText, target, source)) return lineSafeText;
+			if (this.firstSourceBlock(source).kind === 'horizontal-rule') return lineSafeText.startsWith('\n') ? lineSafeText : `\n${lineSafeText}`;
+			return lineSafeText.endsWith('\n') ? `${lineSafeText}\n` : `${lineSafeText}\n\n`;
 		}
 
 		private quoteSafeTextForDrop(text: string, source: DragSource): string {
@@ -1073,6 +1096,13 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 				previousBlockKind: previousBlock?.kind ?? null,
 				nextBlockKind: nextBlock?.kind ?? null,
 				hasBlankLineBeforeTarget: this.hasBlankLineBefore(target.pos),
+			});
+		}
+
+		private lineSafeTextForDrop(text: string, target: DropBoundary, source: DragSource): string {
+			if (this.firstSourceBlock(source).kind === 'table' || this.lastSourceBlock(source).kind === 'table') return text;
+			return lineSafeTextForDrop(text, {
+				insertionAtLineStart: target.pos === 0 || this.view.state.doc.sliceString(target.pos - 1, target.pos) === '\n',
 			});
 		}
 
@@ -1410,6 +1440,19 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 			return this.view.contentDOM.getBoundingClientRect();
 		}
 
+		private controlBoundaryLeft(contentLeft: number, fallbackLeft: number): number {
+			let el = this.view.dom.parentElement;
+			while (el !== null && el !== this.editorDocument().body) {
+				const style = this.editorWindow().getComputedStyle(el);
+				if (/(auto|scroll|hidden|clip)/.test(`${style.overflow}${style.overflowX}${style.overflowY}`)) {
+					const rect = el.getBoundingClientRect();
+					if (rect.width > 0 && rect.left < contentLeft - 0.5 && rect.right >= contentLeft) return rect.left;
+				}
+				el = el.parentElement;
+			}
+			return fallbackLeft;
+		}
+
 		private belongsToThisEditor(el: Element): boolean {
 			return el.closest('.cm-editor') === this.view.dom;
 		}
@@ -1441,10 +1484,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 
 		private editorWindow(): Window {
 			return this.view.dom.ownerDocument.defaultView ?? window;
-		}
-
-		private syncEditorGutterClass(): void {
-			this.view.dom.toggleClass('be-block-gutter-enabled', this.blocksEnabled() && this.isLivePreview() && this.isPrimaryEditorView());
 		}
 	});
 }
