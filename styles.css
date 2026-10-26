@@ -766,7 +766,7 @@ body button.be-replace-apply-btn,
 }
 
 .be-slash-item.is-selected,
-.be-slash-menu:not(.has-selection) .be-slash-item:hover {
+.be-slash-menu:not(.has-selection):not(.be-text-link-menu) .be-slash-item:hover {
 	background: var(--background-modifier-hover);
 }
 
@@ -1888,10 +1888,6 @@ body button.be-crop-save-btn,
 	margin-bottom: 8px;
 	font-size: 11px;
 	line-height: 1.4;
-}
-
-.be-text-link-enter {
-	color: var(--text-accent);
 }
 
 .be-text-link-panel .be-replace-link-input {

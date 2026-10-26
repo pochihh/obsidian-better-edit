@@ -172,10 +172,6 @@
 	line-height: 1.4;
 }
 
-.be-text-link-enter {
-	color: var(--text-accent);
-}
-
 .be-text-link-panel .be-replace-link-input {
 	height: 30px;
 	font-size: 12px;

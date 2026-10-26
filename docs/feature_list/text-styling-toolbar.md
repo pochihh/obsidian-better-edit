@@ -31,7 +31,9 @@ The toolbar appears only when a useful text selection is active. It stays compac
 - Turn selected text into an Obsidian wiki link.
 - Create a standard Markdown link.
 
-To link the selected words without typing a destination, leave the Page name empty and press Enter twice. The first press shows a confirmation hint; the second inserts `[[selected words]]` without creating a note.
+Press Enter once to apply a link. In Page mode, leave the Page name empty to insert `[[selected words]]` without creating a note. Blank searches have no default selection. Typing a search highlights the first matching note; Enter accepts the highlighted note, or uses the typed name if there are no matches. You can choose a different note with the mouse or arrow keys. In Link mode, leave the destination empty to insert `[selected words]()` and fill it in later.
+
+Select an existing link or part of its label and choose Link to edit its destination. The picker opens in the link's current format, and applying changes replaces the whole link while preserving its label.
 
 ## Better For Revisions
 

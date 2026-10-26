@@ -1,6 +1,7 @@
 import { EditorSelection, Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { TFile } from 'obsidian';
+import { parseLinktext, TFile } from 'obsidian';
+import { findLinkAtRange } from './link-context';
 import type BetterEditPlugin from '../../main';
 import { renderTextStylingIcon } from '../../icons';
 import type { TextStylingIconName } from '../../icons';
@@ -513,6 +514,8 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 
 			private openLinkPopover(anchorEl: HTMLElement, plugin: BetterEditPlugin): void {
 				this.closeLinkPopover();
+				const range = this.view.state.selection.main;
+				const existingLink = findLinkAtRange(this.view.state.doc.toString(), range.from, range.to);
 				this.linkPopoverAnchorEl = anchorEl;
 				const popover = createDiv({ cls: 'be-replace-panel be-text-link-panel' });
 				const tabs = createDiv({ cls: 'be-replace-tabs' });
@@ -521,10 +524,9 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				tabs.append(pageTab, urlTab);
 
 				const pagePane = createDiv({ cls: 'be-replace-pane' });
-				const pageDescriptionText = 'Search notes in the vault. Press Enter to create a new link if no matching note is found.';
-				const pageDescription = pagePane.createDiv({
+				pagePane.createDiv({
 					cls: 'be-replace-upload-desc',
-					text: pageDescriptionText,
+					text: 'Search notes or enter a page name. Leave blank to link the selected text. Press Enter to apply.',
 				});
 				const pageInput = createEl('input', {
 					cls: 'be-replace-link-input',
@@ -540,7 +542,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				const urlPane = createDiv({ cls: 'be-replace-pane', attr: { style: 'display:none' } });
 				urlPane.createDiv({
 					cls: 'be-replace-upload-desc',
-					text: 'Insert a standard markdown link. Works for URLs or typed local paths.',
+					text: 'Insert a standard markdown link. Leave blank to add the destination later.',
 				});
 				const urlInput = createEl('input', {
 					cls: 'be-replace-link-input',
@@ -561,18 +563,13 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				popover.append(tabs, pagePane, urlPane);
 
 				let mode: 'page' | 'url' = 'page';
-				let emptyPageLinkPending = false;
-				const resetEmptyPageLink = (): void => {
-					emptyPageLinkPending = false;
-					pageDescription.setText(pageDescriptionText);
-				};
 				const pageItems = this.getPageItems(plugin);
 				let pageSuggestions = this.filterPageSuggestions(pageItems, '');
-				let selectedPageIndex = pageSuggestions.length > 0 ? 0 : -1;
+				let selectedPageIndex = -1;
 				let lastMouseX = -1;
 				let lastMouseY = -1;
 				const setMode = (nextMode: 'page' | 'url'): void => {
-					resetEmptyPageLink();
+					updateSuggestions();
 					mode = nextMode;
 					pageTab.toggleClass('is-active', mode === 'page');
 					urlTab.toggleClass('is-active', mode === 'url');
@@ -586,26 +583,9 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 
 				const apply = (): void => {
 					const target = (mode === 'page' ? pageInput.value : urlInput.value).trim();
-					if (mode === 'page' && !target) {
-						if (!emptyPageLinkPending) {
-							emptyPageLinkPending = true;
-							pageDescription.setText('Search notes in the vault. Press ');
-							pageDescription.createSpan({ cls: 'be-text-link-enter', text: 'Enter' });
-							pageDescription.appendText(' one more time to create an empty link.');
-							return;
-						}
-						this.applyPageLink(this.selectedText().trim(), null, plugin);
-						this.closeLinkPopover();
-						return;
-					}
-					if (!target) return;
 					if (mode === 'page') {
-						if (selectedPageIndex >= 0) {
-							const suggested = pageSuggestions[selectedPageIndex];
-							this.applyPageLink(target, suggested?.path ?? null, plugin);
-						} else {
-							this.applyPageLink(target, null, plugin);
-						}
+						const suggested = pageSuggestions[selectedPageIndex];
+						this.applyPageLink(suggested?.linktext ?? (target || existingLink?.text.trim() || this.selectedText().trim()), suggested?.path ?? null, plugin);
 					} else {
 						this.applyExternalLink(target);
 					}
@@ -625,7 +605,6 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				};
 
 				const selectPageIndex = (index: number, source: 'keyboard' | 'mouse'): void => {
-					resetEmptyPageLink();
 					if (selectedPageIndex === index) return;
 					selectedPageIndex = index;
 					renderSuggestions();
@@ -680,9 +659,8 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				};
 
 				const updateSuggestions = (): void => {
-					resetEmptyPageLink();
 					pageSuggestions = this.filterPageSuggestions(pageItems, pageInput.value);
-					selectedPageIndex = pageSuggestions.length > 0 ? 0 : -1;
+					selectedPageIndex = pageInput.value.trim().length > 0 && pageSuggestions.length > 0 ? 0 : -1;
 					renderSuggestions();
 					ensureSelectedVisible();
 				};
@@ -695,7 +673,10 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					lastMouseX = event.clientX;
 					lastMouseY = event.clientY;
 					const hovered = hoveredSuggestionAtPoint(event.clientX, event.clientY);
-					if (hovered === null) return;
+					if (hovered === null) {
+						updateSuggestions();
+						return;
+					}
 					const index = parseInt(hovered.dataset.linkIndex ?? '', 10);
 					if (Number.isNaN(index)) return;
 					selectPageIndex(index, 'mouse');
@@ -703,6 +684,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				suggestionsEl.addEventListener('mouseleave', () => {
 					lastMouseX = -1;
 					lastMouseY = -1;
+					updateSuggestions();
 				});
 				suggestionsEl.addEventListener('scroll', () => {
 					updateSuggestionFadeState();
@@ -750,19 +732,28 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					apply();
 				});
 				urlInput.addEventListener('keydown', event => {
+					if (event.isComposing) return;
 					if (event.key !== 'Enter') return;
 					event.preventDefault();
+					if (event.repeat) return;
 					apply();
 				});
 
 				this.documentEl.body.appendChild(popover);
 				this.linkPopoverEl = popover;
+				setMode(existingLink?.mode ?? 'page');
+				if (existingLink !== null) {
+					if (existingLink.mode === 'page') pageInput.value = existingLink.target;
+					else urlInput.value = existingLink.target;
+					pageSuggestions = this.filterPageSuggestions(pageItems, pageInput.value);
+				}
 				this.positionLinkPopover();
 				renderSuggestions();
 				this.windowEl.requestAnimationFrame(() => updateSuggestionFadeState());
 				this.windowEl.requestAnimationFrame(() => {
 					this.linkPopoverPending = false;
-					pageInput.focus();
+					if (mode === 'page') pageInput.focus();
+					else urlInput.focus();
 				});
 			}
 
@@ -819,21 +810,24 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 
 			private applyPageLink(target: string, filePath: string | null, plugin: BetterEditPlugin): void {
 				const range = this.view.state.selection.main;
-				const selectedText = this.selectedText();
+				const link = findLinkAtRange(this.view.state.doc.toString(), range.from, range.to);
+				const selectedText = link?.text ?? this.selectedText();
+				const from = link?.from ?? range.from;
 				const sourcePath = plugin.app.workspace.getActiveFile()?.path ?? '';
+				const { path, subpath } = parseLinktext(target);
 				const linkedFile = filePath
 					? plugin.app.vault.getAbstractFileByPath(filePath)
-					: plugin.app.metadataCache.getFirstLinkpathDest(target, sourcePath);
+					: path ? plugin.app.metadataCache.getFirstLinkpathDest(path, sourcePath) : null;
 				const linktext = linkedFile instanceof TFile
-					? plugin.app.metadataCache.fileToLinktext(linkedFile, sourcePath, true)
+					? plugin.app.metadataCache.fileToLinktext(linkedFile, sourcePath, true) + subpath
 					: target;
 				const insert = buildPageLink(linktext, selectedText);
 				const visibleText = extractVisibleLinkText('page', linktext, selectedText);
-				const visibleIndex = insert.indexOf(visibleText);
-				const selectionFrom = range.from + Math.max(0, visibleIndex);
+				const visibleIndex = insert.includes('|') ? insert.indexOf('|') + 1 : 2;
+				const selectionFrom = from + visibleIndex;
 				const selectionTo = selectionFrom + visibleText.length;
 				this.view.dispatch({
-					changes: { from: range.from, to: range.to, insert },
+					changes: { from, to: link?.to ?? range.to, insert },
 					selection: EditorSelection.single(selectionFrom, selectionTo),
 					scrollIntoView: true,
 				});
@@ -841,14 +835,16 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 
 			private applyExternalLink(target: string): void {
 				const range = this.view.state.selection.main;
-				const selectedText = this.selectedText();
-				const insert = buildExternalLink(target, selectedText);
+				const link = findLinkAtRange(this.view.state.doc.toString(), range.from, range.to);
+				const selectedText = link?.text ?? this.selectedText();
+				const from = link?.from ?? range.from;
+				const destination = target && link?.angleTarget ? `<${target}>` : target;
+				const insert = buildExternalLink(destination, selectedText, link?.suffix ?? '');
 				const visibleText = extractVisibleLinkText('url', target, selectedText);
-				const visibleIndex = insert.indexOf(visibleText);
-				const selectionFrom = range.from + Math.max(0, visibleIndex);
+				const selectionFrom = from + 1;
 				const selectionTo = selectionFrom + visibleText.length;
 				this.view.dispatch({
-					changes: { from: range.from, to: range.to, insert },
+					changes: { from, to: link?.to ?? range.to, insert },
 					selection: EditorSelection.single(selectionFrom, selectionTo),
 					scrollIntoView: true,
 				});
@@ -1025,8 +1021,8 @@ function buildPageLink(target: string, selectedText: string): string {
 	return `[[${target}|${selectedText}]]`;
 }
 
-function buildExternalLink(target: string, selectedText: string): string {
-	return `[${selectedText}](${target})`;
+function buildExternalLink(target: string, selectedText: string, suffix = ''): string {
+	return `[${selectedText}](${target}${suffix})`;
 }
 
 function extractVisibleLinkText(

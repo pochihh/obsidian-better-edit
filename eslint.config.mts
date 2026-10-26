@@ -18,7 +18,8 @@ export default tseslint.config(
 						'tests/block-drag-source.test.ts',
 						'tests/block-table-spacing.test.ts',
 						'tests/image-drag-changes.test.ts',
-						'tests/image-html-schema.test.ts'
+						'tests/image-html-schema.test.ts',
+						'tests/text-link-context.test.ts'
 					]
 				},
 				tsconfigRootDir: import.meta.dirname,

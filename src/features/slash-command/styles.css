@@ -113,7 +113,7 @@
 }
 
 .be-slash-item.is-selected,
-.be-slash-menu:not(.has-selection) .be-slash-item:hover {
+.be-slash-menu:not(.has-selection):not(.be-text-link-menu) .be-slash-item:hover {
 	background: var(--background-modifier-hover);
 }
 
