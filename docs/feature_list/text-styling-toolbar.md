@@ -31,6 +31,8 @@ The toolbar appears only when a useful text selection is active. It stays compac
 - Turn selected text into an Obsidian wiki link.
 - Create a standard Markdown link.
 
+To link the selected words without typing a destination, leave the Page name empty and press Enter twice. The first press shows a confirmation hint; the second inserts `[[selected words]]` without creating a note.
+
 ## Better For Revisions
 
 The toolbar is most useful once text already exists. Select a term and make it bold, mark a sentence for review with highlight, convert a filename to inline code, or turn a phrase into a link without moving your hands through multiple delimiter pairs.

@@ -53,6 +53,7 @@ Placeholders give you a visible target before the final image is ready. Insert a
 ## What You Can Do
 
 - Paste, drop, upload, or link an image.
+- Use WebP images, including files whose image type is not identified by the device.
 - Resize an image visually while keeping it attached to the note.
 - Align standalone images left, center, or right.
 - Add captions that remain readable in the note.

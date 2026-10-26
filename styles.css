@@ -652,10 +652,13 @@ body button.be-replace-apply-btn,
 }
 
 /* ── Slash command menu ──────────────────────────────────────────────────*/
-.be-slash-empty-hint {
+.be-slash-empty-hint::before {
+	content: "Press '/' for commands";
+	position: absolute;
 	color: var(--text-faint);
 	font-size: 0.85em;
 	pointer-events: none;
+	user-select: none;
 }
 
 .be-slash-menu {
@@ -1885,6 +1888,10 @@ body button.be-crop-save-btn,
 	margin-bottom: 8px;
 	font-size: 11px;
 	line-height: 1.4;
+}
+
+.be-text-link-enter {
+	color: var(--text-accent);
 }
 
 .be-text-link-panel .be-replace-link-input {

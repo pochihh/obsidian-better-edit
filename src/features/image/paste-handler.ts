@@ -8,6 +8,7 @@
 
 import { Editor, MarkdownFileInfo, MarkdownView, TFile } from 'obsidian';
 import { singleImageHtml, placeholderHtml } from './html-schema';
+import { isImageExtension, isImageFile, isImagePath } from './file-types';
 import type BetterEditPlugin from '../../main';
 
 const RECENT_DROP_MS = 1500;
@@ -172,7 +173,7 @@ export async function saveImageToVault(
 function getImageFromDataTransfer(transfer: DataTransfer | null): File | null {
 	if (!transfer) return null;
 	const files = Array.from(transfer.files ?? []);
-	return files.find(f => f.type.startsWith('image/')) ?? null;
+	return files.find(isImageFile) ?? null;
 }
 
 function getExistingImageFromDataTransfer(
@@ -323,13 +324,9 @@ function extractImagePath(text: string): string | null {
 	if (markdownMatch?.[1]) return markdownMatch[1].trim().replace(/^<|>$/g, '');
 
 	const plainPath = text.trim().replace(/^<|>$/g, '');
-	if (/\.(png|jpe?g|gif|webp|svg|bmp)$/i.test(plainPath)) return plainPath;
+	if (isImagePath(plainPath)) return plainPath;
 
 	return null;
-}
-
-function isImageExtension(extension: string): boolean {
-	return ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(extension.toLowerCase());
 }
 
 // Re-export placeholder so index.ts can use it without importing html-schema directly

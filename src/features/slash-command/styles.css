@@ -1,8 +1,11 @@
 /* ── Slash command menu ──────────────────────────────────────────────────*/
-.be-slash-empty-hint {
+.be-slash-empty-hint::before {
+	content: "Press '/' for commands";
+	position: absolute;
 	color: var(--text-faint);
 	font-size: 0.85em;
 	pointer-events: none;
+	user-select: none;
 }
 
 .be-slash-menu {

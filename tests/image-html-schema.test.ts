@@ -1,6 +1,7 @@
 /* eslint-disable obsidianmd/no-nodejs-modules */
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { isImageExtension, isImageFile } from '../src/features/image/file-types';
 
 import {
 	DEFAULT_ROW_IMAGE_WIDTH,
@@ -11,6 +12,24 @@ import {
 	placeholderHtml,
 	singleImageHtml,
 } from '../src/features/image/html-schema';
+
+void test('WebP uploads and drops accept missing MIME types without accepting unrelated files', () => {
+	for (const type of ['image/webp', '', 'application/octet-stream']) {
+		assert.equal(isImageFile({ name: 'photo.webp', type }), true);
+		assert.equal(isImageFile({ name: 'PHOTO.WEBP', type }), true);
+	}
+	assert.equal(isImageExtension('WEBP'), true);
+	assert.equal(isImageFile({ name: 'notes.md', type: '' }), false);
+	assert.equal(isImageFile({ name: 'notes.md', type: 'text/markdown' }), false);
+	assert.equal(isImageFile({ name: 'webp', type: '' }), false);
+	assert.equal(isImageFile({ name: 'photo.webp', type: 'text/plain' }), false);
+	assert.equal(isImageFile({ name: 'image', type: 'image/png' }), true);
+	const html = singleImageHtml('Assets/photo.webp', '240px', 'center');
+	assert.equal(parseImageBlock(html)?.kind, 'single');
+	assert.equal(parseImageRowBlock(imageRowHtml([
+		{ kind: 'single', src: 'Assets/photo.webp', width: '240px', alignment: 'center' },
+	], 8, 'center', 'wrap', 'flex-start'))?.images[0]?.kind, 'single');
+});
 
 void test('single image HTML carries portable block alignment without plugin CSS', () => {
 	const centered = singleImageHtml('demo-canyon.svg', '240px', 'center');

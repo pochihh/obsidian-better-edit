@@ -1,5 +1,5 @@
 import { Extension, Prec, StateEffect, StateEffectType, StateField } from '@codemirror/state';
-import { Decoration, DecorationSet, EditorView, keymap, showTooltip, Tooltip, TooltipView, ViewPlugin, ViewUpdate, WidgetType } from '@codemirror/view';
+import { Decoration, DecorationSet, EditorView, keymap, showTooltip, Tooltip, TooltipView, ViewPlugin, ViewUpdate } from '@codemirror/view';
 import type BetterEditPlugin from '../../main';
 import { SlashCommandDefinition, SLASH_CURSOR_TOKEN } from './settings';
 import { renderSlashCommandIcon } from '../../icons';
@@ -18,16 +18,6 @@ let slashMenuScrollMemory = 0;
 
 const FENCE_RE = /^\s{0,3}(`{3,}|~{3,})/;
 const MATH_BLOCK_RE = /^\s*\$\$\s*$/;
-
-class EmptyLineHintWidget extends WidgetType {
-	toDOM(): HTMLElement {
-		return createSpan({ cls: 'be-slash-empty-hint', text: "Press '/' for commands" });
-	}
-
-	ignoreEvent(): boolean {
-		return true;
-	}
-}
 
 export function createSlashCommandExtension(plugin: BetterEditPlugin): Extension {
 	const openMenuEffect = StateEffect.define<number>();
@@ -184,7 +174,8 @@ function createEmptyLineHintExtension(plugin: BetterEditPlugin): Extension {
 				if (isSuppressedSlashContext(this.view, line.number)) return Decoration.none;
 
 				return Decoration.set([
-					Decoration.widget({ widget: new EmptyLineHintWidget(), side: 1 }).range(line.from),
+					// Samsung keyboards can copy widget text into the document during editing.
+					Decoration.line({ attributes: { class: 'be-slash-empty-hint' } }).range(line.from),
 				]);
 			}
 		},

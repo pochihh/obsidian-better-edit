@@ -42,6 +42,7 @@ import {
 } from './html-schema';
 import { CropModal } from './crop-modal';
 import { orderImageDragChanges } from './drag-changes';
+import { isImageFile } from './file-types';
 import { notePotentialNativeImageDrop, saveImageToVault } from './paste-handler';
 import {
 	imageSelectionField,
@@ -883,7 +884,7 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 	uploadPane.createDiv({ cls: 'be-replace-upload-desc', text: 'Drag an image here, or click below to browse.' });
 	const uploadArea = createDiv({ cls: 'be-replace-upload-area' });
 	const uploadBtn  = createDiv({ cls: 'be-replace-upload-btn', text: 'Upload file' });
-	const fileInput  = createEl('input', { attr: { type: 'file', accept: 'image/*', style: 'display:none' } });
+	const fileInput  = createEl('input', { attr: { type: 'file', accept: 'image/*,.webp', style: 'display:none' } });
 	uploadArea.append(uploadBtn, fileInput);
 	uploadPane.appendChild(uploadArea);
 
@@ -942,7 +943,7 @@ function openReplacePanel(anchorEl: HTMLElement, opts: ReplacePanelOptions): voi
 		ev.preventDefault();
 		dragCount = 0;
 		panel.removeClass('is-over');
-		const file = Array.from(ev.dataTransfer?.files ?? []).find(f => f.type.startsWith('image/'));
+		const file = Array.from(ev.dataTransfer?.files ?? []).find(isImageFile);
 		if (file) pickFile(file);
 	});
 

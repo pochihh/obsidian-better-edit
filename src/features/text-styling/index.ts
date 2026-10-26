@@ -521,9 +521,10 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				tabs.append(pageTab, urlTab);
 
 				const pagePane = createDiv({ cls: 'be-replace-pane' });
-				pagePane.createDiv({
+				const pageDescriptionText = 'Search notes in the vault. Press Enter to create a new link if no matching note is found.';
+				const pageDescription = pagePane.createDiv({
 					cls: 'be-replace-upload-desc',
-					text: 'Search notes in the vault. Press Enter to create a new link if no matching note is found.',
+					text: pageDescriptionText,
 				});
 				const pageInput = createEl('input', {
 					cls: 'be-replace-link-input',
@@ -560,12 +561,18 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				popover.append(tabs, pagePane, urlPane);
 
 				let mode: 'page' | 'url' = 'page';
+				let emptyPageLinkPending = false;
+				const resetEmptyPageLink = (): void => {
+					emptyPageLinkPending = false;
+					pageDescription.setText(pageDescriptionText);
+				};
 				const pageItems = this.getPageItems(plugin);
 				let pageSuggestions = this.filterPageSuggestions(pageItems, '');
 				let selectedPageIndex = pageSuggestions.length > 0 ? 0 : -1;
 				let lastMouseX = -1;
 				let lastMouseY = -1;
 				const setMode = (nextMode: 'page' | 'url'): void => {
+					resetEmptyPageLink();
 					mode = nextMode;
 					pageTab.toggleClass('is-active', mode === 'page');
 					urlTab.toggleClass('is-active', mode === 'url');
@@ -579,6 +586,18 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 
 				const apply = (): void => {
 					const target = (mode === 'page' ? pageInput.value : urlInput.value).trim();
+					if (mode === 'page' && !target) {
+						if (!emptyPageLinkPending) {
+							emptyPageLinkPending = true;
+							pageDescription.setText('Search notes in the vault. Press ');
+							pageDescription.createSpan({ cls: 'be-text-link-enter', text: 'Enter' });
+							pageDescription.appendText(' one more time to create an empty link.');
+							return;
+						}
+						this.applyPageLink(this.selectedText().trim(), null, plugin);
+						this.closeLinkPopover();
+						return;
+					}
 					if (!target) return;
 					if (mode === 'page') {
 						if (selectedPageIndex >= 0) {
@@ -606,6 +625,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				};
 
 				const selectPageIndex = (index: number, source: 'keyboard' | 'mouse'): void => {
+					resetEmptyPageLink();
 					if (selectedPageIndex === index) return;
 					selectedPageIndex = index;
 					renderSuggestions();
@@ -660,6 +680,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				};
 
 				const updateSuggestions = (): void => {
+					resetEmptyPageLink();
 					pageSuggestions = this.filterPageSuggestions(pageItems, pageInput.value);
 					selectedPageIndex = pageSuggestions.length > 0 ? 0 : -1;
 					renderSuggestions();
@@ -696,6 +717,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				}, { passive: false });
 				pageInput.addEventListener('input', updateSuggestions);
 				pageInput.addEventListener('keydown', event => {
+					if (event.isComposing) return;
 					if (event.key === 'ArrowDown') {
 						event.preventDefault();
 						if (pageSuggestions.length === 0) {
@@ -724,6 +746,7 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					}
 					if (event.key !== 'Enter') return;
 					event.preventDefault();
+					if (event.repeat) return;
 					apply();
 				});
 				urlInput.addEventListener('keydown', event => {
