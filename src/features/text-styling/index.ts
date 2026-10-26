@@ -1,6 +1,6 @@
 import { EditorSelection, Extension } from '@codemirror/state';
 import { EditorView, ViewPlugin, ViewUpdate } from '@codemirror/view';
-import { parseLinktext, TFile } from 'obsidian';
+import { parseLinktext, setIcon, TFile } from 'obsidian';
 import { findLinkAtRange } from './link-context';
 import type BetterEditPlugin from '../../main';
 import { renderTextStylingIcon } from '../../icons';
@@ -522,6 +522,27 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 				const pageTab = createLinkModeTab('Page', '[[Page]]', true);
 				const urlTab = createLinkModeTab('Link', '[text](...)', false);
 				tabs.append(pageTab, urlTab);
+				if (existingLink !== null) {
+					const removeButton = tabs.createEl('button', {
+						cls: 'be-toolbar-btn clickable-icon be-text-link-remove',
+						attr: { type: 'button', 'aria-label': 'Remove link' },
+					});
+					setIcon(removeButton, 'trash-2');
+					plugin.registerDomEvent(removeButton, 'mousedown', event => event.preventDefault());
+					plugin.registerDomEvent(removeButton, 'click', event => {
+						event.preventDefault();
+						const currentRange = this.view.state.selection.main;
+						const link = findLinkAtRange(this.view.state.doc.toString(), currentRange.from, currentRange.to);
+						if (link === null) return;
+						this.view.dispatch({
+							changes: { from: link.from, to: link.to, insert: link.text },
+							selection: EditorSelection.single(link.from, link.from + link.text.length),
+							scrollIntoView: true,
+						});
+						this.closeLinkPopover();
+						this.view.focus();
+					});
+				}
 
 				const pagePane = createDiv({ cls: 'be-replace-pane' });
 				pagePane.createDiv({
@@ -585,7 +606,8 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 					const target = (mode === 'page' ? pageInput.value : urlInput.value).trim();
 					if (mode === 'page') {
 						const suggested = pageSuggestions[selectedPageIndex];
-						this.applyPageLink(suggested?.linktext ?? (target || existingLink?.text.trim() || this.selectedText().trim()), suggested?.path ?? null, plugin);
+						const fallbackText = existingLink?.text ?? this.selectedText();
+						this.applyPageLink(suggested?.linktext ?? (target || fallbackText.trim()), suggested?.path ?? null, plugin);
 					} else {
 						this.applyExternalLink(target);
 					}
@@ -741,6 +763,9 @@ export function createTextStylingExtension(plugin: BetterEditPlugin): Extension 
 
 				this.documentEl.body.appendChild(popover);
 				this.linkPopoverEl = popover;
+				if (existingLink !== null) {
+					this.view.dispatch({ selection: EditorSelection.single(existingLink.from, existingLink.to) });
+				}
 				setMode(existingLink?.mode ?? 'page');
 				if (existingLink !== null) {
 					if (existingLink.mode === 'page') pageInput.value = existingLink.target;

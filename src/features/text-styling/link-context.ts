@@ -11,10 +11,11 @@ export interface LinkContext {
 export function findLinkAtRange(source: string, from: number, to: number): LinkContext | null {
 	// shortcut: inline links only; add reference-link resolution when that format is supported by the toolbar.
 	const openings = /`+|!?\[/g;
+	let found: LinkContext | null = null;
 	let match: RegExpExecArray | null;
 	while ((match = openings.exec(source)) !== null) {
 		const start = match.index;
-		if (start > from) break;
+		if (start > to || (from !== to && start === to)) break;
 		let backslashes = 0;
 		for (let index = start - 1; source[index] === '\\'; index -= 1) backslashes += 1;
 		if (backslashes % 2 === 1) continue;
@@ -50,9 +51,15 @@ export function findLinkAtRange(source: string, from: number, to: number): LinkC
 			};
 		}
 		openings.lastIndex = link.to;
-		if (!embedded && from >= link.from && to <= link.to && (from !== to || from < link.to)) return link;
+		const overlaps = from === to
+			? from >= link.from && from < link.to
+			: from < link.to && to > link.from;
+		if (!embedded && overlaps) {
+			if (found !== null) return null;
+			found = link;
+		}
 	}
-	return null;
+	return found;
 }
 
 function closingDelimiter(source: string, start: number, open: string, close: string): number {

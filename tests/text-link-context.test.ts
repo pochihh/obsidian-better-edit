@@ -30,6 +30,20 @@ void test('Markdown links keep nested URL parentheses, formatted labels, and opt
 	assert.equal(findLinkAtRange('[New idea](a\\(b\\))', 1, 9)?.target, 'a\\(b\\)');
 });
 
+void test('partial syntax and selections crossing one link boundary identify the whole link', () => {
+	for (const markup of ['[[dummy]]', '[[Target|Label]]', '[Label](https://example.com)', '[[]]']) {
+		const source = `Before ${markup} after`;
+		for (const [from, to] of [[7, 8], [8, 9], [5, 9], [8, 7 + markup.length + 2]] as const) {
+			const link = findLinkAtRange(source, from, to);
+			assert.ok(link, markup);
+			assert.equal(link.from, 7);
+			assert.equal(link.to, 7 + markup.length);
+			const text = markup === '[[dummy]]' ? 'dummy' : markup === '[[]]' ? '' : 'Label';
+			assert.equal(source.slice(0, link.from) + link.text + source.slice(link.to), `Before ${text} after`);
+		}
+	}
+});
+
 void test('plain text, images, code, incomplete links, and selections spanning links are not edited as one link', () => {
 	for (const source of ['New idea', '![[New idea]]', '![New idea](image.webp)', '`[[New idea]]`', '\\[[New idea]]', '[New idea](missing', '[[New idea]', '[New idea][ref]']) {
 		const from = source.indexOf('New idea');
