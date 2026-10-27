@@ -19,6 +19,7 @@ export default tseslint.config(
 						'tests/block-table-spacing.test.ts',
 						'tests/image-drag-changes.test.ts',
 						'tests/image-html-schema.test.ts',
+						'tests/settings-search.test.ts',
 						'tests/text-link-context.test.ts'
 					]
 				},

@@ -1257,7 +1257,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 					const range = this.editorDocument().createRange();
 					range.selectNodeContents(node);
 					const rect = range.getBoundingClientRect();
-					range.detach();
 					return rect.height > 0 ? rect : null;
 				}
 				node = walker.nextNode();
@@ -1276,7 +1275,6 @@ export function createBlocksExtension(plugin: BetterEditPlugin): Extension {
 					const range = this.editorDocument().createRange();
 					range.selectNodeContents(node);
 					const rects = Array.from(range.getClientRects());
-					range.detach();
 					for (const rect of rects) {
 						if (rect.height <= 0 || rect.width <= 0) continue;
 						if (bestRect === null || rect.top < bestRect.top || (rect.top === bestRect.top && rect.left < bestRect.left)) {

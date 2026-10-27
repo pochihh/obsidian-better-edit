@@ -30,12 +30,18 @@
 		"esbuild": "0.25.5",
 		"eslint-plugin-obsidianmd": "0.2.9",
 		"globals": "14.0.0",
+		"jiti": "2.6.1",
+		"obsidian": "1.13.1",
 		"tslib": "2.4.0",
 		"typescript": "^5.8.3",
 		"typescript-eslint": "8.59.2"
 	},
 	"dependencies": {
-		"emojilib": "^4.0.3",
-		"obsidian": "latest"
+		"emojilib": "^4.0.3"
+	},
+	"overrides": {
+		"obsidian": {
+			"moment": "2.31.0"
+		}
 	}
 }

@@ -68,6 +68,10 @@
 }
 
 /* ── Slash command settings ───────────────────────────────────────────────*/
+.be-command-settings-list {
+	display: block;
+}
+
 .be-command-settings-note {
 	padding: 10px 16px;
 	color: var(--text-muted);

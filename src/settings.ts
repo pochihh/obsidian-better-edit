@@ -1,4 +1,4 @@
-import { App, Command, getIconIds, Modal, Platform, PluginSettingTab, Setting, setIcon } from 'obsidian';
+import { App, Command, getIconIds, Modal, Platform, PluginSettingTab, Setting, SettingDefinitionGroup, SettingDefinitionRender, SettingGroup, requireApiVersion, setIcon } from 'obsidian';
 import { ImageSettings, IMAGE_DEFAULT_SETTINGS } from './features/image/settings';
 import { BlocksSettings, BLOCKS_DEFAULT_SETTINGS } from './features/blocks/settings';
 import {
@@ -41,148 +41,183 @@ export class BetterEditSettingTab extends PluginSettingTab {
 		this.renderSettings();
 	}
 
+	getSettingDefinitions(): SettingDefinitionGroup[] {
+		return [
+			this.imageDefinitions(),
+			this.blocksDefinitions(),
+			this.slashCommandDefinitions(),
+			this.textStylingDefinitions(),
+			this.symbolPickerDefinitions(),
+		];
+	}
+
+	private refreshSettings(): void {
+		if (requireApiVersion('1.13.0')) this.update();
+		else this.renderSettings();
+	}
+
+	// Obsidian < 1.13 uses the same definitions through the imperative fallback.
 	private renderSettings(): void {
 		const { containerEl } = this;
 		containerEl.empty();
 		containerEl.addClass('be-settings-root');
-
-		const headerEl = containerEl.createDiv({ cls: 'be-settings-help' });
-		headerEl.createDiv({ cls: 'be-settings-help-title', text: 'Better Edit' });
-		headerEl.createEl('p', {
-			cls: 'be-settings-help-description',
-			text: 'A focused editing toolbox for images, blocks, slash commands, text styling, symbols, and emoji.',
-		});
-
-		this.renderImageSection(containerEl);
-		containerEl.createEl('hr', { cls: 'be-settings-divider' });
-		this.renderBlocksSection(containerEl);
-		containerEl.createEl('hr', { cls: 'be-settings-divider' });
-		this.renderSlashCommandSection(containerEl);
-		containerEl.createEl('hr', { cls: 'be-settings-divider' });
-		this.renderTextStylingSection(containerEl);
-		containerEl.createEl('hr', { cls: 'be-settings-divider' });
-		this.renderSymbolPickerSection(containerEl);
+		for (const definition of this.getSettingDefinitions()) {
+			const group = new SettingGroup(containerEl);
+			for (const item of definition.items ?? []) {
+				if ('render' in item && item.render) {
+					group.addSetting(setting => {
+						setting.setName(item.name).setDesc(item.desc ?? '');
+						item.render?.(setting, group);
+					});
+				}
+			}
+		}
 	}
 
-	// ---------------------------------------------------------------------------
-	// Section builder
-	// ---------------------------------------------------------------------------
-
-	private featureSection(
-		containerEl: HTMLElement,
+	private featureDefinitions(
 		name: string,
 		desc: string,
 		getEnabled: () => boolean,
 		setEnabled: (v: boolean) => Promise<void>,
-		buildBody: ((el: HTMLElement) => void) | null,
-	): void {
-		new Setting(containerEl)
-			.setName(name)
-			.setDesc(desc)
-			.setClass('be-settings-feature-header')
-			.addToggle(toggle => toggle
-				.setValue(getEnabled())
-				.onChange(async (value) => {
-					await setEnabled(value);
-					if (bodyEl) bodyEl.toggleClass('is-disabled', !value);
-				}));
-
-		if (!buildBody) return;
-
-		const bodyEl = containerEl.createDiv({ cls: 'be-settings-feature-body' });
-		if (!getEnabled()) bodyEl.addClass('is-disabled');
-		buildBody(bodyEl);
+		body: SettingDefinitionRender[],
+	): SettingDefinitionGroup {
+		return {
+			type: 'group',
+			cls: 'be-settings-root',
+			items: [
+				{
+					name,
+					desc,
+					render: setting => {
+						setting.setClass('be-settings-feature-header').addToggle(toggle => toggle
+							.setValue(getEnabled())
+							.onChange(async value => {
+								await setEnabled(value);
+								this.refreshSettings();
+							}));
+					},
+				},
+				...body.map(item => ({
+					...item,
+					render: (setting: Setting, group: SettingGroup) => {
+						item.render(setting, group);
+						setting.settingEl.toggle(getEnabled());
+					},
+				})),
+			],
+		};
 	}
 
 	// ---------------------------------------------------------------------------
 	// Image Arrangement
 	// ---------------------------------------------------------------------------
 
-	private renderImageSection(containerEl: HTMLElement): void {
+	private imageDefinitions(): SettingDefinitionGroup {
 		const s = () => this.plugin.settings.image;
 		const save = () => this.plugin.saveSettings();
 
-		this.featureSection(
-			containerEl,
+		return this.featureDefinitions(
 			'Image Arrangement',
 			'Intercept image paste and drop to insert resizable, croppable HTML image blocks.',
 			() => s().enabled,
 			async (v) => { s().enabled = v; await save(); refreshImageDecorations(this.plugin.app); this.plugin.syncBodyClasses(); },
-			(body) => {
-				new Setting(body)
-					.setName('Image rows')
-					.setDesc('Enable multi-image rows — group images side by side with a shared row toolbar.')
-					.addToggle(toggle => toggle
-						.setValue(s().imageRows)
-						.onChange(async (value) => { s().imageRows = value; await save(); refreshImageDecorations(this.plugin.app); this.plugin.syncBodyClasses(); }));
-
-				new Setting(body)
-					.setName('Handle pasted images')
-					.setDesc('Save pasted image data and insert image blocks.')
-					.addToggle(toggle => toggle
-						.setValue(s().handlePastedImages)
-						.onChange(async (value) => { s().handlePastedImages = value; await save(); }));
-
-				new Setting(body)
-					.setName('Handle dropped images')
-					.setDesc('Handle image drops from the file system or vault as image blocks.')
-					.addToggle(toggle => toggle
-						.setValue(s().handleDroppedImages)
-						.onChange(async (value) => { s().handleDroppedImages = value; await save(); }));
-
-				new Setting(body)
-					.setName('Minimum image width')
-					.setDesc('Smallest allowed image width when resizing (px).')
-					.addText(text => text
-						.setPlaceholder('80')
-						.setValue(String(s().minImageWidthPx))
-						.onChange(async (value) => {
-							const parsed = parseInt(value.trim(), 10);
-							if (Number.isNaN(parsed)) return;
-							s().minImageWidthPx = Math.max(1, parsed);
-							await save();
-						}));
-
-				new Setting(body)
-					.setName('Minimum image height')
-					.setDesc('Smallest allowed image height when resizing (px).')
-					.addText(text => text
-						.setPlaceholder('56')
-						.setValue(String(s().minImageHeightPx))
-						.onChange(async (value) => {
-							const parsed = parseInt(value.trim(), 10);
-							if (Number.isNaN(parsed)) return;
-							s().minImageHeightPx = Math.max(1, parsed);
-							await save();
-						}));
-
-				new Setting(body)
-					.setName('Compact toolbar threshold')
-					.setDesc('Image width (px) below which the toolbar collapses to a single button.')
-					.addText(text => text
-						.setPlaceholder('220')
-						.setValue(String(s().compactToolbarThresholdPx))
-						.onChange(async (value) => {
-							const parsed = parseInt(value.trim(), 10);
-							if (Number.isNaN(parsed)) return;
-							s().compactToolbarThresholdPx = Math.max(1, parsed);
-							await save();
-						}));
-
-				new Setting(body)
-					.setName('Image corner radius')
-					.setDesc('Border-radius on image corners, in pixels. Use 0 for sharp corners. Takes effect on next edit.')
-					.addText(text => text
-						.setPlaceholder('4')
-						.setValue(String(s().imageCornerRadiusPx))
-						.onChange(async (value) => {
-							const parsed = parseInt(value.trim(), 10);
-							if (Number.isNaN(parsed)) return;
-							s().imageCornerRadiusPx = Math.max(0, parsed);
-							await save();
-							refreshImageDecorations(this.plugin.app);
-						}));
-			},
+			[
+				{
+					name: 'Image rows',
+					desc: 'Enable multi-image rows — group images side by side with a shared row toolbar.',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().imageRows)
+								.onChange(async (value) => { s().imageRows = value; await save(); refreshImageDecorations(this.plugin.app); this.plugin.syncBodyClasses(); }));
+					},
+				},
+				{
+					name: 'Handle pasted images',
+					desc: 'Save pasted image data and insert image blocks.',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().handlePastedImages)
+								.onChange(async (value) => { s().handlePastedImages = value; await save(); }));
+					},
+				},
+				{
+					name: 'Handle dropped images',
+					desc: 'Handle image drops from the file system or vault as image blocks.',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().handleDroppedImages)
+								.onChange(async (value) => { s().handleDroppedImages = value; await save(); }));
+					},
+				},
+				{
+					name: 'Minimum image width',
+					desc: 'Smallest allowed image width when resizing (px).',
+					render: setting => {
+						setting
+							.addText(text => text
+								.setPlaceholder('80')
+								.setValue(String(s().minImageWidthPx))
+								.onChange(async (value) => {
+									const parsed = parseInt(value.trim(), 10);
+									if (Number.isNaN(parsed)) return;
+									s().minImageWidthPx = Math.max(1, parsed);
+									await save();
+								}));
+					},
+				},
+				{
+					name: 'Minimum image height',
+					desc: 'Smallest allowed image height when resizing (px).',
+					render: setting => {
+						setting
+							.addText(text => text
+								.setPlaceholder('56')
+								.setValue(String(s().minImageHeightPx))
+								.onChange(async (value) => {
+									const parsed = parseInt(value.trim(), 10);
+									if (Number.isNaN(parsed)) return;
+									s().minImageHeightPx = Math.max(1, parsed);
+									await save();
+								}));
+					},
+				},
+				{
+					name: 'Compact toolbar threshold',
+					desc: 'Image width (px) below which the toolbar collapses to a single button.',
+					render: setting => {
+						setting
+							.addText(text => text
+								.setPlaceholder('220')
+								.setValue(String(s().compactToolbarThresholdPx))
+								.onChange(async (value) => {
+									const parsed = parseInt(value.trim(), 10);
+									if (Number.isNaN(parsed)) return;
+									s().compactToolbarThresholdPx = Math.max(1, parsed);
+									await save();
+								}));
+					},
+				},
+				{
+					name: 'Image corner radius',
+					desc: 'Border-radius on image corners, in pixels. Use 0 for sharp corners. Takes effect on next edit.',
+					render: setting => {
+						setting
+							.addText(text => text
+								.setPlaceholder('4')
+								.setValue(String(s().imageCornerRadiusPx))
+								.onChange(async (value) => {
+									const parsed = parseInt(value.trim(), 10);
+									if (Number.isNaN(parsed)) return;
+									s().imageCornerRadiusPx = Math.max(0, parsed);
+									await save();
+									refreshImageDecorations(this.plugin.app);
+								}));
+					},
+				},
+			],
 		);
 	}
 
@@ -190,38 +225,47 @@ export class BetterEditSettingTab extends PluginSettingTab {
 	// Blocks Drag and Drop
 	// ---------------------------------------------------------------------------
 
-	private renderBlocksSection(containerEl: HTMLElement): void {
+	private blocksDefinitions(): SettingDefinitionGroup {
 		const s = () => this.plugin.settings.blocks;
 		const save = () => this.plugin.saveSettings();
 
-		this.featureSection(
-			containerEl,
+		return this.featureDefinitions(
 			'Blocks Drag and Drop',
 			'Show Notion-style drag handles and block controls in live preview.',
 			() => s().enabled,
 			async (v) => { s().enabled = v; await save(); refreshBlockControls(this.plugin.app); },
-			(body) => {
-				new Setting(body)
-					.setName('Show add button')
-					.setDesc('Show the plus button beside hovered blocks.')
-					.addToggle(toggle => toggle
-						.setValue(s().showAddButton)
-						.onChange(async (value) => { s().showAddButton = value; await save(); }));
-
-				new Setting(body)
-					.setName('Enable list item drag')
-					.setDesc('Allow list items to be treated as movable blocks.')
-					.addToggle(toggle => toggle
-						.setValue(s().enableListItemDrag)
-						.onChange(async (value) => { s().enableListItemDrag = value; await save(); }));
-
-				new Setting(body)
-					.setName('Enable drag for HTML blocks')
-					.setDesc('Allow complete HTML blocks to be treated as movable blocks.')
-					.addToggle(toggle => toggle
-						.setValue(s().enableHtmlBlockDrag)
-						.onChange(async (value) => { s().enableHtmlBlockDrag = value; await save(); }));
-			},
+			[
+				{
+					name: 'Show add button',
+					desc: 'Show the plus button beside hovered blocks.',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().showAddButton)
+								.onChange(async (value) => { s().showAddButton = value; await save(); }));
+					},
+				},
+				{
+					name: 'Enable list item drag',
+					desc: 'Allow list items to be treated as movable blocks.',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().enableListItemDrag)
+								.onChange(async (value) => { s().enableListItemDrag = value; await save(); }));
+					},
+				},
+				{
+					name: 'Enable drag for HTML blocks',
+					desc: 'Allow complete HTML blocks to be treated as movable blocks.',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().enableHtmlBlockDrag)
+								.onChange(async (value) => { s().enableHtmlBlockDrag = value; await save(); }));
+					},
+				},
+			],
 		);
 	}
 
@@ -229,17 +273,26 @@ export class BetterEditSettingTab extends PluginSettingTab {
 	// Slash Commands
 	// ---------------------------------------------------------------------------
 
-	private renderSlashCommandSection(containerEl: HTMLElement): void {
+	private slashCommandDefinitions(): SettingDefinitionGroup {
 		const s = () => this.plugin.settings.slashCommand;
 		const save = () => this.plugin.saveSettings();
 
-		this.featureSection(
-			containerEl,
+		return this.featureDefinitions(
 			'Slash Commands',
 			'Quick-insert blocks and formatting via / commands.',
 			() => s().enabled,
 			async (v) => { s().enabled = v; await save(); },
-			(body) => this.renderSlashCommandList(body),
+			[
+				{
+					name: 'Commands',
+					desc: 'Add, edit, enable, disable, or reorder slash commands.',
+					render: setting => {
+						setting.settingEl.empty();
+						setting.settingEl.addClass('be-command-settings-list');
+						this.renderSlashCommandList(setting.settingEl);
+					},
+				},
+			],
 		);
 	}
 
@@ -260,7 +313,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 		this.plugin.registerDomEvent(addButton, 'click', async () => {
 			this.plugin.settings.slashCommand.commands.push(createCustomSlashCommand());
 			await this.plugin.saveSettings();
-			this.renderSettings();
+			this.refreshSettings();
 		});
 	}
 
@@ -352,7 +405,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			event.dataTransfer?.setDragImage(rowEl, 12, 12);
 		});
 		this.plugin.registerDomEvent(editButton, 'click', () => {
-			new SlashCommandEditModal(this.app, this.plugin, command, () => this.renderSettings()).open();
+			new SlashCommandEditModal(this.app, this.plugin, command, () => this.refreshSettings()).open();
 		});
 		this.plugin.registerDomEvent(toggleButton, 'click', async () => {
 			await this.moveSlashCommand(command.id, !enabled, this.commandsInSection(!enabled).length);
@@ -363,7 +416,7 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			this.plugin.registerDomEvent(deleteButton, 'click', async () => {
 				this.plugin.settings.slashCommand.commands = this.plugin.settings.slashCommand.commands.filter(item => item.id !== command.id);
 				await this.plugin.saveSettings();
-				this.renderSettings();
+				this.refreshSettings();
 			});
 		}
 	}
@@ -389,29 +442,29 @@ export class BetterEditSettingTab extends PluginSettingTab {
 			? [...targetSection, ...nextDisabled]
 			: [...nextEnabled, ...targetSection];
 		await this.plugin.saveSettings();
-		this.renderSettings();
+		this.refreshSettings();
 	}
 
 	// ---------------------------------------------------------------------------
 	// Text Styling
 	// ---------------------------------------------------------------------------
 
-	private renderTextStylingSection(containerEl: HTMLElement): void {
+	private textStylingDefinitions(): SettingDefinitionGroup {
 		const s = () => this.plugin.settings.textStyling;
 		const save = () => this.plugin.saveSettings();
 
-		this.featureSection(
-			containerEl,
+		return this.featureDefinitions(
 			'Text Styling',
 			'Rich inline formatting shortcuts and text style controls.',
 			() => s().enabled,
 			async (v) => { s().enabled = v; await save(); },
-			(body) => {
-				body.createDiv({
-					cls: 'be-command-settings-note',
-					text: 'Show a floating formatting toolbar for Live Preview text selections.',
-				});
-			},
+			[
+				{
+					name: 'Selection toolbar',
+					desc: 'Show a floating formatting toolbar for Live Preview text selections.',
+					render: () => {},
+				},
+			],
 		);
 	}
 
@@ -419,89 +472,98 @@ export class BetterEditSettingTab extends PluginSettingTab {
 	// Symbol & Emoji Picker
 	// ---------------------------------------------------------------------------
 
-	private renderSymbolPickerSection(containerEl: HTMLElement): void {
+	private symbolPickerDefinitions(): SettingDefinitionGroup {
 		const s = () => this.plugin.settings.symbolPicker;
 		const save = () => this.plugin.saveSettings();
 
-		this.featureSection(
-			containerEl,
+		return this.featureDefinitions(
 			'Symbol & Emoji Picker',
 			'Insert math symbols, Greek letters, arrows, and emoji at the cursor.',
 			() => s().enabled,
 			async (v) => { s().enabled = v; await save(); },
-			(body) => {
-				new Setting(body)
-					.setName('Right-click menu')
-					.setDesc('Add "insert symbol or emoji" to the editor context menu.')
-					.addToggle(toggle => toggle
-						.setValue(s().contextMenuEnabled)
-						.onChange(async (v) => { s().contextMenuEnabled = v; await save(); }));
+			[
+				{
+					name: 'Right-click menu',
+					desc: 'Add "insert symbol or emoji" to the editor context menu.',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().contextMenuEnabled)
+								.onChange(async (v) => { s().contextMenuEnabled = v; await save(); }));
+					},
+				},
+				{
+					name: 'Keyboard shortcut',
+					desc: 'Plugin-managed shortcut. Click the badge to record a new key combination.',
+					render: shortcutSetting => {
+						shortcutSetting
+							.setClass('be-symbol-shortcut-setting');
 
-				const shortcutSetting = new Setting(body)
-					.setName('Keyboard shortcut')
-					.setDesc('Plugin-managed shortcut. Click the badge to record a new key combination.')
-					.setClass('be-symbol-shortcut-setting');
-
-				// Badge inserted first so it appears left of the reset button
-				const shortcutBadge = shortcutSetting.controlEl.createEl('button', {
-					cls: 'be-shortcut-badge',
-					text: formatShortcut(s().shortcut),
-					attr: { type: 'button', title: 'Click to record a new shortcut' },
-				});
-
-				shortcutSetting
-					.addExtraButton(btn => {
-						btn.setIcon('rotate-ccw').setTooltip('Reset to default');
-						btn.onClick(async () => {
-							s().shortcut = { modKey: true, shiftKey: true, altKey: false, key: '.' };
-							await save();
-							this.renderSettings();
+						// Badge inserted first so it appears left of the reset button
+						const shortcutBadge = shortcutSetting.controlEl.createEl('button', {
+							cls: 'be-shortcut-badge',
+							text: formatShortcut(s().shortcut),
+							attr: { type: 'button', title: 'Click to record a new shortcut' },
 						});
-					})
-					.addToggle(toggle => toggle
-						.setValue(s().shortcutEnabled)
-						.onChange(async (v) => { s().shortcutEnabled = v; await save(); }));
 
-				let recording = false;
-				const stopRecording = (): void => {
-					recording = false;
-					shortcutBadge.removeClass('is-recording');
-				};
+						shortcutSetting
+							.addExtraButton(btn => {
+								btn.setIcon('rotate-ccw').setTooltip('Reset to default');
+								btn.onClick(async () => {
+									s().shortcut = { modKey: true, shiftKey: true, altKey: false, key: '.' };
+									await save();
+									this.refreshSettings();
+								});
+							})
+							.addToggle(toggle => toggle
+								.setValue(s().shortcutEnabled)
+								.onChange(async (v) => { s().shortcutEnabled = v; await save(); }));
 
-				shortcutBadge.addEventListener('click', () => {
-					if (recording) { stopRecording(); shortcutBadge.setText(formatShortcut(s().shortcut)); return; }
-					recording = true;
-					shortcutBadge.addClass('is-recording');
-					shortcutBadge.setText('Press keys…');
-				});
+						let recording = false;
+						const stopRecording = (): void => {
+							recording = false;
+							shortcutBadge.removeClass('is-recording');
+						};
 
-				shortcutBadge.addEventListener('keydown', (event: KeyboardEvent) => {
-					if (!recording) return;
-					event.preventDefault();
-					event.stopPropagation();
-					const modifierKeys = new Set(['Control', 'Meta', 'Shift', 'Alt', 'OS']);
-					if (modifierKeys.has(event.key)) return;
-					if (event.key === 'Escape') { stopRecording(); shortcutBadge.setText(formatShortcut(s().shortcut)); return; }
-					const isMac = Platform.isMacOS;
-					const def: ShortcutDef = {
-						modKey: isMac ? event.metaKey : event.ctrlKey,
-						shiftKey: event.shiftKey,
-						altKey: event.altKey,
-						key: event.key,
-					};
-					s().shortcut = def;
-					void save();
-					stopRecording();
-					shortcutBadge.setText(formatShortcut(def));
-				});
+						this.plugin.registerDomEvent(shortcutBadge, 'click', () => {
+							if (recording) { stopRecording(); shortcutBadge.setText(formatShortcut(s().shortcut)); return; }
+							recording = true;
+							shortcutBadge.addClass('is-recording');
+							shortcutBadge.setText('Press keys…');
+						});
 
-				new Setting(body)
-					.setName('Obsidian command')
-					.setDesc('Register "insert symbol or emoji" in the command palette (assignable via Obsidian hotkeys settings).')
-					.addToggle(toggle => toggle
-						.setValue(s().commandEnabled)
-						.onChange(async (v) => { s().commandEnabled = v; await save(); }));
-			},
+						this.plugin.registerDomEvent(shortcutBadge, 'keydown', (event: KeyboardEvent) => {
+							if (!recording) return;
+							event.preventDefault();
+							event.stopPropagation();
+							const modifierKeys = new Set(['Control', 'Meta', 'Shift', 'Alt', 'OS']);
+							if (modifierKeys.has(event.key)) return;
+							if (event.key === 'Escape') { stopRecording(); shortcutBadge.setText(formatShortcut(s().shortcut)); return; }
+							const isMac = Platform.isMacOS;
+							const def: ShortcutDef = {
+								modKey: isMac ? event.metaKey : event.ctrlKey,
+								shiftKey: event.shiftKey,
+								altKey: event.altKey,
+								key: event.key,
+							};
+							s().shortcut = def;
+							void save();
+							stopRecording();
+							shortcutBadge.setText(formatShortcut(def));
+						});
+					},
+				},
+				{
+					name: 'Obsidian command',
+					desc: 'Register "insert symbol or emoji" in the command palette (assignable via Obsidian hotkeys settings).',
+					render: setting => {
+						setting
+							.addToggle(toggle => toggle
+								.setValue(s().commandEnabled)
+								.onChange(async (v) => { s().commandEnabled = v; await save(); }));
+					},
+				},
+			],
 		);
 	}
 }

@@ -97,7 +97,8 @@ into the official Obsidian directory.
 ## Compatibility
 
 - Obsidian Live Preview is the primary editing target.
-- `manifest.json` currently declares `minAppVersion: 1.5.7`.
+- `manifest.json` currently declares `minAppVersion: 1.12.3`.
+- Settings support Obsidian's settings search on 1.13.0 and later.
 - Desktop support is expected.
 - Mobile support is not fully verified yet even though the manifest is not
   desktop-only; this should be treated as provisional until tested.
@@ -110,6 +111,11 @@ into the official Obsidian directory.
 - No paid feature gating
 - No network access required for core features
 - Edits local note content in the current vault only
+- The page link picker lists Markdown note names and paths in the current vault
+  to offer link suggestions when you open it. It does not read note contents.
+- Copy HTML actions write the selected image block or image row to the system
+  clipboard. Image paste handling reads only the paste event you initiate;
+  the plugin does not read the system clipboard in the background.
 
 ## Known limitations
 
